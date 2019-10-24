@@ -12,4 +12,4 @@ Various attacks can be crafted and measured. A few notable ones are as follows:
 - Balance attack
 - Uncle block attack
 
-The simulator is hosted at http://simewu.com/Bitcoin-Simulator/
+The simulator is hosted at http://simewu.com/bitcoin-simulator/.
