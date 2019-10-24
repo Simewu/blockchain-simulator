@@ -1,4 +1,4 @@
-# Bitcoin-Simulator
+# Bitcoin Simulator
 
 Bitcoin Simulator is a tool used to simulate the behavior of Bitcoin from within the browser.
 
