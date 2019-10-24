@@ -2,7 +2,7 @@
 
 Bitcoin Simulator is a tool used to simulate the behavior of Bitcoin from within the browser.
 
-This tool can generate network topologies, tweak each node, then simulate how these topologies affect the distributed consensus of the system as a whole.
+This tool can generate network topologies, mimic the behavior of real nodes, simulate how these layouts affect the distributed consensus of the system as a whole, and measure the outcomes.
 
 Various attacks can be crafted and measured. A few notable ones are as follows:
 - 51% attack
