@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-		<meta name="description" content="A Bitcoin simulation">
+		<meta name="description" content="A blockchain proof-of-work simulation tool.">
 		<meta name="author" content="Simeon">
 		<link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
 		<link rel="icon" href="img/favicon.ico" type="image/x-icon">
@@ -12,7 +12,7 @@
 		<script src="jsoneditor.min.js"></script>
 		<script type="text/javascript" src="vis.min.js"></script>
 		<link href="vis-network.min.css" rel="stylesheet" type="text/css"/>
-		<title>Mining Simulator</title>
+		<title>Blockchain Simulator</title>
 		<style>
 			.container {
 				max-width: 960px;
@@ -56,7 +56,7 @@
 <body class="bg-dark py-3">
 	<div class="container bg-light rounded pb-3">
 		<div class="py-2 text-center">
-			<h1 class="display-4 d-inline">Bitcoin Simulator</h1> <span class="badge badge-primary">V2</span> <span class="badge badge-secondary"><a class="text-white" href="index_v1.html">V1 can be found here</a></span>
+			<h1 class="display-4 d-inline">Blockchain Simulator</h1> <span class="badge badge-primary">V2</span> <span class="badge badge-secondary"><a class="text-white" href="index_v1.html">V1 can be found here</a></span>
 		</div>
 		<div class="jumbotron p-3 mb-3">
 			<div class="row">
@@ -74,6 +74,8 @@
 								<a class="dropdown-item" onclick="DOM_sortMiners()">Sort miners</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal">Generate a topology</a>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network data in miners</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_globalSetPower()">Globally set power</a>
 								<a class="dropdown-item" onclick="DOM_globalSetLatency()">Globally set latency</a>
@@ -299,6 +301,24 @@
 </body>
 <script type="text/javascript">
 
+	let updateToolOptions = {
+		timeout: null,
+		minerStatsTable_active: true,
+		vis_network: null,
+		vis_simulation_active: true,
+		vis_timeout: null,
+		vis_node_ids: [],
+		sampler_DOM_active: true,
+		sampler_running: false,
+		sampler_codeBetweenSamples: "",
+		sampler_codeBeforeSampling: "",
+		samplerData: [],
+		samplerLog: [],
+		sampleStartTime: 0,
+		sampleEndTime: 0,
+		logNetworkData: false // When a block is received, keep track of number of networking data, such as the number of hops
+	}
+
 	// Network class
 	class Network {
 		constructor() {
@@ -348,18 +368,26 @@
 		constructor() {
 			this.solver = 0;
 			this.height = 0;
+			this.timestamp = 0; // Time block was solved in seconds
 			this.hash = 0;
 			this.prevHash = 0;
 			this.balances = [];
+			if(updateToolOptions.logNetworkData) {
+				this.numHops = 0;
+			}
 		}
 
 		clone() {
 			let newHeader = new Header();
 			newHeader.solver = this.solver;
 			newHeader.height = this.height;
+			newHeader.timestamp = this.timestamp;
 			newHeader.hash = this.hash;
 			newHeader.prevHash = this.prevHash;
 			newHeader.balances = Object.assign({}, this.balances);
+			if(updateToolOptions.logNetworkData) {
+				newHeader.numHops = this.numHops;
+			}
 			return newHeader;
 		}
 	}
@@ -404,6 +432,13 @@
 		}
 
 		setBlock(height, block) {
+			if(updateToolOptions.logNetworkData) { // Keep track of networking data
+				// If there is a fork, it will always stay up to date by replacing the old stale block data
+				if(this.blockchain_numHops === undefined) this.blockchain_numHops = [];
+				if(this.blockchain_blockDelay === undefined) this.blockchain_blockDelay = [];
+				this.blockchain_numHops[height] = block.numHops;
+				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
+			}
 			this.blockchain[height - this.blockchainOffset] = block;
 		}
 
@@ -442,6 +477,7 @@
 			this.currentHeader.hash = Math.random();
 			if(this.currentHeader.hash <= network.difficulty) {
 				//console.log(this.name + " found a block!");
+				this.currentHeader.timestamp = Date.now() / 1000;
 				this.totalBlocksFound++;
 				this.submit(this.currentHeader);
 				this.setBlock(this.currentHeader.height, this.currentHeader);
@@ -465,7 +501,7 @@
 			updateTools();
 		}
 
-		newHeader(prevHeader) { //*******prevHash
+		newHeader(prevHeader) { //* Consider sending prevHash instead
 			const header = new Header();
 			header.solver = this.ID;
 			header.height = prevHeader.height + 1;
@@ -480,7 +516,13 @@
 			return header;
 		}
 
+		// Broadcast a header to all peers
 		submit(header) {
+			if(updateToolOptions.logNetworkData) {
+				// Keep track of number of hops
+				if(header.numHops === undefined) header.numHops = 1;
+				else header.numHops++;
+			}
 			for(let id in this.outgoingPeers) {
 				setTimeout(function(header){
 					network.peers[id].receive(header);
@@ -488,6 +530,7 @@
 			}
 		}
 
+		// Called when a header is received
 		receive(newHeader) {
 			if(newHeader.height >= this.blockchain.length + this.blockchainOffset) {
 				// If at any point in receiving a block, there is an undefined header, this allows us to undo to the previous working header
@@ -533,22 +576,6 @@
 	}
 
 	let network = new Network();
-	let updateToolOptions = {
-		timeout: null,
-		minerStatsTable_active: true,
-		vis_network: null,
-		vis_simulation_active: true,
-		vis_timeout: null,
-		vis_node_ids: [],
-		sampler_DOM_active: true,
-		sampler_running: false,
-		sampler_codeBetweenSamples: "",
-		sampler_codeBeforeSampling: "",
-		samplerData: [],
-		samplerLog: [],
-		sampleStartTime: 0,
-		sampleEndTime: 0
-	}
 
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
@@ -683,17 +710,9 @@
 		vis_toggleTopologyVisualizer();
 	});
 
-	function saveLocalStorage() {
-
-	}
-
-	function loadLocalStorage() {
-
-	}
-
-	function clearLocalStorage() {
-
-	}
+	function saveLocalStorage() {} // Future work
+	function loadLocalStorage() {}
+	function clearLocalStorage() {}
 
 	// Called when a node is created or deleted
 	function updateTools() {
@@ -889,6 +908,22 @@
 		$("#minerList").empty().append(options);
 	}
 
+	function DOM_toggleLoggingNetworkData() {
+		if(updateToolOptions.logNetworkData) {
+			updateToolOptions.logNetworkData = false;
+			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network data in miners");
+			if(network) for(peerID in network.peers) { // Cleanup any artifacts
+				delete network.peers[peerID]['blockchain_numHops'];
+				delete network.peers[peerID]['blockchain_blockDelay'];
+			}
+		} else {
+			updateToolOptions.logNetworkData = true;
+			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network data in miners");
+		}
+		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#editMinerBadge").text((updateToolOptions.logNetworkData ? "ENABLED" : "DISABLED") + " NETWORK LOG");
+	}
+
 	// Refresh the full network data viewer
 	function regenerateNetworkJSON() {
 		networkjsoneditor.set(network);
@@ -899,24 +934,24 @@
 		network.stopAllMiners();
 		const miner = jsoneditor.get();
 		if(miner === undefined) {
-			$("#editMinerBadge").attr('class', 'ml-auto badge badge-danger');
+			$("#editMinerBadge").attr("class", "ml-auto badge badge-danger");
 			$("#editMinerBadge").text("NO DATA");
 		} else if(miner.ID === undefined) {
-			$("#editMinerBadge").attr('class', 'ml-auto badge badge-danger');
+			$("#editMinerBadge").attr("class", "ml-auto badge badge-danger");
 			$("#editMinerBadge").text("MINER NOT FOUND");
 		} else if(network.peers[miner.ID] === undefined) {
-			$("#editMinerBadge").attr('class', 'ml-auto badge badge-warning');
+			$("#editMinerBadge").attr("class", "ml-auto badge badge-warning");
 			$("#editMinerBadge").text("ID NOT FOUND");
 		} else if(typeof miner.power != "number" || typeof miner.latency != "number") {
 			// !!!!!!!!!!!! type checking
-			$("#editMinerBadge").attr('class', 'ml-auto badge badge-danger');
+			$("#editMinerBadge").attr("class", "ml-auto badge badge-danger");
 			$("#editMinerBadge").text("MUST BE A NUMBER");
 		} else {
 			// Merge the changes into the peer, excluding the current header
 			miner.currentHeader = network.peers[miner.ID].currentHeader;
 			Object.assign(network.peers[miner.ID], miner);
 			$("#minerList  option[value='" + miner.ID + "']").text(miner.name);
-			$("#editMinerBadge").attr('class', 'ml-auto badge badge-primary');
+			$("#editMinerBadge").attr("class", "ml-auto badge badge-primary");
 			$("#editMinerBadge").text("SUCCESSFULLY SAVED");
 		}
 	}
@@ -924,20 +959,20 @@
 	function DOM_editNetwork() {
 		/*const newNetwork = networkjsoneditor.get();
 		if(newNetwork === undefined) {
-			$("#editNetworkBadge").attr('class', 'ml-auto badge badge-danger');
+			$("#editNetworkBadge").attr("class", "ml-auto badge badge-danger");
 			$("#editNetworkBadge").text("ERROR");
 		} else {
 			// Merge the changes into the peer, excluding the current header
 			Object.assign(network, newNetwork);
-			$("#editNetworkBadge").attr('class', 'ml-auto badge badge-primary');
+			$("#editNetworkBadge").attr("class", "ml-auto badge badge-primary");
 			$("#editNetworkBadge").text("SUCCESSFULLY SAVED");
 		}*/
-		$("#editNetworkBadge").attr('class', 'ml-auto badge badge-warning');
+		$("#editNetworkBadge").attr("class", "ml-auto badge badge-warning");
 		$("#editNetworkBadge").text("NOT SAVED");
 	}
 
 	function DOM_selectTopology(topology) {
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("");
 		$("#topologyTitle").text(topology + " Topology");
 		let options = {};
@@ -1034,7 +1069,19 @@
 
 	function DOM_generateTopology() {
 		try {
-			generateTopology(topologyjsoneditor.get());
+			// Do an extra check to disable the network visualizer if it may be too computationally taxing
+			let json = topologyjsoneditor.get();
+			if(json["Number of peers"] !== undefined) {
+				numPeers = parseInt(json["Number of peers"]) || 0;
+				if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
+					let disableNetworkVisualizer  = confirm(`You are generating ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
+					if(disableNetworkVisualizer) {
+						vis_toggleTopologyVisualizer();
+					}
+				}
+			}
+
+			generateTopology(json);
 			$("#minerList option:first").prop("selected", true);
 			$("#minerList option:first").change();
 			updateTools();
@@ -1045,7 +1092,7 @@
 	}
 
 	function generateTopology(options) {
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("");
 		DOM_removeAllMiners();
 		let miners, chosenNames, bidirectional, nPeers, minPower, maxPower, minLatency, maxLatency, names, minNumConnections, maxNumConnections, structure;
@@ -1283,11 +1330,11 @@
 				}
 				break;
 			default:
-				$("#addMinerBadge").attr('class', 'badge badge-danger');
+				$("#addMinerBadge").attr("class", "badge badge-danger");
 				$("#addMinerBadge").text("UNEXPECTED TOPOLOGY");
 		}
 		DOM_selectedMiner();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1302,7 +1349,7 @@
 		const e = $("#minerList option:selected");
 		const miner = network.peers[e.val()];
 		if(miner === undefined) {
-			$("#addMinerBadge").attr('class', 'badge badge-warning');
+			$("#addMinerBadge").attr("class", "badge badge-warning");
 			$("#addMinerBadge").text("NO MINER SELECTED");
 		} else {
 			if(network.miningThreads[miner.ID] !== undefined) {
@@ -1318,11 +1365,11 @@
 		if($("#toggleMiningBtn").text() == "Start All Miners") {
 			$("#toggleMiningBtn").text("Stop All Miners");
 			network.startAllMiners();
-			$("#toggleMiningBtn").attr('class', 'btn btn-warning rounded-0 border border-top-0 border-dark');
+			$("#toggleMiningBtn").attr("class", "btn btn-warning rounded-0 border border-top-0 border-dark");
 		} else {
 			$("#toggleMiningBtn").text("Start All Miners");
 			network.stopAllMiners();
-			$("#toggleMiningBtn").attr('class', 'btn btn-dark rounded-0');
+			$("#toggleMiningBtn").attr("class", "btn btn-dark rounded-0");
 		}
 	}
 
