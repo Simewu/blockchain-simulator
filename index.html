@@ -66,6 +66,7 @@
 							<button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="$('#addMinerBadge').text('')" style="width: 100%">
 								<span class="sr-only">Toggle Dropdown</span>
 								<span id="addMinerBadge" class="badge badge-light"></span>
+								Options
 							</button>
 							<div class="dropdown-menu">
 								<a class="dropdown-item" data-toggle="modal" data-target="#addMinerModal" onclick="addMinerBtnClicked()">Add/Edit miner</a>
@@ -73,7 +74,7 @@
 								<a class="dropdown-item" onclick="if(confirm('You\'re about to remove all miners.')) DOM_removeAllMiners()">Clear all miners</a>
 								<a class="dropdown-item" onclick="DOM_sortMiners()">Sort miners</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal">Generate a topology</a>
+								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal"><b>Generate a topology</b></a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network<br>data within each miner</a>
 								<div class="dropdown-divider"></div>
@@ -99,6 +100,7 @@
 							</button>
 							<div class="dropdown-menu">
 								<a id="toggleMinerMiningBtn" class="dropdown-item" onclick="DOM_toggleMining()">Toggle mining for miner</a>
+								<a id="clearMinerBlockchainBtn" class="dropdown-item" onclick="DOM_clearMinerBlockchain()">Clear blockchain for miner</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="if(confirm('You\'re about to clear everyone\'s blockchain data.')) DOM_clearBlockchain()">Clear all blockchains</a>
 								<a class="dropdown-item" onclick="DOM_setNetworkDifficulty()">Set network difficulty</a>
@@ -675,6 +677,20 @@
 		DOM_selectedMiner();
 	}
 
+	// Clear the selected miner's blockchain
+	function DOM_clearMinerBlockchain() {
+		const e = $("#minerList option:selected");
+		const miner = network.peers[e.val()];
+		if(miner === undefined) {
+			$("#addMinerBadge").attr("class", "badge badge-warning");
+			$("#addMinerBadge").text("NO MINER SELECTED");
+		} else {
+			miner.clearBlockchain();
+			$("#addMinerBadge").attr('class', 'badge badge-success');
+			$("#addMinerBadge").text("SUCCESS");
+		}
+	}
+
 	$(document).ready(function() {
 		/*
 		let heightUpdateFunction = function() {
@@ -757,6 +773,7 @@
 		}
 		$("#removeMinerBtn").text("Remove " + miner.name);
 		$("#toggleMinerMiningBtn").text("Toggle mining for " + miner.name);
+		$("#clearMinerBlockchainBtn").text("Clear blockchain for  " + miner.name);
 		jsoneditor.set(miner);
 		$("#editMinerBadge").text("");
 		if(updateToolOptions.vis_simulation_active) try {
