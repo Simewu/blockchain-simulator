@@ -1,6 +1,6 @@
 # Blockchain Simulator
 
-Blockchain Simulator is a tool used to simulate the behavior of Bitcoin from within the browser.
+Blockchain Simulator is a tool used to simulate the behavior of Bitcoin (and other proof-of-work blockchains) from within the browser.
 
 This tool can generate network topologies, mimic the behavior of real nodes, simulate how these layouts affect the distributed consensus of the system as a whole, and measure the outcomes.
 
