@@ -75,7 +75,7 @@
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal">Generate a topology</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network data in miners</a>
+								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network<br>data within each miner</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_globalSetPower()">Globally set power</a>
 								<a class="dropdown-item" onclick="DOM_globalSetLatency()">Globally set latency</a>
@@ -911,14 +911,14 @@
 	function DOM_toggleLoggingNetworkData() {
 		if(updateToolOptions.logNetworkData) {
 			updateToolOptions.logNetworkData = false;
-			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network data in miners");
+			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Cleanup any artifacts
 				delete network.peers[peerID]['blockchain_numHops'];
 				delete network.peers[peerID]['blockchain_blockDelay'];
 			}
 		} else {
 			updateToolOptions.logNetworkData = true;
-			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network data in miners");
+			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network<br>data within each miner");
 		}
 		$("#addMinerBadge").attr('class', 'badge badge-success');
 		$("#editMinerBadge").text((updateToolOptions.logNetworkData ? "ENABLED" : "DISABLED") + " NETWORK LOG");
