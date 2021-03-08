@@ -83,8 +83,10 @@
 								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Connect bidirectionally</a>
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
-								<!--<div class="dropdown-divider"></div>
-								<a class="dropdown-item" onclick="saveLocalStorage()">Manage localStorage</a>-->
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" onclick="saveLocalStorage()">Save to localStorage</a>
+								<a class="dropdown-item" onclick="loadLocalStorage()">Load from localStorage</a>
+								<a class="dropdown-item" onclick="clearLocalStorage()">Clear localStorage</a>
 							</div>
 						</div>
 					</div>
@@ -363,6 +365,39 @@
 			}
 			return null;
 		}
+
+		// Given a network object, return it in its serialized JSON form
+		static serialize(network) {
+			let json = JSON.stringify(network);
+			return json
+		}
+
+		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
+		static deserialize(json) {
+			let newNetworkObj = JSON.parse(json);
+			let network = new Network();
+			network = Object.assign(network, newNetworkObj);
+
+			for(let peer in network.peers) { // Make all miners Miner objects
+				let miner = new Miner("", 0, 0);
+				miner = Object.assign(miner, network.peers[peer]);
+				network.peers[peer] = miner;
+
+				// Make the currentHeader an actual Header object
+				let currentHeader = new Header();
+				currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
+				network.peers[peer].currentHeader = currentHeader;
+
+				// Make the blocks in the blockchain an actual Header object
+				for(let block in network.peers[peer].blockchain) {
+					let header = new Header();
+					header = Object.assign(header, network.peers[peer].blockchain[block]);
+					network.peers[peer].blockchain[block] = header;
+				}
+			}
+			// Note: miner.blockchain headers are not actually Header objects anymore, this can be fixed by
+			return network;
+		}
 	}
 
 	// Block header class
@@ -412,8 +447,8 @@
 			network.peers[this.ID] = this;
 			this.power = power;
 			this.latency = latency;
-			this.incomingPeers = {};
-			this.outgoingPeers = {};
+			this.incomingPeers = [];
+			this.outgoingPeers = [];
 			this.blockchainOffset = 0; // Due to removing old blocks
 			this.blockchain = [network.genesis];
 			this.totalBlocksFound = 0;
@@ -490,8 +525,8 @@
 
 		addPeer(ID) {
 			if(this.ID == ID) return;
-			this.outgoingPeers[ID] = null;
-			network.peers[ID].incomingPeers[this.ID] = null;
+			this.outgoingPeers.push(ID);
+			network.peers[ID].incomingPeers.push(this.ID);
 			updateTools();
 		}
 
@@ -525,7 +560,7 @@
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
 			}
-			for(let id in this.outgoingPeers) {
+			for(let id of this.outgoingPeers) {
 				setTimeout(function(header){
 					network.peers[id].receive(header);
 				}, this.latency, header.clone());
@@ -581,9 +616,10 @@
 
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
-		mode: "form",
-		modes: ["code", "form"],
+		mode: "tree",
+		modes: ["code", "form", "tree"],
 		onChangeText: function (jsonString) {
+			console.log(jsonString)
 			DOM_editMiner();
 		}
 	});
@@ -647,7 +683,7 @@
 	// Make all peer connections bidirectional
 	function bidirectionallyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
-			for(let id2 in network.peers[id1].outgoingPeers) {
+			for(let id2 of network.peers[id1].outgoingPeers) {
 				network.peers[id2].addPeer(id1);
 			}
 		}
@@ -726,9 +762,37 @@
 		vis_toggleTopologyVisualizer();
 	});
 
-	function saveLocalStorage() {} // Future work
-	function loadLocalStorage() {}
-	function clearLocalStorage() {}
+	function saveLocalStorage() {
+		let filename = "NETWORK_FILE_" + (prompt("Enter a file name: ") || "");
+
+		let json = Network.serialize(network);
+		localStorage.setItem(filename, json);
+		alert("Network has been saved.")
+	}
+
+	function loadLocalStorage() {
+		let files = [];
+		for (var key in localStorage) {
+			if(key.startsWith("NETWORK_FILE_")) {
+				files.push(key.substring(13));
+			}
+		}
+		let filename = "NETWORK_FILE_" + prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file:") || "";
+
+		let json = localStorage.getItem(filename);
+		if(json == null) {
+			alert("File could not be found.")
+		} else {
+			network = Network.deserialize(json);
+			updateTools();
+			updateMinerList();
+		}
+	}
+
+	function clearLocalStorage() {
+		alert("LocalStorage has been cleared.")
+		localStorage.clear();
+	}
 
 	// Called when a node is created or deleted
 	function updateTools() {
@@ -747,6 +811,14 @@
 		updateToolOptions.timeout = null;
 	}
 
+	// Update the list of miners
+	function updateMinerList() {
+		$("#minerList").empty();
+		for(let peer in network.peers) {
+			$("#minerList").append("<option value=\"" + peer + "\">" + network.peers[peer].name + "</option>");
+		}
+	}
+
 	function addMinerBtnClicked() {
 		$("#multiselectAddPeers").empty();
 		for(let id in network.ID_Registry) {
@@ -758,7 +830,7 @@
 			$("#addMinerName").val(miner.name);
 			$("#addMinerPower").val(miner.power);
 			$("#addMinerLatency").val(miner.latency);
-			for(let id in miner.outgoingPeers) {
+			for(let id of miner.outgoingPeers) {
 				$("#multiselectAddPeers option[value=" + id + "]").prop("selected", true);
 			}
 			
@@ -854,7 +926,7 @@
 						break;
 					}
 				}
-				for(let id in miner.outgoingPeers) {
+				for(let id of miner.outgoingPeers) {
 					if(miner.ID == id) continue;
 					if(!peers.includes(id)) {
 						noChanges = false;
@@ -869,7 +941,7 @@
 			}
 			miner.power = power;
 			miner.latency = latency;
-			for(let id in miner.outgoingPeers) {
+			for(let id of miner.outgoingPeers) {
 				miner.removePeer(id);
 			}
 			for(let id of peers) {
@@ -971,6 +1043,10 @@
 			$("#editMinerBadge").attr("class", "ml-auto badge badge-primary");
 			$("#editMinerBadge").text("SUCCESSFULLY SAVED");
 		}
+		// Update the diagram
+		//if(updateToolOptions.vis_simulation_active) {
+		//	vis_setupNetworkSimulation();
+		//}
 	}
 
 	function DOM_editNetwork() {
@@ -1448,8 +1524,8 @@
 			sum.power += miner.power;
 			sum.latency += miner.latency;
 			sum.balance += (miner.currentHeader.balances[id] - 1);
-			sum.incomingPeers += Object.keys(miner.incomingPeers).length;
-			sum.outgoingPeers += Object.keys(miner.outgoingPeers).length;
+			sum.incomingPeers += miner.incomingPeers.length;
+			sum.outgoingPeers += miner.outgoingPeers.length;
 			sum.height += (miner.currentHeader.height - 1);
 			sum.totalBlocksFound += miner.totalBlocksFound;
 			sum.staleBlocksFound += miner.staleBlocksFound;
@@ -1475,8 +1551,8 @@
 			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.power / sum.power * 100000) / 1000) + "</th>";
 			html += "<th scope='col'>" + miner.latency + "</th>";
 			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.latency / sum.latency * 100000) / 1000) + "</th>";
-			html += "<th scope='col'>" + Object.keys(miner.incomingPeers).length + "</th>";
-			html += "<th scope='col'>" + Object.keys(miner.outgoingPeers).length + "</th>";
+			html += "<th scope='col'>" + miner.incomingPeers.length + "</th>";
+			html += "<th scope='col'>" + miner.outgoingPeers.length + "</th>";
 			html += "<th scope='col'>" + (miner.currentHeader.height - 1) + "</th>";
 			html += "<th scope='col'>" + miner.totalBlocksFound + "</th>";
 			html += "<th scope='col'>" + miner.staleBlocksFound + "</th>";
@@ -1545,7 +1621,7 @@
 			i++;
 		}
 		for(let id1 in network.ID_Registry) {
-			for(let id2 in network.peers[id1].outgoingPeers) {
+			for(let id2 of network.peers[id1].outgoingPeers) {
 				vis_edges.push({
 					from: updateToolOptions.vis_node_ids[id1],
 					to: updateToolOptions.vis_node_ids[id2]
