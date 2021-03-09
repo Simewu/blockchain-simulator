@@ -85,9 +85,9 @@
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item" onclick="saveLocalStorage()">Save to localStorage</a>
-								<a class="dropdown-item" onclick="loadLocalStorage()">Load from localStorage</a>
-								<a class="dropdown-item" onclick="clearLocalStorage()">Clear localStorage</a>
+								<a class="dropdown-item" onclick="saveLocalStorage()">Save to LocalStorage</a>
+								<a class="dropdown-item" onclick="loadLocalStorage()">Load from LocalStorage</a>
+								<a class="dropdown-item" onclick="clearLocalStorage()">Clear LocalStorage</a>
 							</div>
 						</div>
 					</div>
@@ -766,7 +766,9 @@
 	});
 
 	function saveLocalStorage() {
-		let filename = "NETWORK_FILE_" + (prompt("Enter a file name: ") || "");
+		let filename = prompt("Enter a file name:");
+		if(filename == null) return;
+		filename = "NETWORK_FILE_" + filename;
 
 		let json = Network.serialize(network);
 		localStorage.setItem(filename, json);
@@ -780,7 +782,9 @@
 				files.push(key.substring(13));
 			}
 		}
-		let filename = "NETWORK_FILE_" + prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file:") || "";
+		let filename = prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file name to load:");
+		if(filename == null) return;
+		filename = "NETWORK_FILE_" + filename;
 
 		let json = localStorage.getItem(filename);
 		if(json == null) {
@@ -793,8 +797,10 @@
 	}
 
 	function clearLocalStorage() {
-		alert("LocalStorage has been cleared.")
-		localStorage.clear();
+		if(confirm("Are you sure you would like to clear all the saved networks from your browser?")) {
+			localStorage.clear();
+			alert("LocalStorage has been cleared.")
+		}
 	}
 
 	// Called when a node is created or deleted
