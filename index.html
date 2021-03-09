@@ -958,13 +958,17 @@
 				miner.removePeer(id);
 			}
 			for(let id of peers) {
-				miner.addPeer(id);
+				if(!miner.outgoingPeers.includes(id)) {
+					miner.addPeer(id);
+				}
 			}
 			$("#addMinerBadge").attr('class', 'badge badge-success');
 			$("#addMinerBadge").text("EDITED " + miner.name.toUpperCase());
 		} else {
 			for(let id of peers) {
-				miner.addPeer(id);
+				if(!miner.outgoingPeers.includes(id)) {
+					miner.addPeer(id);
+				}
 			}
 			$("#addMinerBadge").attr('class', 'badge badge-success');
 			$("#addMinerBadge").text("ADDED " + miner.name.toUpperCase());
