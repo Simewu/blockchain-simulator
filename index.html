@@ -315,8 +315,8 @@
 		vis_network: null,
 		vis_simulation_active: true,
 		vis_timeout: null,
-		vis_node_ids: [],
-		vis_line_length: undefined,
+		vis_nodeIDs: [],
+		vis_lineLength: undefined,
 		sampler_DOM_active: true,
 		sampler_running: false,
 		sampler_codeBetweenSamples: "",
@@ -749,6 +749,7 @@
 		generateTopology({
 			"Type": "Mesh",
 			"Bidirectional": true,
+			"Prevent duplicate connections": true,
 			"Number of peers": 8,
 			"Minimum number of connections": 1,
 			"Maximum number of connections": 1,
@@ -860,7 +861,7 @@
 		jsoneditor.set(miner);
 		$("#editMinerBadge").text("");
 		if(updateToolOptions.vis_simulation_active) try {
-			updateToolOptions.vis_network.selectNodes([updateToolOptions.vis_node_ids[miner.ID]]);
+			updateToolOptions.vis_network.selectNodes([updateToolOptions.vis_nodeIDs[miner.ID]]);
 		} catch(e) {}
 	}
 
@@ -1095,16 +1096,18 @@
 				break;
 			case "Mesh":
 				options = {
-					"Type": topology,
-					"Bidirectional": false,
-					"Number of peers": 6,
+					"Type": "Mesh",
+					"Bidirectional": true,
+					"Prevent duplicate connections": true,
+					"Number of peers": 8,
 					"Minimum number of connections": 1,
-					"Maximum number of connections": 4,
+					"Maximum number of connections": 1,
 					"Minimum power": 20,
 					"Maximum power": 20,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+				  	//"Naming cycle": ["Alice", "Andrew", "Bob", "George", "Jack", "Eve", "Frank", "Carl"]
 				};
 				break;
 			case "Star":
@@ -1237,6 +1240,7 @@
 				minNumConnections = options["Minimum number of connections"] || 1;
 				maxNumConnections = options["Maximum number of connections"] || 1;
 				bidirectional = !!options["Bidirectional"];
+				preventDuplicateConnections = !!options["Prevent duplicate connections"];
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
@@ -1273,6 +1277,9 @@
 						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+
+
+						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
 
 						miners[i].addPeer(miners[r].ID);
 						if(bidirectional) miners[r].addPeer(miners[i].ID);
@@ -1623,7 +1630,7 @@
 
 	function vis_clearNetworkSimulation() {
 		let vis_container = document.getElementById("mynetwork");
-		updateToolOptions.vis_node_ids = []
+		updateToolOptions.vis_nodeIDs = []
 		updateToolOptions.vis_network = new vis.Network(vis_container, {}, {});
 		vis_container.innerHTML = "";
 		vis_container.style.height = "0";
@@ -1635,7 +1642,7 @@
 		if(length_s == null) return;
 		let length = parseInt(length_s) || undefined;
 
-		updateToolOptions.vis_line_length = length;
+		updateToolOptions.vis_lineLength = length;
 		vis_setupNetworkSimulation();
 	}
 
@@ -1646,23 +1653,24 @@
 	}
 
 	function _vis_setupNetworkSimulation() {
-		updateToolOptions.vis_node_ids = []
+		updateToolOptions.vis_nodeIDs = []
 		let vis_nodes = [], vis_edges = [], i = 0;
 		for(let id in network.ID_Registry) {
-			updateToolOptions.vis_node_ids[id] = i;
+			updateToolOptions.vis_nodeIDs[id] = i;
 			vis_nodes.push({
-				id: updateToolOptions.vis_node_ids[id],
+				id: updateToolOptions.vis_nodeIDs[id],
 				label: network.peers[id].name,
 				group: i
 			});
 			i++;
 		}
+		const countOccurrences = (arr, val) => arr.reduce((a, v) => (v === val ? a + 1 : a), 0);
 		for(let id1 in network.ID_Registry) {
 			for(let id2 of network.peers[id1].outgoingPeers) {
 				vis_edges.push({
-					from: updateToolOptions.vis_node_ids[id1],
-					to: updateToolOptions.vis_node_ids[id2],
-					length: updateToolOptions.vis_line_length,
+					from: updateToolOptions.vis_nodeIDs[id1],
+					to: updateToolOptions.vis_nodeIDs[id2],
+					length: updateToolOptions.vis_lineLength,
 					// Add dashes to lines that are not bi-directional connections
 					// dashes: network.peers[id2].outgoingPeers.includes(id1) ? false : [10, 10],
 				});
@@ -1697,8 +1705,8 @@
 
 		updateToolOptions.vis_network.on("selectNode", function (params) {
 			let miner, minerID;
-			for(let id in updateToolOptions.vis_node_ids) {
-				if(updateToolOptions.vis_node_ids[id] == params.nodes[0]) {
+			for(let id in updateToolOptions.vis_nodeIDs) {
+				if(updateToolOptions.vis_nodeIDs[id] == params.nodes[0]) {
 					minerID = id;
 				}
 			}
