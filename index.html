@@ -128,8 +128,9 @@
 						<span id="addMinerBadge" class="badge badge-light"></span>
 					</button>
 					<div class="dropdown-menu">
-						<a class="dropdown-item" onclick="vis_setupNetworkSimulation()">Refresh topology visualizer</a>
-						<div class="dropdown-divider"></div>
+						<a class="dropdown-item" id="vis_refresh_btn" onclick="vis_setupNetworkSimulation()">Refresh topology visualizer</a>
+						<a class="dropdown-item" id="vis_line_length_btn" onclick="vis_setLineLengths()">Set line lengths</a>
+						<div class="dropdown-divider" id="vis_btn_delimeter" ></div>
 						<a class="dropdown-item" onclick="DOM_toggleMinerStatsTable()">Toggle miner stats table</a>
 						<a class="dropdown-item" onclick="vis_toggleTopologyVisualizer()">Toggle topology visualizer</a>
 						<a class="dropdown-item" onclick="DOM_toggleSamplerForm()">Toggle sampler</a>
@@ -315,6 +316,7 @@
 		vis_simulation_active: true,
 		vis_timeout: null,
 		vis_node_ids: [],
+		vis_line_length: undefined,
 		sampler_DOM_active: true,
 		sampler_running: false,
 		sampler_codeBetweenSamples: "",
@@ -1261,6 +1263,17 @@
 					let nConnections = rnd(minNumConnections, maxNumConnections);
 					for(let j = 0; j < nConnections; j++) {
 						let r = rnd(0, miners.length - 1);
+						// Attempt to connect to a unique connections at most 10 times
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+
 						miners[i].addPeer(miners[r].ID);
 						if(bidirectional) miners[r].addPeer(miners[i].ID);
 					}
@@ -1593,12 +1606,18 @@
 		if(updateToolOptions.vis_simulation_active) {
 			updateToolOptions.vis_simulation_active = false;
 			vis_clearNetworkSimulation();
+			$("#vis_refresh_btn").hide();
+			$("#vis_line_length_btn").hide();
+			$("#vis_btn_delimeter").hide();
 		} else {
 			updateToolOptions.vis_simulation_active = true;
 			updateToolOptions.vis_timeout = null;
 			vis_container.style.height = "400px";
 			vis_container.style.opacity = "1";
 			vis_setupNetworkSimulation();
+			$("#vis_refresh_btn").show();
+			$("#vis_line_length_btn").show();
+			$("#vis_btn_delimeter").show();
 		}
 	}
 
@@ -1609,6 +1628,15 @@
 		vis_container.innerHTML = "";
 		vis_container.style.height = "0";
 		vis_container.style.opacity = "0";
+	}
+
+	function vis_setLineLengths() {
+		let length_s = prompt('How long should lines be?')
+		if(length_s == null) return;
+		let length = parseInt(length_s) || undefined;
+
+		updateToolOptions.vis_line_length = length;
+		vis_setupNetworkSimulation();
 	}
 
 	function vis_setupNetworkSimulation() {
@@ -1633,7 +1661,10 @@
 			for(let id2 of network.peers[id1].outgoingPeers) {
 				vis_edges.push({
 					from: updateToolOptions.vis_node_ids[id1],
-					to: updateToolOptions.vis_node_ids[id2]
+					to: updateToolOptions.vis_node_ids[id2],
+					length: updateToolOptions.vis_line_length,
+					// Add dashes to lines that are not bi-directional connections
+					// dashes: network.peers[id2].outgoingPeers.includes(id1) ? false : [10, 10],
 				});
 			}
 		}
