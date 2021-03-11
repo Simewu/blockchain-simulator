@@ -7,12 +7,12 @@
 		<meta name="author" content="Simeon">
 		<link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
 		<link rel="icon" href="img/favicon.ico" type="image/x-icon">
-		<link rel="stylesheet" href="bootstrap.min.css">
-		<link href="jsoneditor.min.css" rel="stylesheet" type="text/css">
+		<link rel="stylesheet" href="lib/bootstrap.min.css">
+		<link href="lib/jsoneditor.min.css" rel="stylesheet" type="text/css">
 		<!--script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script-->
-		<script type="text/javascript" src="vis-network.min.js"></script>
-		<script type="text/javascript" src="canvas2svg.js"></script>
-		<script src="jsoneditor.min.js"></script>
+		<script type="text/javascript" src="lib/vis-network.min.js"></script>
+		<script type="text/javascript" src="lib/canvas2svg.js"></script>
+		<script src="lib/jsoneditor.min.js"></script>
 		<title>Blockchain Simulator</title>
 		<style>
 			.container {
@@ -82,13 +82,16 @@
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_globalSetPower()">Globally set power</a>
 								<a class="dropdown-item" onclick="DOM_globalSetLatency()">Globally set latency</a>
+								<a class="dropdown-item" onclick="DOM_globalSetDownloadBPS()">Globally set download BPS</a>
+								<a class="dropdown-item" onclick="DOM_globalSetUploadBPS()">Globally set upload BPS</a>
 								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Connect bidirectionally</a>
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="saveLocalStorage()">Save to LocalStorage</a>
 								<a class="dropdown-item" onclick="loadLocalStorage()">Load from LocalStorage</a>
-								<a class="dropdown-item" onclick="clearLocalStorage()">Clear LocalStorage</a>
+								<a class="dropdown-item" onclick="deleteLocalStorage()">Delete from LocalStorage</a>
+								<a class="dropdown-item" onclick="clearAllLocalStorage()">Clear All LocalStorage</a>
 							</div>
 						</div>
 					</div>
@@ -108,6 +111,8 @@
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="if(confirm('You\'re about to clear everyone\'s blockchain data.')) DOM_clearBlockchain()">Clear all blockchains</a>
 								<a class="dropdown-item" onclick="DOM_setNetworkDifficulty()">Set network difficulty</a>
+								<a class="dropdown-item" onclick="DOM_setBlockSizes()">Set block sizes</a>
+								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#viewNetworkModal" onclick="regenerateNetworkJSON()">View full network</a>
 							</div>
 						</div>
@@ -168,13 +173,19 @@
 						<div class="form-group row">
 							<label for="codeBeforeSampling" class="col-sm-3 col-form-label">Run before sampling</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBeforeSampling" class="form-control text-white bg-dark border border-secondary" rows="1">console.log("Sampling started");</textarea>
+								<textarea id="codeBeforeSampling" class="form-control text-white bg-dark border border-secondary" rows="1">console.log("Sampling started at ", Date.now());</textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeBetweenSamples" class="col-sm-3 col-form-label">Run between samples</label>
 							<div class="col-sm-9 p-0">
 								<textarea id="codeBetweenSamples" class="form-control text-white bg-dark border border-secondary" rows="2">//_BOB.power += 10;&#13;&#10;if(numSamples >= 100000) toggleSampling(false);</textarea>
+							</div>
+						</div>
+						<div class="form-group row">
+							<label for="codeAfterSampling" class="col-sm-3 col-form-label">Run after sampling</label>
+							<div class="col-sm-9 p-0">
+								<textarea id="codeAfterSampling" class="form-control text-white bg-dark border border-secondary" rows="1">console.log("Sampling ended at ", Date.now());</textarea>
 							</div>
 						</div>
 						<div class="form-group row">
@@ -192,7 +203,7 @@
 
 					<div class="col-md-12 p-2">
 						<small>
-							<table id="sampleTable" class="table table-dark mb-2">
+							<table id="sampleTable" class="table table-dark table-responsive mb-2">
 							</table>
 						</small>
 					</div>
@@ -224,9 +235,21 @@
 								</div>
 							</div>
 							<div class="form-group row">
-								<label for="addMinerLatency" class="col-sm-4 col-form-label">Network Latency</label>
+								<label for="addMinerLatency" class="col-sm-4 col-form-label">Network Latency (milliseconds)</label>
 								<div class="col-sm-8">
 									<input type="number" class="form-control" id="addMinerLatency" min="0" value="10" required>
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="addMinerDownloadBPS" class="col-sm-4 col-form-label">Network Download (bytes per second)</label>
+								<div class="col-sm-8">
+									<input type="number" class="form-control" id="addMinerDownloadBPS" min="0" value="10000000" required>
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="addMinerUploadBPS" class="col-sm-4 col-form-label">Network Upload (bytes per second)</label>
+								<div class="col-sm-8">
+									<input type="number" class="form-control" id="addMinerUploadBPS" min="0" value="10000000" required>
 								</div>
 							</div>
 							<div class="form-group row">
@@ -303,12 +326,14 @@
 		</div>
 	</div>
 	<!-- jQuery first, imageMapResizer, then Popper.js, then Bootstrap JS -->
-	<script src="jquery-3.2.1.slim.min.js"></script>
-	<script src="imageMapResizer.min.js"></script>
-	<script src="popper.min.js"></script>
-	<script src="bootstrap.min.js"></script>
+	<script src="lib/jquery-3.2.1.slim.min.js"></script>
+	<script src="lib/imageMapResizer.min.js"></script>
+	<script src="lib/popper.min.js"></script>
+	<script src="lib/bootstrap.min.js"></script>
 </body>
 <script type="text/javascript">
+
+	let network = null;
 
 	let updateToolOptions = {
 		timeout: null,
@@ -320,13 +345,13 @@
 		vis_lineLength: undefined,
 		sampler_DOM_active: true,
 		sampler_running: false,
-		sampler_codeBetweenSamples: "",
 		sampler_codeBeforeSampling: "",
+		sampler_codeBetweenSamples: "",
+		sampler_codeAfterSampling: "",
 		samplerData: [],
 		samplerLog: [],
 		sampleStartTime: 0,
-		sampleEndTime: 0,
-		logNetworkData: false // When a block is received, keep track of number of networking data, such as the number of hops
+		sampleEndTime: 0
 	}
 
 	// Network class
@@ -334,11 +359,16 @@
 		constructor() {
 			this.peers = {};
 			this.setDifficulty("03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+
+			this.blockSize = 1000000;
 			this.genesis = new Header();
 			this.ID_Registry = {};
 			this.miningThreads = {};
 			this.minimumBlockchainPurgeLength = 100;
 			this.maximumBlockchainPurgeLength = 200; // When a miner's blockchain reaches this many blocks, it will remove the oldest ones until it's the minimumBlockchainPurgeLength
+
+			// When a block is received, keep track of number of networking data, such as the number of hops
+			this.logNetworkData = false; 
 		}
 
 		setDifficulty(_difficulty) {
@@ -356,6 +386,7 @@
 			for(let id in network.ID_Registry) {
 				network.peers[id].stopMining();
 			}
+			clearAllTimeouts();
 		}
 
 		clearBlockchain() {
@@ -374,18 +405,21 @@
 
 		// Given a network object, return it in its serialized JSON form
 		static serialize(network) {
+			network.stopAllMiners();
 			let json = JSON.stringify(network);
 			return json
 		}
 
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
 		static deserialize(json) {
+			clearAllTimeouts();
 			let newNetworkObj = JSON.parse(json);
 			let network = new Network();
 			network = Object.assign(network, newNetworkObj);
 
 			for(let peer in network.peers) { // Make all miners Miner objects
-				let miner = new Miner("", 0, 0);
+
+				let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].downloadBPS, network.peers[peer].uploadBPS);
 				miner = Object.assign(miner, network.peers[peer]);
 				network.peers[peer] = miner;
 
@@ -400,6 +434,10 @@
 					header = Object.assign(header, network.peers[peer].blockchain[block]);
 					network.peers[peer].blockchain[block] = header;
 				}
+
+				// Recreate the networkBufferManager
+				let networkBufferManager = new NetworkBufferManager(miner.latency, miner.downloadBPS, miner.uploadBPS, miner.ID);
+				network.peers[peer].networkBufferManager = networkBufferManager;
 			}
 			// Note: miner.blockchain headers are not actually Header objects anymore, this can be fixed by
 			return network;
@@ -412,10 +450,14 @@
 			this.solver = 0;
 			this.height = 0;
 			this.timestamp = 0; // Time block was solved in seconds
+
+			if(network != null) this.numBytes = network.blockSize;
+			else this.numBytes = 1000000;
+
 			this.hash = 0;
 			this.prevHash = 0;
 			this.balances = [];
-			if(updateToolOptions.logNetworkData) {
+			if(network && network.logNetworkData) {
 				this.numHops = 0;
 			}
 		}
@@ -428,16 +470,80 @@
 			newHeader.hash = this.hash;
 			newHeader.prevHash = this.prevHash;
 			newHeader.balances = Object.assign({}, this.balances);
-			if(updateToolOptions.logNetworkData) {
+			if(network.logNetworkData) {
 				newHeader.numHops = this.numHops;
 			}
 			return newHeader;
 		}
 	}
 
+	class NetworkBufferManager {
+		constructor(latency, downloadBPS, uploadBPS, parentID) {
+
+			let now = Date.now();
+
+			this.latency = latency;
+			this.downloadBPS = downloadBPS;
+			this.uploadBPS = uploadBPS;
+			// Timestamp assigned to last send/receive packet
+			this.downloadBufferTimestamp = now;
+			this.uploadBufferTimestamp = now;
+			// Time since last time the send/receive function was called
+			this.timestampSinceLastSend = now;
+			this.timestampSinceLastReceive = now;
+
+			this.parentID = parentID;
+		}
+
+		send(to_ID, data) {
+			if(this.uploadBPS == 0) return;
+			let now = Date.now();
+			// If sending data that is 1000 bytes, we upload at 40bps --> 25 seconds
+			// If sending data that is 20 bytes, we upload at 40bps --> 0.5 seconds
+			let timeToProcessData = data.numBytes / this.uploadBPS;
+
+			// Computing the time of next delivery by subtracting time passed, then adding time to process. Future packets will stack up, creating a buffer
+			let timePassed = now - this.timestampSinceLastSend;
+			this.uploadBufferTimestamp -= timePassed;
+			if(this.uploadBufferTimestamp < now) this.uploadBufferTimestamp = now; // If the buffer is empty
+			this.uploadBufferTimestamp += timeToProcessData;
+
+
+			let secondsDelay = this.uploadBufferTimestamp - now;
+			secondsDelay += this.latency / 1000; // Time to travel through the network (latency is in milliseconds)
+			
+			setTimeout(network.peers[to_ID].networkBufferManager.receive.bind(network.peers[to_ID].networkBufferManager), secondsDelay * 1000, this.parentID, to_ID, data);
+			//setTimeout(network.peers[to_ID].networkBufferManager.receive.bind(this), secondsDelay * 1000, this.parentID, data);
+
+			this.timestampSinceLastSend = now;
+		}
+
+
+		receive(from_ID, to_ID, data) {
+			if(this.downloadBPS == 0) return;
+			let now = Date.now();
+			// If receiving data that is 1000 bytes, we upload at 40bps --> 25 seconds
+			// If receiving data that is 20 bytes, we upload at 40bps --> 0.5 seconds
+			let timeToProcessData = data.numBytes / this.downloadBPS;
+
+			// Computing the time of next delivery by subtracting time passed, then adding time to process. Future packets will stack up, creating a buffer
+			let timePassed = now - this.timestampSinceLastReceive;
+			this.downloadBufferTimestamp -= timePassed;
+			if(this.downloadBufferTimestamp < now) this.downloadBufferTimestamp = now; // If the buffer is empty
+			this.downloadBufferTimestamp += timeToProcessData;
+
+			let secondsDelay = this.downloadBufferTimestamp - now;
+			secondsDelay += this.latency / 1000; // Time to travel through the network (latency is in milliseconds)
+
+			setTimeout(network.peers[this.parentID].receive.bind(network.peers[this.parentID]), secondsDelay * 1000, data);
+
+			this.timestampSinceLastReceive = now;
+		}
+	}
+
 	// Miner class
 	class Miner {
-		constructor(name, power, latency) {
+		constructor(name, power, latency, downloadBPS, uploadBPS) {
 			this.name = name;
 			// Register a unique ID
 			if(network.ID_Registry[this.name] === undefined) {
@@ -452,7 +558,9 @@
 			network.ID_Registry[this.ID] = null;
 			network.peers[this.ID] = this;
 			this.power = power;
-			this.latency = latency;
+			this.latency = latency; // Additional latency from the network (milliseconds)
+			this.downloadBPS = downloadBPS; // Used by the download buffer to receive data
+			this.uploadBPS = uploadBPS; // Used by the upload buffer to send data
 			this.incomingPeers = [];
 			this.outgoingPeers = [];
 			this.blockchainOffset = 0; // Due to removing old blocks
@@ -462,6 +570,7 @@
 			this.largestForkLength = 0;
 			this.currentHeader = this.newHeader(network.genesis);
 			this.color = "default";
+			this.networkBufferManager = new NetworkBufferManager(this.latency, this.downloadBPS, this.uploadBPS, this.ID);
 			updateTools();
 		}
 
@@ -476,7 +585,7 @@
 		}
 
 		setBlock(height, block) {
-			if(updateToolOptions.logNetworkData) { // Keep track of networking data
+			if(network.logNetworkData) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				if(this.blockchain_numHops === undefined) this.blockchain_numHops = [];
 				if(this.blockchain_blockDelay === undefined) this.blockchain_blockDelay = [];
@@ -562,15 +671,18 @@
 
 		// Broadcast a header to all peers
 		submit(header) {
-			if(updateToolOptions.logNetworkData) {
+			if(network.logNetworkData) {
 				// Keep track of number of hops
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
 			}
 			for(let id of this.outgoingPeers) {
-				setTimeout(function(header){
-					network.peers[id].receive(header);
-				}, this.latency, header.clone());
+				// Old version of block broadcasting, does not consider download and upload bandwidth
+				//setTimeout(function(header){
+				//	network.peers[id].receive(header);
+				//}, this.latency, header.clone());
+
+				this.networkBufferManager.send(id, header.clone());
 			}
 		}
 
@@ -598,7 +710,7 @@
 							this.setBlock(i, backupHeaders.pop());
 							i++;
 						}
-						console.log("Recovered from incomplete transfer");
+						//console.log("Recovered from incomplete transfer");
 						return;
 					}
 					backupHeaders.push(this.getBlock(newHeader.height));
@@ -619,7 +731,7 @@
 		}
 	}
 
-	let network = new Network();
+	network = new Network();
 
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
@@ -664,11 +776,11 @@
 	}
 
 	// Create a new miner
-	function newMiner(name, power, latency) {
+	function newMiner(name, power, latency, downloadBPS, uploadBPS) {
 		for(let id in network.ID_Registry) {
 			if(network.peers[id].name == name) return;
 		}
-		const miner = new Miner(name, power, latency);
+		const miner = new Miner(name, power, latency, downloadBPS, uploadBPS);
 		$("#minerList").append("<option value=\"" + miner.ID + "\">" + miner.name + "</option>");
 		selectMiner(miner.ID); // Select it
 		return miner;
@@ -756,9 +868,14 @@
 			"Maximum number of connections": 1,
 			"Minimum power": 20,
 			"Maximum power": 20,
-			"Minimum latency": 100,
+			"Minimum download bytes per second": 10000000,
+			"Maximum download bytes per second": 10000000,
+			"Minimum upload bytes per second": 10000000,
+			"Maximum upload bytes per second": 10000000,
+			"Minimum latency": 10,
 			"Maximum latency": 100,
-		  "Naming cycle": ["Alice", "Andrew", "Bob", "George", "Jack", "Eve", "Frank", "Carl"]
+		  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
+		  //let minerNames = ["AARON", "ADAM", "ALAN", "ALBERT", "ALEX", "ALICE", "ANDREW", "ANTHONY", "ARTHUR", "AUSTIN", "BEN", "BILL", "BOB", "BOBBY", "BRANDON", "BRIAN", "BRUCE", "CARL", "CHARLES", "CHRIS", "DAN", "DANIEL", "DAVID", "DENNIS", "DONALD", "DOUGLAS", "DYLAN", "EDWARD", "ERIC", "ETHAN", "EUGENE", "FRANK", "GABRIEL", "GARY", "GEORGE", "GERALD", "GREGORY", "HAROLD", "HARRY", "HENRY", "JACK", "JACOB", "JAMES", "JASON", "JEFFREY", "JEREMY", "JERRY", "JESSE", "JOE", "JOHN", "JOHNNY", "JONATHAN", "JORDAN", "JOSE", "JOSEPH", "JOSHUA", "JUAN", "JUSTIN", "KEITH", "KENNETH", "KEVIN", "KYLE", "LARRY", "LAWRENCE", "LOGAN", "LOUIS", "MARK", "MATTHEW", "MICHAEL", "NATHAN", "NICHOLAS", "NOAH", "PATRICK", "PAUL", "PETER", "PHILIP", "RALPH", "RANDY", "RAYMOND", "RICHARD", "ROBERT", "ROGER", "RONALD", "ROY", "RUSSELL", "RYAN", "SAMUEL", "SCOTT", "SEAN", "STEPHEN", "STEVEN", "TERRY", "THOMAS", "TIMOTHY", "TYLER", "VINCENT", "WALTER", "WAYNE", "WILL", "ZACHARY"];
 		});
 		$("#minerList option:first").prop("selected", true);
 		$("#minerList option:first").change();
@@ -776,7 +893,6 @@
 
 		let json = Network.serialize(network);
 		localStorage.setItem(filename, json);
-		alert("Network has been saved.")
 	}
 
 	function loadLocalStorage() {
@@ -800,7 +916,21 @@
 		}
 	}
 
-	function clearLocalStorage() {
+	function deleteLocalStorage() {
+		let files = [];
+		for (var key in localStorage) {
+			if(key.startsWith("NETWORK_FILE_")) {
+				files.push(key.substring(13));
+			}
+		}
+		let filename = prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file name to delete:");
+		if(filename == null) return;
+		filename = "NETWORK_FILE_" + filename;
+
+		localStorage.removeItem(filename);
+	}
+
+	function clearAllLocalStorage() {
 		if(confirm("Are you sure you would like to clear all the saved networks from your browser?")) {
 			localStorage.clear();
 			alert("LocalStorage has been cleared.")
@@ -843,6 +973,8 @@
 			$("#addMinerName").val(miner.name);
 			$("#addMinerPower").val(miner.power);
 			$("#addMinerLatency").val(miner.latency);
+			$("#addMinerDownloadBPS").val(miner.downloadBPS);
+			$("#addMinerUploadBPS").val(miner.uploadBPS);
 			for(let id of miner.outgoingPeers) {
 				$("#multiselectAddPeers option[value=" + id + "]").prop("selected", true);
 			}
@@ -903,7 +1035,7 @@
 
 	function DOM_globalSetLatency() {
 		$("#addMinerBadge").text("");
-		const input = prompt("You are about to set the network latency of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.", "10, 100");
+		const input = prompt("You are about to set the network latency (in milliseconds) of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.", "10, 100");
 		if(input == null) return; // Cancel button pressed
 		let i = input.indexOf(","), num1, num2;
 		if(i == -1) {
@@ -920,17 +1052,57 @@
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
+	function DOM_globalSetDownloadBPS() {
+		$("#addMinerBadge").text("");
+		const input = prompt("You are about to set the network download bytes per second of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.", "500000, 10000000");
+		if(input == null) return; // Cancel button pressed
+		let i = input.indexOf(","), num1, num2;
+		if(i == -1) {
+			num1 = parseInt(input.trim());
+			num2 = num1;
+		} else {
+			num1 = parseInt(input.substring(0, i).trim());
+			num2 = parseInt(input.substring(i+1, input.length).trim());
+		}
+		for(let id in network.ID_Registry) {
+			network.peers[id].downloadBPS = Math.max(0, rnd(num1, num2))
+		}
+		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").text("SUCCESS");
+	}
+
+	function DOM_globalSetUploadBPS() {
+		$("#addMinerBadge").text("");
+		const input = prompt("You are about to set the network upload bytes per second of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.", "500000, 10000000");
+		if(input == null) return; // Cancel button pressed
+		let i = input.indexOf(","), num1, num2;
+		if(i == -1) {
+			num1 = parseInt(input.trim());
+			num2 = num1;
+		} else {
+			num1 = parseInt(input.substring(0, i).trim());
+			num2 = parseInt(input.substring(i+1, input.length).trim());
+		}
+		for(let id in network.ID_Registry) {
+			network.peers[id].uploadBPS = Math.max(0, rnd(num1, num2))
+		}
+		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").text("SUCCESS");
+	}
+
 	function DOM_addMiner() {
 		$("#addMinerName").val(fixCase($("#addMinerName").val()));
 		const name = fixCase($("#addMinerName").val());
-		const power = parseInt($("#addMinerPower").val());
-		const latency = parseInt($("#addMinerLatency").val());
+		const power = parseFloat($("#addMinerPower").val());
+		const latency = parseFloat($("#addMinerLatency").val());
+		const downloadBPS = parseFloat($("#addMinerDownloadBPS").val());
+		const uploadBPS = parseFloat($("#addMinerUploadBPS").val());
 		const peers = $("#multiselectAddPeers").val();
-		let miner = newMiner(name, power, latency);
+		let miner = newMiner(name, power, latency, downloadBPS, uploadBPS);
 		if(miner === undefined) {
 			// The same name exists, check if any options have changed, otherwise edit the miner
 			miner = network.findPeerByName(name);
-			if(miner.power == power && miner.latency == latency) {
+			if(miner.power == power && miner.latency == latency && miner.downloadBPS == downloadBPS && miner.uploadBPS == uploadBPS) {
 				let noChanges = true;
 				for(let id of peers) {
 					if(miner.ID == id) continue;
@@ -954,6 +1126,8 @@
 			}
 			miner.power = power;
 			miner.latency = latency;
+			miner.downloadBPS = downloadBPS;
+			miner.uploadBPS = uploadBPS;
 			for(let id of miner.outgoingPeers) {
 				miner.removePeer(id);
 			}
@@ -1015,19 +1189,19 @@
 	}
 
 	function DOM_toggleLoggingNetworkData() {
-		if(updateToolOptions.logNetworkData) {
-			updateToolOptions.logNetworkData = false;
+		if(network.logNetworkData) {
+			network.logNetworkData = false;
 			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Cleanup any artifacts
 				delete network.peers[peerID]['blockchain_numHops'];
 				delete network.peers[peerID]['blockchain_blockDelay'];
 			}
 		} else {
-			updateToolOptions.logNetworkData = true;
+			network.logNetworkData = true;
 			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network<br>data within each miner");
 		}
 		$("#addMinerBadge").attr('class', 'badge badge-success');
-		$("#editMinerBadge").text((updateToolOptions.logNetworkData ? "ENABLED" : "DISABLED") + " NETWORK LOG");
+		$("#editMinerBadge").text((network.logNetworkData ? "ENABLED" : "DISABLED") + " NETWORK LOG");
 	}
 
 	// Refresh the full network data viewer
@@ -1048,8 +1222,8 @@
 		} else if(network.peers[miner.ID] === undefined) {
 			$("#editMinerBadge").attr("class", "ml-auto badge badge-warning");
 			$("#editMinerBadge").text("ID NOT FOUND");
-		} else if(typeof miner.power != "number" || typeof miner.latency != "number") {
-			// !!!!!!!!!!!! type checking
+		} else if(typeof miner.power != "number" || typeof miner.latency != "number" || typeof miner.downloadBPS != "number" || typeof miner.uploadBPS != "number") {
+			// Type checking
 			$("#editMinerBadge").attr("class", "ml-auto badge badge-danger");
 			$("#editMinerBadge").text("MUST BE A NUMBER");
 		} else {
@@ -1094,6 +1268,10 @@
 					"Number of peers": 6,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1109,6 +1287,10 @@
 					"Maximum number of connections": 1,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1123,6 +1305,10 @@
 					"Number of peers": 6,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1134,6 +1320,10 @@
 					"Number of peers": 4,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1146,6 +1336,10 @@
 					"Number of peers": 6,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1158,6 +1352,10 @@
 					"Structure": [[[],[],[]],[[],[],[]],[[],[],[]]],
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
 					"Minimum latency": 10,
 					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1169,6 +1367,12 @@
 					"Number of peers": 6,
 					"Minimum power": 20,
 					"Maximum power": 20,
+					"Minimum download bytes per second": 10000000,
+					"Maximum download bytes per second": 10000000,
+					"Minimum upload bytes per second": 10000000,
+					"Maximum upload bytes per second": 10000000,
+					"Minimum latency": 10,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1214,6 +1418,10 @@
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1231,7 +1439,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					miners.push(newMiner(name, power, latency));
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addPeer(miners[i + 1].ID);
@@ -1249,6 +1459,10 @@
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1266,7 +1480,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					miners.push(newMiner(name, power, latency));
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					let nConnections = rnd(minNumConnections, maxNumConnections);
@@ -1298,6 +1514,10 @@
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1315,7 +1535,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					miners.push(newMiner(name, power, latency));
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				if(bidirectional) {
 					for(let i = 1; i < miners.length; i++) {
@@ -1337,6 +1559,10 @@
 				nPeers = options["Number of peers"] || 4;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1354,7 +1580,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					miners.push(newMiner(name, power, latency));
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
@@ -1368,6 +1596,10 @@
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1385,7 +1617,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					miners.push(newMiner(name, power, latency));
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addPeer(miners[i + 1].ID);
@@ -1397,6 +1631,10 @@
 				structure = options["Structure"];
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
@@ -1416,7 +1654,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let miner = newMiner(name, power, latency);
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 					if(parent != null) {
 						if(bidirectional) {
 							miner.addPeer(parent.ID);
@@ -1435,6 +1675,12 @@
 				nPeers = options["Number of peers"] || 6;
 				minPower = options["Minimum power"] || 20;
 				maxPower = options["Maximum power"] || 20;
+				minDownloadBPS = options["Minimum download bytes per second"] || 10000000;
+				maxDownloadBPS = options["Maximum download bytes per second"] || 10000000;
+				minUploadBPS = options["Minimum upload bytes per second"] || 10000000;
+				maxUploadBPS = options["Maximum upload bytes per second"] || 10000000;
+				minLatency = options["Minimum latency"] || 10;
+				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 				miners = [];
 				chosenNames = [];
@@ -1449,7 +1695,10 @@
 					}
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
-					miners.push(newMiner(name, power, 0));
+					let latency = rnd(minLatency, maxLatency);
+					let downloadBPS = rnd(minDownloadBPS, maxDownloadBPS);
+					let uploadBPS = rnd(minUploadBPS, maxUploadBPS);
+					miners.push(newMiner(name, power, latency, downloadBPS, uploadBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addPeer(miners[i + 1].ID);
@@ -1466,10 +1715,21 @@
 	}
 
 	function DOM_setNetworkDifficulty() {
-		const difficulty = prompt("Enter a network difficulty threshhold in hex.\n Easiest difficulty = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+		const difficulty = prompt("Enter a network difficulty threshhold in hex.\n\nEasiest difficulty = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"); // !!!!!!!!!!!!!!!!!!
 		if(difficulty == null) return;
 		network.setDifficulty(difficulty);
 		alert("Difficulty has been set to " + network.difficulty * 100 + "% chance of a nonce being a block.");
+	}
+
+	function DOM_setBlockSizes() {
+		try {
+			const blockSize = prompt("Enter a block size in bytes", network.blockSize);
+			let size = parseInt(blockSize);
+			if(size > 0) {
+				network.blockSize = size;
+				alert("The block size has been updated to " + size + " bytes.");
+			}
+		} catch(e) {}
 	}
 
 	function DOM_toggleMining() {
@@ -1522,6 +1782,10 @@
 		html += "<th scope='col' class='text-warning'>%</th>";
 		html += "<th scope='col'>Latency (ms)</th>";
 		html += "<th scope='col' class='text-warning'>%</th>";
+		html += "<th scope='col'>Download rate (bps)</th>";
+		html += "<th scope='col' class='text-warning'>%</th>";
+		html += "<th scope='col'>Upload rate (bps)</th>";
+		html += "<th scope='col' class='text-warning'>%</th>";
 		html += "<th scope='col'>In peers</th>";
 		html += "<th scope='col'>Out peers</th>";
 		html += "<th scope='col'>Block height</th>";
@@ -1533,6 +1797,8 @@
 		let sum = {
 			power: 0,
 			latency: 0,
+			downloadBPS: 0,
+			uploadBPS: 0,
 			balance: 0,
 			incomingPeers: 0,
 			outgoingPeers: 0,
@@ -1544,6 +1810,8 @@
 		let avg = {
 			power: 0,
 			latency: 0,
+			downloadBPS: 0,
+			uploadBPS: 0,
 			balance: 0,
 			incomingPeers: 0,
 			outgoingPeers: 0,
@@ -1557,6 +1825,8 @@
 			let miner = network.peers[id];
 			sum.power += miner.power;
 			sum.latency += miner.latency;
+			sum.downloadBPS += miner.downloadBPS;
+			sum.uploadBPS += miner.uploadBPS;
 			sum.balance += (miner.currentHeader.balances[id] - 1);
 			sum.incomingPeers += miner.incomingPeers.length;
 			sum.outgoingPeers += miner.outgoingPeers.length;
@@ -1568,6 +1838,8 @@
 		}
 		avg.power = Math.floor(sum.power / numPeers * 1000) / 1000;
 		avg.latency = Math.floor(sum.latency / numPeers * 1000) / 1000;
+		avg.downloadBPS = Math.floor(sum.downloadBPS / numPeers * 1000) / 1000;
+		avg.uploadBPS = Math.floor(sum.uploadBPS / numPeers * 1000) / 1000;
 		avg.balance = Math.floor(sum.balance / numPeers * 1000) / 1000;
 		avg.incomingPeers = Math.floor(sum.incomingPeers / numPeers * 1000) / 1000;
 		avg.outgoingPeers = Math.floor(sum.outgoingPeers / numPeers * 1000) / 1000;
@@ -1585,6 +1857,13 @@
 			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.power / sum.power * 100000) / 1000) + "</th>";
 			html += "<th scope='col'>" + miner.latency + "</th>";
 			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.latency / sum.latency * 100000) / 1000) + "</th>";
+
+			html += "<th scope='col'>" + miner.downloadBPS + "</th>";
+			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.downloadBPS / sum.downloadBPS * 100000) / 1000) + "</th>";
+
+			html += "<th scope='col'>" + miner.uploadBPS + "</th>";
+			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.uploadBPS / sum.uploadBPS * 100000) / 1000) + "</th>";
+
 			html += "<th scope='col'>" + miner.incomingPeers.length + "</th>";
 			html += "<th scope='col'>" + miner.outgoingPeers.length + "</th>";
 			html += "<th scope='col'>" + (miner.currentHeader.height - 1) + "</th>";
@@ -1600,6 +1879,10 @@
 		html += "<th scope='col'>" + sum.power + "<br>" + avg.power + "</th>";
 		html += "<th scope='col'></th>";
 		html += "<th scope='col'>" + sum.latency + "<br>" + avg.latency + "</th>";
+		html += "<th scope='col'></th>";
+		html += "<th scope='col'>" + sum.downloadBPS + "<br>" + avg.downloadBPS + "</th>";
+		html += "<th scope='col'></th>";
+		html += "<th scope='col'>" + sum.uploadBPS + "<br>" + avg.uploadBPS + "</th>";
 		html += "<th scope='col'></th>";
 		html += "<th scope='col'>" + sum.incomingPeers + "<br>" + avg.incomingPeers + "</th>";
 		html += "<th scope='col'>" + sum.outgoingPeers + "<br>" + avg.outgoingPeers + "</th>";
@@ -1624,7 +1907,7 @@
 		} else {
 			updateToolOptions.vis_simulation_active = true;
 			updateToolOptions.vis_timeout = null;
-			vis_container.style.height = "400px";
+			vis_container.style.height = "500px";
 			vis_container.style.opacity = "1";
 			vis_setupNetworkSimulation();
 			$("#vis_refresh_btn").show();
@@ -1761,12 +2044,30 @@
 		updateToolOptions.samplerLog = ["Sample,Sample Time,Sample Tag"];
 		updateToolOptions.sampleTag = "";
 
+
+		if(updateToolOptions.vis_simulation_active) {
+			console.info("Disabling the topology visualizer for more precise measurements.");
+			console.info("This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
+			vis_toggleTopologyVisualizer();
+		}
+
 		for(let id in network.ID_Registry) {
-			updateToolOptions.samplerLog[0] += ",Name,Balance,Balance %,Power,Power %,Latency,Latency %,Block Height,Total Blocks Found,Stale Blocks Found,Max Fork Length";
+			updateToolOptions.samplerLog[0] += ",Name,Balance,Balance %,Power,Power %,"
+
+			if(network.logNetworkData) { // Keep track of networking data
+				updateToolOptions.samplerLog[0] += "Num Hops,";
+				updateToolOptions.samplerLog[0] += "Block Delay,";
+			}
+
+			updateToolOptions.samplerLog[0] += "Latency,Latency %,Download BPS,Download BPS %,Upload BPS,Upload BPS %,Block Height,Total Blocks Found,Stale Blocks Found,Max Fork Length";
 			updateToolOptions.samplerData[id] = {
 				sumBalance: 0,
 				sumPower: 0,
+				sumNumHops: 0,
+				sumBlockDelay: 0,
 				sumLatency: 0,
+				sumDownloadBPS: 0,
+				sumUploadBPS: 0,
 				sumBlockHeight: 0,
 				sumTotalBlocks: 0,
 				sumStaleBlocks: 0,
@@ -1778,17 +2079,20 @@
 		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
 		updateToolOptions.sampler_codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val() + "\n}";
 		updateToolOptions.sampler_codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val() + "\n}";
+		updateToolOptions.sampler_codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val() + "\n}";
 		
+		// Convert miner IDs into proper references
 		for(let id in network.ID_Registry) {
 			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
 			updateToolOptions.sampler_codeBeforeSampling = updateToolOptions.sampler_codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
 			updateToolOptions.sampler_codeBetweenSamples = updateToolOptions.sampler_codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			updateToolOptions.sampler_codeAfterSampling = updateToolOptions.sampler_codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
 		}
 		try {
 			eval(updateToolOptions.sampler_codeBeforeSampling);
 		} catch(e) {
 			alert(e);
-			console.log(e);
+			console.warn(e);
 		}
 	}
 
@@ -1801,14 +2105,26 @@
 			let miner = network.peers[id];
 			updateToolOptions.samplerData[id].sumBalance += miner.currentHeader.balances[id];
 			updateToolOptions.samplerData[id].sumPower += miner.power;
+
+			if(network.logNetworkData) {
+				try {
+					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
+					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					updateToolOptions.samplerData[id].sumNumHops += numHopsAvg;
+					updateToolOptions.samplerData[id].sumBlockDelay += blockDelayAvg;
+				} catch(e) {}
+			}
+
 			updateToolOptions.samplerData[id].sumLatency += miner.latency;
+			updateToolOptions.samplerData[id].sumDownloadBPS += miner.downloadBPS;
+			updateToolOptions.samplerData[id].sumUploadBPS += miner.uploadBPS;
 			updateToolOptions.samplerData[id].sumBlockHeight += miner.currentHeader.height - 1;
 			updateToolOptions.samplerData[id].sumTotalBlocks += miner.totalBlocksFound;
 			updateToolOptions.samplerData[id].sumStaleBlocks += miner.staleBlocksFound;
 			updateToolOptions.samplerData[id].sumMaxForkLength += miner.largestForkLength;
 		}
 		if($("#logAllSamplesCheckbox").prop("checked")) {
-			let line = "", balanceTotal = 0, powerTotal = 0, latencyTotal = 0;
+			let line = "", balanceTotal = 0, powerTotal = 0, latencyTotal = 0, downloadBPSTotal = 0, uploadBPSTotal = 0;
 			line += "\"" + updateToolOptions.samplerLog.length + "\",";
 			line += "\"" + sampleDuration + "\",";
 			line += "\"" + updateToolOptions.sampleTag + "\",";
@@ -1818,6 +2134,8 @@
 				balanceTotal += miner.currentHeader.balances[id];
 				powerTotal += miner.power;
 				latencyTotal += miner.latency;
+				downloadBPSTotal += miner.downloadBPS;
+				uploadBPSTotal += miner.uploadBPS;
 			}
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
@@ -1826,8 +2144,20 @@
 				line += "\"" + (miner.currentHeader.balances[id] / balanceTotal * 100) + "\",";
 				line += "\"" + miner.power + "\",";
 				line += "\"" + (miner.power / powerTotal * 100) + "\",";
+
+				if(network.logNetworkData) { // Keep track of networking data
+					try {
+						line += "\"" + miner.blockchain_numHops.join(" ") + "\",";
+						line += "\"" + miner.blockchain_blockDelay.join(" ") + "\",";
+					} catch(e) {}
+				}
+
 				line += "\"" + miner.latency + "\",";
 				line += "\"" + (miner.latency / latencyTotal * 100) + "\",";
+				line += "\"" + miner.downloadBPS + "\",";
+				line += "\"" + (miner.downloadBPS / downloadBPSTotal * 100) + "\",";
+				line += "\"" + miner.uploadBPS + "\",";
+				line += "\"" + (miner.uploadBPS / uploadBPSTotal * 100) + "\",";
 				line += "\"" + (miner.currentHeader.height - 1) + "\",";
 				line += "\"" + miner.totalBlocksFound + "\",";
 				line += "\"" + miner.staleBlocksFound + "\",";
@@ -1841,7 +2171,7 @@
 			eval(updateToolOptions.sampler_codeBetweenSamples);
 		} catch(e) {
 			alert(e);
-			console.log(e);
+			console.warn(e);
 			stopSampling();
 			return;
 		}
@@ -1853,30 +2183,44 @@
 	}
 
 	function stopSampling() {
+		try {
+			eval(updateToolOptions.sampler_codeAfterSampling);
+		} catch(e) {
+			alert(e);
+			console.warn(e);
+		}
 		network.stopAllMiners();
 		network.clearBlockchain();
 	}
 
 	function updateSamplerTable() {
 		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
-		let html = "<thead><th colspan='7'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
+		let html = "<thead><th colspan='8'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
 		if(updateToolOptions.sampler_running) html += " (" + sampleDuration + " seconds)";
 		if(updateToolOptions.sampleTag.length > 0) html += " (" + updateToolOptions.sampleTag + ")";
 		html += "</span>";
-		if(updateToolOptions.samplerLog.length > 1) html += "</th><th colspan='2'><button onclick='downloadSampleLog()' class='btn btn-warning fillx'>Download log</button></th>";
+		if(updateToolOptions.samplerLog.length > 1) html += "</th><th colspan='3'><button onclick='downloadSampleLog()' class='btn btn-warning fillx'>Download log</button></th>";
 		html += "</thead><thead>";
 		html += "<th scope='col'></th>";
 		html += "<th scope='col'>Average<br>account balance</th>";
 		html += "<th scope='col' class='text-warning'>%</th>";
 		html += "<th scope='col'>Average<br>power (H/s)</th>";
+
+		if(network.logNetworkData) { // Keep track of networking data
+			html += "<th scope='col'>Average<br>num hops</th>";
+			html += "<th scope='col'>Average<br>block delay</th>";
+		}
+
 		html += "<th scope='col'>Average<br>latency (ms)</th>";
+		html += "<th scope='col'>Average<br>download BPS</th>";
+		html += "<th scope='col'>Average<br>upload BPS</th>";
 		html += "<th scope='col'>Average<br>block height</th>";
 		html += "<th scope='col'>Average<br>total blocks found</th>";
 		html += "<th scope='col'>Average<br>stale blocks found</th>";
 		html += "<th scope='col'>Average<br>max fork length</th>";
 		html += "</thead>";
 		html += "<tbody>";
-		let miner, avgSumBalance, percentAvgSumBalance, miners = 0, sumAvgSumBalance = 0, avgPower, avgLatency, avgBlockHeight, avgTotalBlocks, avgStaleBlocks, avgMaxForkLength;
+		let miner, avgSumBalance, percentAvgSumBalance, miners = 0, sumAvgSumBalance = 0, avgPower, avgNumHops, avgBlockDelay, avgLatency, avgDownloadBPS, avgUploadBPS, avgBlockHeight, avgTotalBlocks, avgStaleBlocks, avgMaxForkLength;
 		
 
 		for(let id in network.ID_Registry) {
@@ -1889,7 +2233,13 @@
 			avgSumBalance = Math.floor(updateToolOptions.samplerData[id].sumBalance / updateToolOptions.numSamples * 1000) / 1000;
 			percentAvgSumBalance = Math.floor(avgSumBalance / sumAvgSumBalance * 100000) / 1000;
 			avgPower = Math.floor(updateToolOptions.samplerData[id].sumPower / updateToolOptions.numSamples * 1000) / 1000;
+			if(network.logNetworkData) { // Keep track of networking data
+				avgNumHops = Math.floor(updateToolOptions.samplerData[id].sumNumHops / updateToolOptions.numSamples * 1000) / 1000;
+				avgBlockDelay = Math.floor(updateToolOptions.samplerData[id].sumBlockDelay / updateToolOptions.numSamples * 1000) / 1000;
+			}
 			avgLatency = Math.floor(updateToolOptions.samplerData[id].sumLatency / updateToolOptions.numSamples * 1000) / 1000;
+			avgDownloadBPS = Math.floor(updateToolOptions.samplerData[id].sumDownloadBPS / updateToolOptions.numSamples * 1000) / 1000;
+			avgUploadBPS = Math.floor(updateToolOptions.samplerData[id].sumUploadBPS / updateToolOptions.numSamples * 1000) / 1000;
 			avgBlockHeight = Math.floor(updateToolOptions.samplerData[id].sumBlockHeight / updateToolOptions.numSamples * 1000) / 1000;
 			avgTotalBlocks = Math.floor(updateToolOptions.samplerData[id].sumTotalBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgStaleBlocks = Math.floor(updateToolOptions.samplerData[id].sumStaleBlocks / updateToolOptions.numSamples * 1000) / 1000;
@@ -1899,7 +2249,15 @@
 			html += "<th scope='col'>" + avgSumBalance + " BTC</th>";
 			html += "<th scope='col' class='text-warning'>" + percentAvgSumBalance + "</th>";
 			html += "<th scope='col'>" + avgPower + "</th>";
+
+			if(network.logNetworkData) { // Keep track of networking data
+				html += "<th scope='col'>" + avgNumHops + "</th>";
+				html += "<th scope='col'>" + avgBlockDelay + "</th>";
+			}
+
 			html += "<th scope='col'>" + avgLatency + "</th>";
+			html += "<th scope='col'>" + avgDownloadBPS + "</th>";
+			html += "<th scope='col'>" + avgUploadBPS + "</th>";
 			html += "<th scope='col'>" + avgBlockHeight + "</th>";
 			html += "<th scope='col'>" + avgTotalBlocks + "</th>";
 			html += "<th scope='col'>" + avgStaleBlocks + "</th>";
@@ -2064,76 +2422,6 @@
 			}, 100);
 		}
 	}
-/*
-
-generateTopology({
-	"Type": "Ring",
-	"Bidirectional": false,
-	"Number of peers": 3,
-	"Minimum power": 40,
-	"Maximum power": 40,
-	"Minimum latency": 300,
-	"Maximum latency": 300,
-	"Naming cycle": ["Eve", "Alice", "Bob"]
-});
-setTag("One-way Ring");
-_EVE.power = 1;
-
-
-_EVE.power += 1;
-if(numSamples == 150) {
-	generateTopology({
-		"Type": "Ring",
-		"Bidirectional": true,
-		"Number of peers": 3,
-		"Minimum power": 40,
-		"Maximum power": 40,
-		"Minimum latency": 300,
-		"Maximum latency": 300,
-		"Naming cycle": ["Eve", "Alice", "Bob"]
-	});
-	setTag("Two-way Ring");
-	_EVE.power = 1;
-} else if(numSamples >= 300) {
-	toggleSampling(false);
-	downloadSampleLog();
-}
-
-______________________________________________________
-
-generateTopology({
-	"Type": "Ring",
-	"Bidirectional": false,
-	"Number of peers": 3,
-	"Minimum power": 40,
-	"Maximum power": 40,
-	"Minimum latency": 300,
-	"Maximum latency": 300,
-	"Naming cycle": ["Eve", "Alice", "Bob"]
-});
-setTag("One-way Ring");
-_EVE.latency= 1;
-
-
-_EVE.latency+= 10;
-if(numSamples == 150) {
-	generateTopology({
-		"Type": "Ring",
-		"Bidirectional": true,
-		"Number of peers": 3,
-		"Minimum power": 40,
-		"Maximum power": 40,
-		"Minimum latency": 300,
-		"Maximum latency": 300,
-		"Naming cycle": ["Eve", "Alice", "Bob"]
-	});
-	setTag("Two-way Ring");
-	_EVE.latency= 1;
-} else if(numSamples >= 300) {
-	toggleSampling(false);
-	downloadSampleLog();
-}
-*/
 </script>
 </html>
 
