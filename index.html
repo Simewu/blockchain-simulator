@@ -436,9 +436,9 @@
 					network.peers[peer].blockchain[block] = header;
 				}
 
-				// Recreate the networkBufferManager
-				let networkBufferManager = new NetworkBufferManager(miner.ID);
-				network.peers[peer].networkBufferManager = networkBufferManager;
+				// Recreate the networkBuffer
+				let networkBuffer = new NetworkBuffer(miner.ID);
+				network.peers[peer].networkBuffer = networkBuffer;
 			}
 			// Note: miner.blockchain headers are not actually Header objects anymore, this can be fixed by
 			return network;
@@ -478,7 +478,7 @@
 		}
 	}
 
-	class NetworkBufferManager {
+	class NetworkBuffer {
 		constructor(parentID) {
 			this.parentID = parentID;
 			this.clear();
@@ -513,7 +513,7 @@
 			
 			//console.log("Block " + data.height + ": Waiting " + secondsDelay + " seconds before sending to " + to_ID)
 
-			setTimeout(network.peers[to_ID].networkBufferManager.receive.bind(network.peers[to_ID].networkBufferManager), secondsDelay * 1000, this.parentID, to_ID, data);
+			setTimeout(network.peers[to_ID].networkBuffer.receive.bind(network.peers[to_ID].networkBuffer), secondsDelay * 1000, this.parentID, to_ID, data);
 
 			this.timestampSinceLastSend = now;
 		}
@@ -570,7 +570,7 @@
 			this.largestForkLength = 0;
 			this.currentHeader = this.newHeader(network.genesis);
 			this.color = "default";
-			this.networkBufferManager = new NetworkBufferManager(this.ID);
+			this.networkBuffer = new NetworkBuffer(this.ID);
 			updateTools();
 		}
 
@@ -631,7 +631,7 @@
 
 		stopMining() {
 			clearInterval(network.miningThreads[this.ID]);
-			this.networkBufferManager.clear();
+			this.networkBuffer.clear();
 
 			delete network.miningThreads[this.ID];
 			$("#minerList option[value='" + this.ID + "']").html(this.name);
@@ -706,7 +706,7 @@
 				//setTimeout(function(header){
 				//	network.peers[id].receive(header);
 				//}, this.latency, header.clone());
-				this.networkBufferManager.send(id, header.clone());
+				this.networkBuffer.send(id, header.clone());
 			}
 		}
 
@@ -1296,7 +1296,7 @@
 		} else {
 			// Merge the changes into the peer, excluding the current header
 			miner.currentHeader = network.peers[miner.ID].currentHeader;
-			miner.networkBufferManager = network.peers[miner.ID].networkBufferManager;
+			miner.networkBuffer = network.peers[miner.ID].networkBuffer;
 			Object.assign(network.peers[miner.ID], miner);
 			$("#minerList  option[value='" + miner.ID + "']").text(miner.name);
 			$("#editMinerBadge").attr("class", "ml-auto badge badge-primary");
@@ -1706,7 +1706,6 @@
 				minLatency = options["Minimum latency"] || 10;
 				maxLatency = options["Maximum latency"] || 100;
 				names = options["Naming cycle"] || ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
-				miners = [];
 				chosenNames = [];
 				let i = 0;
 				recursivelyGenerateTreeTopology(structure, null);
@@ -1724,7 +1723,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS);
 					if(parent != null) {
 						if(bidirectional) {
 							miner.addConnection(parent.ID);
@@ -2115,7 +2114,7 @@
 				let vis_rawNode = vis_rawNodeData[updateToolOptions.vis_nodeIDs[id]];
 				let color = vis_rawNode.options.color.background;
 				network.peers[id].color = color;
-				style += "#minerList option:checked[value=\"" + id + "\"]{border-right:20px solid " + color + ";text-align:center}";
+				style += "#minerList option:checked[value=\"" + id + "\"]{border-right:20px solid " + color + ";padding-left:10px}";
 			} catch(e) {}
 		}
 		document.getElementById("miner-colors-selector").innerHTML = style;
