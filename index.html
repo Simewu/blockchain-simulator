@@ -53,6 +53,7 @@
 			.jsoneditor-menu { border-bottom: 0 !important; }
 			.jsoneditor-text { color: #FFF; }
 		</style>
+		<style id="miner-colors-selector"></style>
 	</head>
 
 <body class="bg-dark py-3">
@@ -2105,6 +2106,21 @@
 			nodes: vis_nodes,
 			edges: vis_edges
 		}, updateToolOptions.vis_network_options);
+
+		// Retrieve the node color from the vis.js datastructure
+		let vis_rawNodeData = updateToolOptions.vis_network.nodesHandler.body.nodes;
+		let style = "";
+		for(let id in updateToolOptions.vis_nodeIDs) {
+			try {
+				let vis_rawNode = vis_rawNodeData[updateToolOptions.vis_nodeIDs[id]];
+				let color = vis_rawNode.options.color.background;
+				network.peers[id].color = color;
+				style += "#minerList option:checked[value=\"" + id + "\"]{border-right:20px solid " + color + ";text-align:center}";
+			} catch(e) {}
+		}
+		document.getElementById("miner-colors-selector").innerHTML = style;
+
+		updateMinerJsonEditor();
 
 		updateToolOptions.vis_network.on("selectNode", function (params) {
 			let miner, minerID;
