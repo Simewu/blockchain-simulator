@@ -575,6 +575,17 @@
 
 		destructor() {
 			this.stopMining();
+			let incomingPeersBackup = this.incomingPeers.slice();
+			let outgoingPeersBackup = this.outgoingPeers.slice();
+
+			for(let id of outgoingPeersBackup) {
+				this.removeConnection(id);
+			}
+			for(let id of incomingPeersBackup) {
+				if(network.peers[id] !== undefined) {
+					network.peers[id].removeConnection(this.ID);
+				}
+			}
 			delete network.ID_Registry[this.ID];
 			updateTools();
 		}
@@ -638,17 +649,31 @@
 			}
 		}
 
-		addPeer(ID) {
+		addConnection(ID) {
 			if(this.ID == ID) return;
 			this.outgoingPeers.push(ID);
 			network.peers[ID].incomingPeers.push(this.ID);
 			updateTools();
 		}
 
-		removePeer(ID) {
-			delete this.outgoingPeers[ID];
+		removeConnection(ID) {
+			//delete this.outgoingPeers[ID];
+
+			// Go through our connections, remove the ID
+			for(let i in this.outgoingPeers) {
+				if(this.outgoingPeers[i] == ID) {
+					this.outgoingPeers.splice(i, 1);
+				}
+			}
+
+			// Remove us from that peer's incoming peer list
 			if(network.peers[ID] !== undefined) {
-				delete network.peers[ID].incomingPeers[this.ID];
+				//delete network.peers[ID].incomingPeers[this.ID];
+				for(let i in network.peers[ID].incomingPeers) {
+					if(network.peers[ID].incomingPeers[i] == this.ID) {
+						network.peers[ID].incomingPeers.splice(i, 1);
+					}
+				}
 			}
 			updateTools();
 		}
@@ -790,7 +815,7 @@
 	function fullyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 in network.ID_Registry) {
-				network.peers[id1].addPeer(id2);
+				network.peers[id1].addConnection(id2);
 			}
 		}
 		$("#addMinerBadge").attr('class', 'badge badge-success');
@@ -802,7 +827,7 @@
 	function bidirectionallyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 of network.peers[id1].outgoingPeers) {
-				network.peers[id2].addPeer(id1);
+				network.peers[id2].addConnection(id1);
 			}
 		}
 		$("#addMinerBadge").attr('class', 'badge badge-success');
@@ -814,7 +839,7 @@
 	function fullyDisconnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 in network.ID_Registry) {
-				network.peers[id1].removePeer(id2);
+				network.peers[id1].removeConnection(id2);
 			}
 		}
 		$("#addMinerBadge").attr('class', 'badge badge-success');
@@ -1163,11 +1188,11 @@
 			miner.downloadMBPS = downloadMBPS;
 			miner.uploadMBPS = uploadMBPS;
 			for(let id of miner.outgoingPeers) {
-				miner.removePeer(id);
+				miner.removeConnection(id);
 			}
 			for(let id of peers) {
 				if(!miner.outgoingPeers.includes(id)) {
-					miner.addPeer(id);
+					miner.addConnection(id);
 				}
 			}
 			$("#addMinerBadge").attr('class', 'badge badge-success');
@@ -1175,7 +1200,7 @@
 		} else {
 			for(let id of peers) {
 				if(!miner.outgoingPeers.includes(id)) {
-					miner.addPeer(id);
+					miner.addConnection(id);
 				}
 			}
 			$("#addMinerBadge").attr('class', 'badge badge-success');
@@ -1486,11 +1511,11 @@
 					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addPeer(miners[i + 1].ID);
-					if(bidirectional) miners[i + 1].addPeer(miners[i].ID);
+					miners[i].addConnection(miners[i + 1].ID);
+					if(bidirectional) miners[i + 1].addConnection(miners[i].ID);
 				}
-				miners[miners.length - 1].addPeer(miners[0].ID);
-				if(bidirectional) miners[0].addPeer(miners[miners.length - 1].ID);
+				miners[miners.length - 1].addConnection(miners[0].ID);
+				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
 				break;
 
 			case "Mesh":
@@ -1544,8 +1569,8 @@
 
 						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
 
-						miners[i].addPeer(miners[r].ID);
-						if(bidirectional) miners[r].addPeer(miners[i].ID);
+						miners[i].addConnection(miners[r].ID);
+						if(bidirectional) miners[r].addConnection(miners[i].ID);
 					}
 				}
 				break;
@@ -1583,16 +1608,16 @@
 				}
 				if(bidirectional) {
 					for(let i = 1; i < miners.length; i++) {
-						miners[i].addPeer(miners[0].ID);
-						miners[0].addPeer(miners[i].ID);
+						miners[i].addConnection(miners[0].ID);
+						miners[0].addConnection(miners[i].ID);
 					}
 				} else if(towardsCenter) {
 					for(let i = 1; i < miners.length; i++) {
-						miners[i].addPeer(miners[0].ID);
+						miners[i].addConnection(miners[0].ID);
 					}
 				} else {
 					for(let i = 1; i < miners.length; i++) {
-						miners[0].addPeer(miners[i].ID);
+						miners[0].addConnection(miners[i].ID);
 					}
 				}
 				break;
@@ -1628,8 +1653,8 @@
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
-						miners[i].addPeer(miners[j].ID);
-						miners[j].addPeer(miners[i].ID);
+						miners[i].addConnection(miners[j].ID);
+						miners[j].addConnection(miners[i].ID);
 					}
 				}
 				break;
@@ -1664,8 +1689,8 @@
 					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addPeer(miners[i + 1].ID);
-					if(bidirectional) miners[i + 1].addPeer(miners[i].ID);
+					miners[i].addConnection(miners[i + 1].ID);
+					if(bidirectional) miners[i + 1].addConnection(miners[i].ID);
 				}
 				break;
 			case "Tree":
@@ -1701,10 +1726,10 @@
 					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
 					if(parent != null) {
 						if(bidirectional) {
-							miner.addPeer(parent.ID);
-							parent.addPeer(miner.ID);
+							miner.addConnection(parent.ID);
+							parent.addConnection(miner.ID);
 						} else {
-							miner.addPeer(parent.ID);
+							miner.addConnection(parent.ID);
 						}
 					}
 					for(let child of structure) {
@@ -1743,8 +1768,8 @@
 					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addPeer(miners[i + 1].ID);
-					miners[i + 1].addPeer(miners[i].ID);
+					miners[i].addConnection(miners[i + 1].ID);
+					miners[i + 1].addConnection(miners[i].ID);
 				}
 				break;
 			default:
