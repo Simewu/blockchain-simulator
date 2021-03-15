@@ -74,10 +74,11 @@
 							<div class="dropdown-menu">
 								<a class="dropdown-item" data-toggle="modal" data-target="#addMinerModal" onclick="addMinerBtnClicked()">Add/Edit miner</a>
 								<a id="removeMinerBtn" class="dropdown-item" onclick="DOM_removeMiner()">Remove miner</a>
-								<a class="dropdown-item" onclick="if(confirm('You\'re about to remove all miners.')) DOM_removeAllMiners()">Clear all miners</a>
+								<a class="dropdown-item" onclick="if(confirm('You\'re about to remove all miners.')) DOM_removeAllMiners()">Remove all miners</a>
 								<a class="dropdown-item" onclick="DOM_sortMiners()">Sort miners</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal"><b>Generate a topology</b></a>
+								<a class="dropdown-item" onclick="duplicateTopology()">Duplicate current topology</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network<br>data within each miner</a>
 								<div class="dropdown-divider"></div>
@@ -801,8 +802,25 @@
 		return Math.floor(a + Math.random() * (b - a + 1));
 	}
 
+	// Randomize array in-place using Durstenfeld shuffle algorithm
+	function shuffleArray(array) {
+		for (var i = array.length - 1; i > 0; i--) {
+			var j = Math.floor(Math.random() * (i + 1));
+			var temp = array[i];
+			array[i] = array[j];
+			array[j] = temp;
+		}
+	}
+
 	// Create a new miner
-	function newMiner(name, power, latency, downloadMBPS, uploadMBPS) {
+	function newMiner(name0, power, latency, downloadMBPS, uploadMBPS) {
+		// If the name exists, append a number to the end
+		let name = name0, count = 2;
+		while(network.findPeerByName(name) != null) {
+			name = name0 + count.toString();
+			count++;
+		}
+
 		for(let id in network.ID_Registry) {
 			if(network.peers[id].name == name) return;
 		}
@@ -904,7 +922,7 @@
 				"Minimum latency": 10,
 				"Maximum latency": 100,
 			  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
-			  //let minerNames = ["AARON", "ADAM", "ALAN", "ALBERT", "ALEX", "ALICE", "ANDREW", "ANTHONY", "ARTHUR", "AUSTIN", "BEN", "BILL", "BOB", "BOBBY", "BRANDON", "BRIAN", "BRUCE", "CARL", "CHARLES", "CHRIS", "DAN", "DANIEL", "DAVID", "DENNIS", "DONALD", "DOUGLAS", "DYLAN", "EDWARD", "ERIC", "ETHAN", "EUGENE", "FRANK", "GABRIEL", "GARY", "GEORGE", "GERALD", "GREGORY", "HAROLD", "HARRY", "HENRY", "JACK", "JACOB", "JAMES", "JASON", "JEFFREY", "JEREMY", "JERRY", "JESSE", "JOE", "JOHN", "JOHNNY", "JONATHAN", "JORDAN", "JOSE", "JOSEPH", "JOSHUA", "JUAN", "JUSTIN", "KEITH", "KENNETH", "KEVIN", "KYLE", "LARRY", "LAWRENCE", "LOGAN", "LOUIS", "MARK", "MATTHEW", "MICHAEL", "NATHAN", "NICHOLAS", "NOAH", "PATRICK", "PAUL", "PETER", "PHILIP", "RALPH", "RANDY", "RAYMOND", "RICHARD", "ROBERT", "ROGER", "RONALD", "ROY", "RUSSELL", "RYAN", "SAMUEL", "SCOTT", "SEAN", "STEPHEN", "STEVEN", "TERRY", "THOMAS", "TIMOTHY", "TYLER", "VINCENT", "WALTER", "WAYNE", "WILL", "ZACHARY"];
+			  //let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
 			});
 		}
 		$("#minerList option:first").prop("selected", true);
@@ -1246,6 +1264,43 @@
 			else return 0;
 		});
 		$("#minerList").empty().append(options);
+	}
+
+	// Duplicates the current network to create two instances of it
+	function duplicateTopology() {
+		if(!confirm("You are about to duplicate your topology, the number of peers will double.\n\nContinue?")) return;
+		let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
+		shuffleArray(minerNames);
+		try {
+			if(network.peers[Object.keys(network.ID_Registry)[0]].name.length == 1) {
+				minerNames = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+			}
+		} catch(e) {}
+
+		let translation = {};
+
+		for(let peerID in network.peers) {
+			let peer = network.peers[peerID];
+			let newName = minerNames[0];
+			for(let name of minerNames) {
+				if(network.findPeerByName(name) == null) {
+					newName = name;
+					break;
+				}
+			}
+			let miner = newMiner(newName, peer.power, peer.latency, peer.downloadMBPS, peer.uploadMBPS);
+			translation[peer.ID] = miner.ID;
+		}
+		for(let peerID in translation) {
+			let peer = network.peers[peerID];
+			let newPeer = network.peers[translation[peerID]];
+			for(let outgoingPeer of peer.outgoingPeers) {
+				outgoingPeersTranslation = translation[outgoingPeer];
+
+				if(outgoingPeersTranslation === undefined) continue;
+				newPeer.addConnection(outgoingPeersTranslation);
+			}
+		}
 	}
 
 	function DOM_toggleLoggingNetworkData(override) {
