@@ -382,7 +382,7 @@
 		setDifficulty(_difficulty) {
 			_difficulty = _difficulty.toString();
 
-			if(_difficulty.startsWith('0x')) {
+			if(_difficulty.startsWith("0x")) {
 				_difficulty = _difficulty.substring(2); // Remove the 0x
 				let maxDifficulty = parseInt("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".substring(0, 15), 16);
 				let d = parseInt(_difficulty.substring(0, 15), 16) / maxDifficulty;
@@ -863,7 +863,7 @@
 				network.peers[id1].addConnection(id2);
 			}
 		}
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 		DOM_selectedMiner();
 	}
@@ -875,7 +875,7 @@
 				network.peers[id2].addConnection(id1);
 			}
 		}
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 		DOM_selectedMiner();
 	}
@@ -887,7 +887,7 @@
 				network.peers[id1].removeConnection(id2);
 			}
 		}
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 		DOM_selectedMiner();
 	}
@@ -896,7 +896,7 @@
 	function DOM_clearBlockchain() {
 		network.stopAllMiners();
 		network.clearBlockchain();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 		DOM_selectedMiner();
 	}
@@ -910,25 +910,12 @@
 			$("#addMinerBadge").text("NO MINER SELECTED");
 		} else {
 			miner.clearBlockchain();
-			$("#addMinerBadge").attr('class', 'badge badge-success');
+			$("#addMinerBadge").attr("class", "badge badge-success");
 			$("#addMinerBadge").text("SUCCESS");
 		}
 	}
 
 	$(document).ready(function() {
-		/*
-		let heightUpdateFunction = function() {
-			let newHeight = editor.getSession().getScreenLength() * editor.renderer.lineHeight + editor.renderer.scrollBar.getWidth();
-			$('#jsoneditor').height(newHeight.toString() + "px");
-			$('#editor-section').height(newHeight.toString() + "px");
-			editor.resize();
-		};
-		heightUpdateFunction();
-		editor.getSession().on('change', heightUpdateFunction);*/
-		/*$("#addMinerName").autocomplete({
-			data: minerNames
-		});*/
-
 
 		// First try loading the filename "", if it doesn't exist, then generate a random topology
 		if(loadLocalStorageQuiet("") == false) {
@@ -1106,11 +1093,11 @@
 		$("#minerList option:selected").change();
 	}
 
-	$('#addMinerModal').on('shown.bs.modal', function (e) {
+	$("#addMinerModal").on("shown.bs.modal", function (e) {
 		$("#addMinerBadge").text("");
 	});
 
-	$('#generateTopologyModal').on('shown.bs.modal', function (e) {
+	$("#generateTopologyModal").on("shown.bs.modal", function (e) {
 		$("map").imageMapResize();
 	});
 
@@ -1130,7 +1117,7 @@
 			network.peers[id].power = Math.max(0, rnd(num1, num2))
 		}
 		updateMinerJsonEditor();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1150,7 +1137,7 @@
 			network.peers[id].latency = Math.max(0, rnd(num1, num2))
 		}
 		updateMinerJsonEditor();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1170,7 +1157,7 @@
 			network.peers[id].downloadMBPS = Math.max(0, rnd(num1, num2))
 		}
 		updateMinerJsonEditor();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1190,7 +1177,7 @@
 			network.peers[id].uploadMBPS = Math.max(0, rnd(num1, num2))
 		}
 		updateMinerJsonEditor();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1223,7 +1210,7 @@
 					}
 				}
 				if(noChanges) {
-					$("#addMinerBadge").attr('class', 'badge badge-primary');
+					$("#addMinerBadge").attr("class", "badge badge-primary");
 					$("#addMinerBadge").text("NO CHANGES WERE MADE");
 					return;
 				}
@@ -1240,7 +1227,7 @@
 					miner.addConnection(id);
 				}
 			}
-			$("#addMinerBadge").attr('class', 'badge badge-success');
+			$("#addMinerBadge").attr("class", "badge badge-success");
 			$("#addMinerBadge").text("EDITED " + miner.name.toUpperCase());
 		} else {
 			for(let id of peers) {
@@ -1248,7 +1235,7 @@
 					miner.addConnection(id);
 				}
 			}
-			$("#addMinerBadge").attr('class', 'badge badge-success');
+			$("#addMinerBadge").attr("class", "badge badge-success");
 			$("#addMinerBadge").text("ADDED " + miner.name.toUpperCase());
 		}
 	}
@@ -1258,7 +1245,7 @@
 		const miner = network.peers[e.val()];
 		const name = miner.name;
 		if(miner === undefined) {
-			$("#addMinerBadge").attr('class', 'badge badge-warning');
+			$("#addMinerBadge").attr("class", "badge badge-warning");
 			$("#addMinerBadge").text("NO MINER SELECTED");
 		} else {
 			miner.destructor();
@@ -1266,7 +1253,7 @@
 			e.remove();
 			$("#removeMinerBtn").text("Remove miner");
 			$("#toggleMinerMiningBtn").text("Toggle mining for miner");
-			$("#addMinerBadge").attr('class', 'badge badge-success');
+			$("#addMinerBadge").attr("class", "badge badge-success");
 			$("#addMinerBadge").text("REMOVED " + name.toUpperCase());
 		}
 	}
@@ -1335,20 +1322,20 @@
 			network.logNetworkData = false;
 			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Clean up
-				delete network.peers[peerID]['blockchain_numHops'];
-				delete network.peers[peerID]['blockchain_blockDelay'];
+				delete network.peers[peerID]["blockchain_numHops"];
+				delete network.peers[peerID]["blockchain_blockDelay"];
 			}
 		} else {
 			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network<br>data within each miner");
 
 			if(network) for(peerID in network.peers) { // Initialization
-				network.peers[peerID]['blockchain_numHops'] = [];
-				network.peers[peerID]['blockchain_blockDelay'] = []
+				network.peers[peerID]["blockchain_numHops"] = [];
+				network.peers[peerID]["blockchain_blockDelay"] = []
 			}
 			network.logNetworkData = true;
 		}
 		updateMinerJsonEditor();
-		$("#addMinerBadge").attr('class', 'badge badge-success');
+		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
 	}
 
@@ -1383,12 +1370,9 @@
 			$("#editMinerBadge").attr("class", "ml-auto badge badge-primary");
 			$("#editMinerBadge").text("SUCCESSFULLY SAVED");
 		}
-		// Update the diagram
-		//if(updateToolOptions.vis_simulation_active) {
-		//	vis_setupNetworkSimulation();
-		//}
 	}
 
+	// TODO: Enable editing the network directly
 	function DOM_editNetwork() {
 		/*const newNetwork = networkjsoneditor.get();
 		if(newNetwork === undefined) {
@@ -2118,7 +2102,7 @@
 	}
 
 	function vis_setLineLengths() {
-		let length_s = prompt('How long should lines be?')
+		let length_s = prompt("How long should lines be?")
 		if(length_s == null) return;
 		let length = parseInt(length_s) || undefined;
 
@@ -2590,7 +2574,7 @@
 					}
 				},
 				font: {
-					color: '#000000'
+					color: "#000000"
 				}
 			},
 			edges: {
@@ -2614,7 +2598,7 @@
 
 	function showSvg(svg) {
 		var svgBlob = new Blob([svg], {
-			type: 'image/svg+xml'
+			type: "image/svg+xml"
 		});
 		openBlob(svgBlob, "blockchain_simulator_network.svg");
 	}
