@@ -360,7 +360,7 @@
 	class Network {
 		constructor() {
 			this.peers = {};
-			this.setDifficulty("03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+			this.setDifficulty(0.1);
 
 			this.blockSize = 1000000;
 			this.genesis = new Header();
@@ -374,8 +374,25 @@
 		}
 
 		setDifficulty(_difficulty) {
-			let maxDifficulty = parseInt("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".substring(0, 15), 16);
-			this.difficulty = parseInt(_difficulty.substring(0, 15), 16) / maxDifficulty;
+			_difficulty = _difficulty.toString();
+
+			if(_difficulty.startsWith('0x')) {
+				_difficulty = _difficulty.substring(2); // Remove the 0x
+				let maxDifficulty = parseInt("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".substring(0, 15), 16);
+				let d = parseInt(_difficulty.substring(0, 15), 16) / maxDifficulty;
+				if(!isNaN(d)) {
+					this.difficulty = d;
+				} else {
+					alert(`Invalid difficulty value: "${_difficulty}".`);
+				}
+			} else {
+				let d = parseFloat(_difficulty);
+				if(!isNaN(d)) {
+					this.difficulty = d;
+				} else {
+					alert(`Invalid difficulty value: "${_difficulty}".`);
+				}
+			} 
 		}
 
 		startAllMiners() {
@@ -1837,7 +1854,7 @@
 	}
 
 	function DOM_setNetworkDifficulty() {
-		const difficulty = prompt("Enter a network difficulty threshhold in hex.\n\nEasiest difficulty = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "03FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"); // !!!!!!!!!!!!!!!!!!
+		const difficulty = prompt("Enter a network difficulty threshhold in hex, or in decimal (as the probability of finding a block).\n\nEasiest difficulty = 1.0 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", network.difficulty);
 		if(difficulty == null) return;
 		network.setDifficulty(difficulty);
 		alert("Difficulty has been set to " + network.difficulty * 100 + "% chance of a nonce being a block.");
