@@ -65,6 +65,7 @@
 				<div class="col-md-4">
 					<div class="row px-3">
 						<div class="btn-group fillx" style="max-height: 35px; cursor: pointer">
+							<!-- Options -->
 							<button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="$('#addMinerBadge').text('')" style="width: 100%">
 								<span class="sr-only">Toggle Dropdown</span>
 								<span id="addMinerBadge" class="badge badge-light"></span>
@@ -103,6 +104,8 @@
 					<div class="row px-3">
 						<div class="btn-group fillx" style="max-height: 35px; cursor: pointer">
 							<button id="toggleMiningBtn" onclick="DOM_toggleAllMining()" type="button" class="btn btn-dark rounded-0" style="width: 100%">Start All Miners</button>
+							
+							<!-- Miner Options -->
 							<button type="button" class="btn btn-dark rounded-0 dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 								<span class="sr-only">Toggle Dropdown</span>
 							</button>
@@ -130,6 +133,8 @@
 		<div class="row">
 			<div class="col-md-12 mb-3">
 				<div class="btn-group fillx" style="max-height: 35px; cursor: pointer">
+
+					<!-- Menu -->
 					<button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="$('#addMinerBadge').text('')" style="width: 100%">
 						<span class="sr-only">Toggle Dropdown</span>
 						<span id="addMinerBadge" class="badge badge-light"></span>
@@ -167,39 +172,39 @@
 							<div class="input-group">
 							<label for="timePerSample" class="col-sm-3 col-form-label">Time per sample (s)</label>
 							<div class="col-sm-9 p-0">
-								<input  id="timePerSample" type="number" class="form-control text-white bg-dark border border-secondary" min="0" value="20" required>
+								<input  id="timePerSample" type="number" onchange="saveSamplerSettings()" class="form-control text-white bg-dark border border-secondary" min="0" value="60" required>
 							</div>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeBeforeSampling" class="col-sm-3 col-form-label">Run before sampling</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBeforeSampling" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
+								<textarea id="codeBeforeSampling" onchange="saveSamplerSettings()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeBetweenSamples" class="col-sm-3 col-form-label">Run between samples</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBetweenSamples" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="2"></textarea>
+								<textarea id="codeBetweenSamples" onchange="saveSamplerSettings()" class="form-control text-white bg-dark border border-secondary" rows="2"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeAfterSampling" class="col-sm-3 col-form-label">Run after sampling</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeAfterSampling" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
+								<textarea id="codeAfterSampling" onchange="saveSamplerSettings()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label class="col-sm-3 col-form-label"></label>
 							<div class="col-sm-9 p-0">
 								<label class="btn btn-secondary">
-									<input id="logAllSamplesCheckbox" type="checkbox"> Log samples
+									<input id="logSamplesCheckbox" type="checkbox" onchange="saveSamplerSettings()"> Log samples
 								</label>
 								<label class="btn btn-secondary">
-									<input id="resetBlockchainAfterEachSampleCheckbox" type="checkbox" checked> Reset blockchain after each sample
+									<input id="resetBlockchainAfterEachSampleCheckbox" type="checkbox" onchange="saveSamplerSettings()" checked> Reset blockchain after each sample
 								</label>
 								<label class="btn btn-secondary">
-									<input id="updateTableAfterEachSampleCheckbox" type="checkbox" checked> Update table
+									<input id="updateTableAfterEachSampleCheckbox" type="checkbox" onchange="saveSamplerSettings()" checked> Update table
 								</label>
 							</div>
 						</div>
@@ -374,9 +379,13 @@
 			// When a block is received, keep track of number of networking data, such as the number of hops
 			this.logging = {
 				logNetworkData: false,
+				msPerSample: 20000,
 				codeBeforeSampling: "console.log(\"Sampling started at \", Date.now());",
 				codeBetweenSamples: "// BOB.power += 10;\nif(numSamples >= 100000) toggleSampling(false);",
 				codeAfterSampling: "console.log(\"Sampling ended at \", Date.now());",
+				logSamples: false,
+				resetBlockchainAfterEachSample: true,
+				updateTableAfterEachSample: true
 			}
 		}
 
@@ -938,7 +947,8 @@
 			  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
 			  //let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
 			});
-			loadSamplerCode();
+			loadSamplerSettings();
+			saveSamplerSettings();
 		}
 		$("#minerList option:first").prop("selected", true);
 		$("#minerList option:first").change();
@@ -976,7 +986,7 @@
 			network = Network.deserialize(json);
 			updateTools();
 			updateMinerList();
-			loadSamplerCode();
+			loadSamplerSettings();
 			if(Object.keys(network.peers).length > 0) selectMiner(Object.keys(network.peers)[0]);
 			DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
 		}
@@ -994,7 +1004,7 @@
 			network = Network.deserialize(json);
 			updateTools();
 			updateMinerList();
-			loadSamplerCode();
+			loadSamplerSettings();
 			DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
 		}
 		return true;
@@ -2203,20 +2213,29 @@
 	}
 
 	// Save the code from the DOM to the network data
-	function saveSamplerCode() {
-		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+	function saveSamplerSettings() {
+
+		network.logging.msPerSample = Math.floor(Number($("#timePerSample").val()) * 1000);
 
 		// Add the code wrapper
-		network.logging.codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val(); + "\n}";
-		network.logging.codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val(); + "\n}";
-		network.logging.codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val(); + "\n}";
+		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+
+		network.logging.codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val() + "\n}";
+		network.logging.codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val() + "\n}";
+		network.logging.codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val() + "\n}";
+
+		network.logging.logSamples = $("#logSamplesCheckbox").prop("checked");
+		network.logging.resetBlockchainAfterEachSample = $("#resetBlockchainAfterEachSampleCheckbox").prop("checked");
+		network.logging.updateTableAfterEachSample = $("#updateTableAfterEachSampleCheckbox").prop("checked");
 	}
 
 	// Load the code from the network to the DOM
-	function loadSamplerCode() {
-		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+	function loadSamplerSettings() {
+		$("#timePerSample").val(network.logging.msPerSample / 1000);
 
 		// Remove the code wrapper
+		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+
 		let codeBeforeSampling = network.logging.codeBeforeSampling;
 		let codeBetweenSamples = network.logging.codeBetweenSamples;
 		let codeAfterSampling = network.logging.codeAfterSampling;
@@ -2236,6 +2255,10 @@
 		$("#codeBeforeSampling").val(codeBeforeSampling);
 		$("#codeBetweenSamples").val(codeBetweenSamples);
 		$("#codeAfterSampling").val(codeAfterSampling);
+
+		$("#logSamplesCheckbox").prop("checked", network.logging.logSamples);
+		$("#resetBlockchainAfterEachSampleCheckbox").prop("checked", network.logging.resetBlockchainAfterEachSample);
+		$("#updateTableAfterEachSampleCheckbox").prop("checked", network.logging.updateTableAfterEachSample);
 	}
 
 	function DOM_toggleSamplerForm() {
@@ -2263,7 +2286,7 @@
 			updateToolOptions.sampler_running = true;
 			network.startAllMiners();
 			updateToolOptions.sampleStartTime = new Date().getTime();
-			setTimeout(sample, updateToolOptions.sampler_msPerSample);
+			setTimeout(sample, network.logging.msPerSample);
 		}
 	}
 
@@ -2305,12 +2328,8 @@
 				sumMaxForkLength: 0
 			}
 		}
-		updateToolOptions.sampler_msPerSample = Math.floor(Number($("#timePerSample").val()) * 1000);
 
-		saveSamplerCode();
-		//network.logging.codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val() + "\n}";
-		//network.logging.codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val() + "\n}";
-		//network.logging.codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val() + "\n}";
+		saveSamplerSettings();
 		
 		// Convert miner IDs into proper references
 		for(let id in network.ID_Registry) {
@@ -2330,7 +2349,7 @@
 	function sample() {
 		updateToolOptions.sampleEndTime = new Date().getTime();
 
-		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+		if(network.logging.resetBlockchainAfterEachSample) {
 			network.stopAllMiners();
 		}
 
@@ -2359,7 +2378,7 @@
 			updateToolOptions.samplerData[id].sumStaleBlocks += miner.staleBlocksFound;
 			updateToolOptions.samplerData[id].sumMaxForkLength += miner.largestForkLength;
 		}
-		if($("#logAllSamplesCheckbox").prop("checked")) {
+		if(network.logging.logSamples) {
 			let line = "", balanceTotal = 0, powerTotal = 0, latencyTotal = 0, downloadMBPSTotal = 0, uploadMBPSTotal = 0;
 			line += "\"" + updateToolOptions.samplerLog.length + "\",";
 			line += "\"" + sampleDuration + "\",";
@@ -2401,11 +2420,11 @@
 			}
 			updateToolOptions.samplerLog.push(line);
 		}
-		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+		if(network.logging.resetBlockchainAfterEachSample) {
 			network.clearBlockchain();
 		}
 
-		if($("#updateTableAfterEachSampleCheckbox").prop("checked")) {
+		if(network.logging.updateTableAfterEachSample) {
 			updateSamplerTable();
 		}
 		try {
@@ -2417,12 +2436,12 @@
 			return;
 		}
 
-		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+		if(network.logging.resetBlockchainAfterEachSample) {
 			network.startAllMiners();
 		}
 		if(updateToolOptions.sampler_running) {
 			updateToolOptions.sampleStartTime = new Date().getTime();
-			setTimeout(sample, updateToolOptions.sampler_msPerSample);
+			setTimeout(sample, network.logging.msPerSample);
 		}
 	}
 
