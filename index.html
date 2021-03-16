@@ -174,19 +174,19 @@
 						<div class="form-group row">
 							<label for="codeBeforeSampling" class="col-sm-3 col-form-label">Run before sampling</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBeforeSampling" class="form-control text-white bg-dark border border-secondary" rows="1">console.log("Sampling started at ", Date.now());</textarea>
+								<textarea id="codeBeforeSampling" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeBetweenSamples" class="col-sm-3 col-form-label">Run between samples</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBetweenSamples" class="form-control text-white bg-dark border border-secondary" rows="2">// BOB.power += 10;&#13;&#10;if(numSamples >= 100000) toggleSampling(false);</textarea>
+								<textarea id="codeBetweenSamples" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="2"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
 							<label for="codeAfterSampling" class="col-sm-3 col-form-label">Run after sampling</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeAfterSampling" class="form-control text-white bg-dark border border-secondary" rows="1">console.log("Sampling ended at ", Date.now());</textarea>
+								<textarea id="codeAfterSampling" onchange="saveSamplerCode()" class="form-control text-white bg-dark border border-secondary" rows="1"></textarea>
 							</div>
 						</div>
 						<div class="form-group row">
@@ -352,9 +352,6 @@
 		vis_lineLength: undefined,
 		sampler_DOM_active: true,
 		sampler_running: false,
-		sampler_codeBeforeSampling: "",
-		sampler_codeBetweenSamples: "",
-		sampler_codeAfterSampling: "",
 		samplerData: [],
 		samplerLog: [],
 		sampleStartTime: 0,
@@ -375,7 +372,12 @@
 			this.maximumBlockchainPurgeLength = 200; // When a miner's blockchain reaches this many blocks, it will remove the oldest ones until it's the minimumBlockchainPurgeLength
 
 			// When a block is received, keep track of number of networking data, such as the number of hops
-			this.logNetworkData = false; 
+			this.logging = {
+				logNetworkData: false,
+				codeBeforeSampling: "console.log(\"Sampling started at \", Date.now());",
+				codeBetweenSamples: "// BOB.power += 10;\nif(numSamples >= 100000) toggleSampling(false);",
+				codeAfterSampling: "console.log(\"Sampling ended at \", Date.now());",
+			}
 		}
 
 		setDifficulty(_difficulty) {
@@ -481,7 +483,7 @@
 			this.hash = 0;
 			this.prevHash = 0;
 			this.balances = [];
-			if(network && network.logNetworkData) {
+			if(network && network.logging.logNetworkData) {
 				this.numHops = 0;
 			}
 		}
@@ -494,7 +496,7 @@
 			newHeader.hash = this.hash;
 			newHeader.prevHash = this.prevHash;
 			newHeader.balances = Object.assign({}, this.balances);
-			if(network.logNetworkData) {
+			if(network.logging.logNetworkData) {
 				newHeader.numHops = this.numHops;
 			}
 			return newHeader;
@@ -619,7 +621,7 @@
 		}
 
 		setBlock(height, block) {
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_numHops[height] = block.numHops;
 				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
@@ -719,7 +721,7 @@
 
 		// Broadcast a header to all peers
 		submit(header) {
-			if(network.logNetworkData) {
+			if(network.logging.logNetworkData) {
 				// Keep track of number of hops
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
@@ -936,6 +938,7 @@
 			  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
 			  //let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
 			});
+			loadSamplerCode();
 		}
 		$("#minerList option:first").prop("selected", true);
 		$("#minerList option:first").change();
@@ -973,8 +976,9 @@
 			network = Network.deserialize(json);
 			updateTools();
 			updateMinerList();
+			loadSamplerCode();
 			if(Object.keys(network.peers).length > 0) selectMiner(Object.keys(network.peers)[0]);
-			DOM_toggleLoggingNetworkData(network.logNetworkData);
+			DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
 		}
 	}
 
@@ -990,7 +994,8 @@
 			network = Network.deserialize(json);
 			updateTools();
 			updateMinerList();
-			DOM_toggleLoggingNetworkData(network.logNetworkData);
+			loadSamplerCode();
+			DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
 		}
 		return true;
 	}
@@ -1316,9 +1321,9 @@
 	}
 
 	function DOM_toggleLoggingNetworkData(override) {
-		if(override !== undefined) network.logNetworkData = !override;
-		if(network.logNetworkData) {
-			network.logNetworkData = false;
+		if(override !== undefined) network.logging.logNetworkData = !override;
+		if(network.logging.logNetworkData) {
+			network.logging.logNetworkData = false;
 			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Clean up
 				delete network.peers[peerID]["blockchain_numHops"];
@@ -1331,7 +1336,7 @@
 				network.peers[peerID]["blockchain_numHops"] = [];
 				network.peers[peerID]["blockchain_blockDelay"] = []
 			}
-			network.logNetworkData = true;
+			network.logging.logNetworkData = true;
 		}
 		updateMinerJsonEditor();
 		$("#addMinerBadge").attr("class", "badge badge-success");
@@ -1912,7 +1917,7 @@
 		html += "<th scope='col'>Power (H/s)</th>";
 		html += "<th scope='col' class='text-warning'>%</th>";
 
-		if(network.logNetworkData) {
+		if(network.logging.logNetworkData) {
 			html += "<th scope='col'>Num hops</th>";
 			html += "<th scope='col'>Block delay</th>";
 		}
@@ -1966,7 +1971,7 @@
 			let miner = network.peers[id];
 			sum.power += miner.power;
 
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
@@ -1988,7 +1993,7 @@
 			numPeers++;
 		}
 		avg.power = Math.floor(sum.power / numPeers * 1000) / 1000;
-		if(network.logNetworkData) { // Keep track of networking data
+		if(network.logging.logNetworkData) { // Keep track of networking data
 			avg.numHops = Math.floor(sum.numHops / numPeers * 1000) / 1000;
 			avg.blockDelay = Math.floor(sum.blockDelay / numPeers * 1000) / 1000;
 		}
@@ -2011,7 +2016,7 @@
 			html += "<th scope='col'>" + miner.power + "</th>";
 			html += "<th scope='col' class='text-warning'>" + (Math.floor(miner.power / sum.power * 100000) / 1000) + "</th>";
 
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
@@ -2048,7 +2053,7 @@
 		html += "<th scope='col'>" + sum.power + "<br>" + avg.power + "</th>";
 		html += "<th scope='col'></th>";
 
-		if(network.logNetworkData) { // Keep track of networking data
+		if(network.logging.logNetworkData) { // Keep track of networking data
 			html += "<th scope='col'>" + (Math.floor(sum.numHops * 1000) / 1000) + "<br>" + (Math.floor(avg.numHops * 1000) / 1000) + "</th>";
 			html += "<th scope='col'>" + (Math.floor(sum.blockDelay * 1000) / 1000) + "<br>" + (Math.floor(avg.blockDelay * 1000) / 1000) + "</th>";
 		}
@@ -2197,6 +2202,42 @@
 		updateToolOptions.vis_timeout = null;
 	}
 
+	// Save the code from the DOM to the network data
+	function saveSamplerCode() {
+		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+
+		// Add the code wrapper
+		network.logging.codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val(); + "\n}";
+		network.logging.codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val(); + "\n}";
+		network.logging.codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val(); + "\n}";
+	}
+
+	// Load the code from the network to the DOM
+	function loadSamplerCode() {
+		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
+
+		// Remove the code wrapper
+		let codeBeforeSampling = network.logging.codeBeforeSampling;
+		let codeBetweenSamples = network.logging.codeBetweenSamples;
+		let codeAfterSampling = network.logging.codeAfterSampling;
+
+		if(codeBeforeSampling.startsWith('{\n')) codeBeforeSampling = codeBeforeSampling.substring(2);
+		if(codeBetweenSamples.startsWith('{\n')) codeBetweenSamples = codeBetweenSamples.substring(2);
+		if(codeAfterSampling.startsWith('{\n')) codeAfterSampling = codeAfterSampling.substring(2);
+
+		if(codeBeforeSampling.startsWith(_code)) codeBeforeSampling = codeBeforeSampling.substring(_code.length);
+		if(codeBetweenSamples.startsWith(_code)) codeBetweenSamples = codeBetweenSamples.substring(_code.length);
+		if(codeAfterSampling.startsWith(_code)) codeAfterSampling = codeAfterSampling.substring(_code.length);
+
+		if(codeBeforeSampling.endsWith('\n}')) codeBeforeSampling = codeBeforeSampling.slice(0, -2);
+		if(codeBetweenSamples.endsWith('\n}')) codeBetweenSamples = codeBetweenSamples.slice(0, -2);
+		if(codeAfterSampling.endsWith('\n}')) codeAfterSampling = codeAfterSampling.slice(0, -2);
+
+		$("#codeBeforeSampling").val(codeBeforeSampling);
+		$("#codeBetweenSamples").val(codeBetweenSamples);
+		$("#codeAfterSampling").val(codeAfterSampling);
+	}
+
 	function DOM_toggleSamplerForm() {
 		if(updateToolOptions.sampler_DOM_active) {
 			$("#samplerDiv").hide();
@@ -2244,7 +2285,7 @@
 		for(let id in network.ID_Registry) {
 			updateToolOptions.samplerLog[0] += ",Name,Balance,Balance %,Power,Power %,"
 
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				updateToolOptions.samplerLog[0] += "Num Hops,";
 				updateToolOptions.samplerLog[0] += "Block Delay,";
 			}
@@ -2266,20 +2307,20 @@
 		}
 		updateToolOptions.sampler_msPerSample = Math.floor(Number($("#timePerSample").val()) * 1000);
 
-		let _code = "let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n";
-		updateToolOptions.sampler_codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val() + "\n}";
-		updateToolOptions.sampler_codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val() + "\n}";
-		updateToolOptions.sampler_codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val() + "\n}";
+		saveSamplerCode();
+		//network.logging.codeBeforeSampling = "{\n" + _code + $("#codeBeforeSampling").val() + "\n}";
+		//network.logging.codeBetweenSamples = "{\n" + _code + $("#codeBetweenSamples").val() + "\n}";
+		//network.logging.codeAfterSampling = "{\n" + _code + $("#codeAfterSampling").val() + "\n}";
 		
 		// Convert miner IDs into proper references
 		for(let id in network.ID_Registry) {
 			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
-			updateToolOptions.sampler_codeBeforeSampling = updateToolOptions.sampler_codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			updateToolOptions.sampler_codeBetweenSamples = updateToolOptions.sampler_codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			updateToolOptions.sampler_codeAfterSampling = updateToolOptions.sampler_codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			network.logging.codeBeforeSampling = network.logging.codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			network.logging.codeBetweenSamples = network.logging.codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			network.logging.codeAfterSampling = network.logging.codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
 		}
 		try {
-			eval(updateToolOptions.sampler_codeBeforeSampling);
+			eval(network.logging.codeBeforeSampling);
 		} catch(e) {
 			alert(e);
 			console.warn(e);
@@ -2301,7 +2342,7 @@
 			updateToolOptions.samplerData[id].sumBalance += miner.currentHeader.balances[id];
 			updateToolOptions.samplerData[id].sumPower += miner.power;
 
-			if(network.logNetworkData) {
+			if(network.logging.logNetworkData) {
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
@@ -2340,7 +2381,7 @@
 				line += "\"" + miner.power + "\",";
 				line += "\"" + (miner.power / powerTotal * 100) + "\",";
 
-				if(network.logNetworkData) { // Keep track of networking data
+				if(network.logging.logNetworkData) { // Keep track of networking data
 					try {
 						line += "\"" + miner.blockchain_numHops.join(" ") + "\",";
 						line += "\"" + miner.blockchain_blockDelay.join(" ") + "\",";
@@ -2368,7 +2409,7 @@
 			updateSamplerTable();
 		}
 		try {
-			eval(updateToolOptions.sampler_codeBetweenSamples);
+			eval(network.logging.codeBetweenSamples);
 		} catch(e) {
 			alert(e);
 			console.warn(e);
@@ -2387,7 +2428,7 @@
 
 	function stopSampling() {
 		try {
-			eval(updateToolOptions.sampler_codeAfterSampling);
+			eval(network.logging.codeAfterSampling);
 		} catch(e) {
 			alert(e);
 			console.warn(e);
@@ -2409,7 +2450,7 @@
 		html += "<th scope='col' class='text-warning'>%</th>";
 		html += "<th scope='col'>Average<br>power (H/s)</th>";
 
-		if(network.logNetworkData) { // Keep track of networking data
+		if(network.logging.logNetworkData) { // Keep track of networking data
 			html += "<th scope='col'>Average<br>num hops</th>";
 			html += "<th scope='col'>Average<br>block delay</th>";
 		}
@@ -2436,7 +2477,7 @@
 			avgSumBalance = Math.floor(updateToolOptions.samplerData[id].sumBalance / updateToolOptions.numSamples * 1000) / 1000;
 			percentAvgSumBalance = Math.floor(avgSumBalance / sumAvgSumBalance * 100000) / 1000;
 			avgPower = Math.floor(updateToolOptions.samplerData[id].sumPower / updateToolOptions.numSamples * 1000) / 1000;
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				avgNumHops = Math.floor(updateToolOptions.samplerData[id].sumNumHops / updateToolOptions.numSamples * 1000) / 1000;
 				avgBlockDelay = Math.floor(updateToolOptions.samplerData[id].sumBlockDelay / updateToolOptions.numSamples * 1000) / 1000;
 			}
@@ -2453,7 +2494,7 @@
 			html += "<th scope='col' class='text-warning'>" + percentAvgSumBalance + "</th>";
 			html += "<th scope='col'>" + avgPower + "</th>";
 
-			if(network.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData) { // Keep track of networking data
 				html += "<th scope='col'>" + avgNumHops + "</th>";
 				html += "<th scope='col'>" + avgBlockDelay + "</th>";
 			}
