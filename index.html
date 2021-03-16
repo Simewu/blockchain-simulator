@@ -191,10 +191,16 @@
 							</div>
 						</div>
 						<div class="form-group row">
-							<label for="logAllSamplesCheckbox" class="col-sm-3 col-form-label"></label>
+							<label class="col-sm-3 col-form-label"></label>
 							<div class="col-sm-9 p-0">
 								<label class="btn btn-secondary">
 									<input id="logAllSamplesCheckbox" type="checkbox"> Log samples
+								</label>
+								<label class="btn btn-secondary">
+									<input id="resetBlockchainAfterEachSampleCheckbox" type="checkbox" checked> Reset blockchain after each sample
+								</label>
+								<label class="btn btn-secondary">
+									<input id="updateTableAfterEachSampleCheckbox" type="checkbox" checked> Update table
 								</label>
 							</div>
 						</div>
@@ -830,12 +836,15 @@
 	}
 
 	// Create a new miner
-	function newMiner(name0, power, latency, downloadMBPS, uploadMBPS) {
-		// If the name exists, append a number to the end
-		let name = name0, count = 2;
-		while(network.findPeerByName(name) != null) {
-			name = name0 + count.toString();
-			count++;
+	function newMiner(name0, power, latency, downloadMBPS, uploadMBPS, createNewIfExists = true) {
+		let name = name0;
+		if(createNewIfExists) {
+			// Create a new name/miner by appending a counter to the end, so that the name is unique
+			let count = 2;
+			while(network.findPeerByName(name) != null) {
+				name = name0 + count.toString();
+				count++;
+			}
 		}
 
 		for(let id in network.ID_Registry) {
@@ -1193,7 +1202,7 @@
 		const downloadMBPS = parseFloat($("#addMinerDownloadMBPS").val());
 		const uploadMBPS = parseFloat($("#addMinerUploadMBPS").val());
 		const peers = $("#multiselectAddPeers").val();
-		let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS);
+		let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS, false);
 		if(miner === undefined) {
 			// The same name exists, check if any options have changed, otherwise edit the miner
 			miner = network.findPeerByName(name);
@@ -1305,7 +1314,7 @@
 					break;
 				}
 			}
-			let miner = newMiner(newName, peer.power, peer.latency, peer.downloadMBPS, peer.uploadMBPS);
+			let miner = newMiner(newName, peer.power, peer.latency, peer.downloadMBPS, peer.uploadMBPS, true);
 			translation[peer.ID] = miner.ID;
 		}
 		for(let peerID in translation) {
@@ -1581,7 +1590,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addConnection(miners[i + 1].ID);
@@ -1622,7 +1631,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					let nConnections = rnd(minNumConnections, maxNumConnections);
@@ -1677,7 +1686,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				if(bidirectional) {
 					for(let i = 1; i < miners.length; i++) {
@@ -1722,7 +1731,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
@@ -1759,7 +1768,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addConnection(miners[i + 1].ID);
@@ -1795,7 +1804,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS);
+					let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS, true);
 					if(parent != null) {
 						if(bidirectional) {
 							miner.addConnection(parent.ID);
@@ -1837,7 +1846,7 @@
 					let latency = rnd(minLatency, maxLatency);
 					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS));
+					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addConnection(miners[i + 1].ID);
@@ -2296,7 +2305,12 @@
 
 	function sample() {
 		updateToolOptions.sampleEndTime = new Date().getTime();
-		network.stopAllMiners();
+
+		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+			network.stopAllMiners();
+		}
+
+
 		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
 		updateToolOptions.numSamples++;
 		for(let id in network.ID_Registry) {
@@ -2363,8 +2377,13 @@
 			}
 			updateToolOptions.samplerLog.push(line);
 		}
-		network.clearBlockchain();
-		updateSamplerTable();
+		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+			network.clearBlockchain();
+		}
+
+		if($("#updateTableAfterEachSampleCheckbox").prop("checked")) {
+			updateSamplerTable();
+		}
 		try {
 			eval(updateToolOptions.sampler_codeBetweenSamples);
 		} catch(e) {
@@ -2373,9 +2392,12 @@
 			stopSampling();
 			return;
 		}
-		network.startAllMiners();
-		updateToolOptions.sampleStartTime = new Date().getTime();
+
+		if($("#resetBlockchainAfterEachSampleCheckbox").prop("checked")) {
+			network.startAllMiners();
+		}
 		if(updateToolOptions.sampler_running) {
+			updateToolOptions.sampleStartTime = new Date().getTime();
 			setTimeout(sample, updateToolOptions.sampler_msPerSample);
 		}
 	}
