@@ -9,7 +9,6 @@
 		<link rel="icon" href="img/favicon.ico" type="image/x-icon">
 		<link rel="stylesheet" href="lib/bootstrap.min.css">
 		<link href="lib/jsoneditor.min.css" rel="stylesheet" type="text/css">
-		<!--script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script-->
 		<script type="text/javascript" src="lib/vis-network.min.js"></script>
 		<script type="text/javascript" src="lib/canvas2svg.js"></script>
 		<script src="lib/jsoneditor.min.js"></script>
@@ -181,7 +180,7 @@
 						<div class="form-group row">
 							<label for="codeBetweenSamples" class="col-sm-3 col-form-label">Run between samples</label>
 							<div class="col-sm-9 p-0">
-								<textarea id="codeBetweenSamples" class="form-control text-white bg-dark border border-secondary" rows="2">//_BOB.power += 10;&#13;&#10;if(numSamples >= 100000) toggleSampling(false);</textarea>
+								<textarea id="codeBetweenSamples" class="form-control text-white bg-dark border border-secondary" rows="2">// BOB.power += 10;&#13;&#10;if(numSamples >= 100000) toggleSampling(false);</textarea>
 							</div>
 						</div>
 						<div class="form-group row">
@@ -571,11 +570,11 @@
 			this.name = name;
 			// Register a unique ID
 			if(network.ID_Registry[this.name] === undefined) {
-				this.ID = "_" + this.name.toUpperCase().replace(/\s/g, "_"); // Math.random().toString();
+				this.ID = this.name.toUpperCase().replace(/\s/g, "_"); // Math.random().toString();
 			} else { // Guarentee that no peers have the same ID
 				let count = 1;
 				do {
-					this.ID = "_" + this.name.toUpperCase().replace(/\s/g, "_") + count;
+					this.ID = this.name.toUpperCase().replace(/\s/g, "_") + count;
 					count++;
 				} while(network.ID_Registry[this.ID] !== undefined);
 			}
