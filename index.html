@@ -79,6 +79,7 @@
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#generateTopologyModal"><b>Generate a topology</b></a>
 								<a class="dropdown-item" onclick="duplicateTopology()">Duplicate current topology</a>
+								<a class="dropdown-item" onclick="regenerateTopology()">Regenerate current topology</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="DOM_toggleLoggingNetworkData()" id="DOM_item_toggleLoggingNetworkData">Enable logging network<br>data within each miner</a>
 								<div class="dropdown-divider"></div>
@@ -605,7 +606,7 @@
 			let secondsDelay = this.downloadBufferTimestamp - now;
 			secondsDelay += network.peers[this.parentID].latency / 1000; // Time to travel through the network (latency is in milliseconds)
 
-			console.log("Block " + data.height + ": Waiting " + secondsDelay + " seconds before receiving from " + from_ID);
+			//console.log("Block " + data.height + ": Waiting " + secondsDelay + " seconds before receiving from " + from_ID);
 
 			// Send it to the receiver's block processing code
 			setTimeout(network.peers[this.parentID].receive.bind(network.peers[this.parentID]), secondsDelay * 1000, from_ID, data);
@@ -1390,6 +1391,33 @@
 				newPeer.addConnection(outgoingPeersTranslation);
 			}
 		}
+	}
+
+	function regenerateTopology() {
+		/*let translation = {};
+
+		for(let peerID in network.peers) {
+			let peer = network.peers[peerID];
+			let newName = minerNames[0];
+			for(let name of minerNames) {
+				if(network.findPeerByName(name) == null) {
+					newName = name;
+					break;
+				}
+			}
+			let miner = newMiner(newName, peer.power, peer.latency, peer.downloadMBPS, peer.uploadMBPS, true);
+			translation[peer.ID] = miner.ID;
+		}
+		for(let peerID in translation) {
+			let peer = network.peers[peerID];
+			let newPeer = network.peers[translation[peerID]];
+			for(let outgoingPeer of peer.outgoingPeers) {
+				outgoingPeersTranslation = translation[outgoingPeer];
+
+				if(outgoingPeersTranslation === undefined) continue;
+				newPeer.addConnection(outgoingPeersTranslation);
+			}
+		}*/
 	}
 
 	function DOM_toggleLoggingNetworkData(override) {
