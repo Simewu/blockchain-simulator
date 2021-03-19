@@ -115,6 +115,7 @@
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" onclick="if(confirm('You\'re about to clear everyone\'s blockchain data.')) DOM_clearBlockchain()">Clear all blockchains</a>
 								<a class="dropdown-item" onclick="DOM_setNetworkDifficulty()">Set network difficulty</a>
+								<a class="dropdown-item" onclick="toggleSha256()" id="useSHA256Btn">Use secure SHA-256 (slower)</a>
 								<a class="dropdown-item" onclick="DOM_setBlockSizes()">Set block sizes</a>
 								<div class="dropdown-divider"></div>
 								<a class="dropdown-item" data-toggle="modal" data-target="#viewNetworkModal" onclick="regenerateNetworkJSON()">View full network</a>
@@ -363,14 +364,24 @@
 		sampleEndTime: 0
 	}
 
+
+	// Use the 256-bit secure hashing algorithm (SHA256) by calling sha256("data string")
+	const sha256 = function a(b) {function c(a,b) {return a>>>b|a<<32-b}for(var d,e,f=Math.pow,g=f(2,32),h="length",i="",j=[],k=8*b[h],l=a.h=a.h||[],m=a.k=a.k||[],n=m[h],o= {},p=2;64>n;p++)if(!o[p]) {for(d=0;313>d;d+=p)o[d]=p;l[n]=f(p,.5)*g|0,m[n++]=f(p,1/3)*g|0}for(b+="\x80";b[h]%64-56;)b+="\x00";for(d=0;d<b[h];d++) {if(e=b.charCodeAt(d),e>>8)return;j[d>>2]|=e<<(3-d)%4*8}for(j[j[h]]=k/g|0,j[j[h]]=k,e=0;e<j[h];) {var q=j.slice(e,e+=16),r=l;for(l=l.slice(0,8),d=0;64>d;d++) {var s=q[d-15],t=q[d-2],u=l[0],v=l[4],w=l[7]+(c(v,6)^c(v,11)^c(v,25))+(v&l[5]^~v&l[6])+m[d]+(q[d]=16>d?q[d]:q[d-16]+(c(s,7)^c(s,18)^s>>>3)+q[d-7]+(c(t,17)^c(t,19)^t>>>10)|0),x=(c(u,2)^c(u,13)^c(u,22))+(u&l[1]^u&l[2]^l[1]&l[2]);l=[w+x|0].concat(l),l[4]=l[4]+w|0}for(d=0;8>d;d++)l[d]=l[d]+r[d]|0}for(d=0;8>d;d++)for(e=3;e+1;e--) {var y=l[d]>>8*e&255;i+=(16>y?0:"")+y.toString(16)}return i};
+
 	// Network class
 	class Network {
 		constructor() {
 			this.peers = {};
-			this.setDifficulty(0.1);
+			this.difficulty = 0.1;
 
 			this.blockSize = 1000000;
+
 			this.genesis = new Header();
+			this.genesis.height = 0;
+			this.genesis.timestamp = Date.now();
+
+			this.useSHA256 = false; // Specify whether or not to actually use genuine hashing (real security, but slow), or to use random numbers and a difficulty threshhold to determine a block (no security, but fast)
+
 			this.ID_Registry = {};
 			this.miningThreads = {};
 			this.minimumBlockchainPurgeLength = 100;
@@ -482,15 +493,16 @@
 	// Block header class
 	class Header {
 		constructor() {
-			this.solver = 0;
-			this.height = 0;
-			this.timestamp = 0; // Time block was solved in seconds
+			this.solver = null;
+			this.height = null;
+			this.timestamp = null; // Time block was solved in seconds
 
 			if(network != null) this.numBytes = network.blockSize;
 			else this.numBytes = 1000000;
 
-			this.hash = 0;
-			this.prevHash = 0;
+			this.nonce = null;
+			this.hash = null;
+			this.prevHash = null;
 			this.balances = [];
 			if(network && network.logging.logNetworkData) {
 				this.numHops = 0;
@@ -509,6 +521,30 @@
 				newHeader.numHops = this.numHops;
 			}
 			return newHeader;
+		}
+
+		guessNonce() {
+			this.nonce = Math.random();
+			if(network.useSHA256) {
+				// Secure but slower
+				const data = this.nonce.toString() + this.solver?.toString() + this.height.toString() + this.prevHash?.toString() + this.balances.toString();
+				this.hash = sha256(sha256(data));
+			} else {
+				// Insecure but fast
+				this.hash = this.nonce;
+			}
+		}
+
+		isBlock() {
+			if(network.useSHA256) {
+				// Secure but slower
+				const targetDifficulty = 1152921504606847000; // 0XFFFFFFFFFFFFFFF
+				const currentDifficulty = parseInt(this.hash.substring(0, 15), 16);
+				return (currentDifficulty / targetDifficulty) <= network.difficulty;
+			} else {
+				// Insecure but fast
+				return this.hash <= network.difficulty;
+			}
 		}
 	}
 
@@ -569,7 +605,7 @@
 			let secondsDelay = this.downloadBufferTimestamp - now;
 			secondsDelay += network.peers[this.parentID].latency / 1000; // Time to travel through the network (latency is in milliseconds)
 
-			setTimeout(network.peers[this.parentID].receive.bind(network.peers[this.parentID]), secondsDelay * 1000, data);
+			setTimeout(network.peers[this.parentID].receive.bind(network.peers[this.parentID]), secondsDelay * 1000, from_ID, data);
 
 			this.timestampSinceLastReceive = now;
 		}
@@ -672,8 +708,8 @@
 		}
 
 		mine() {
-			this.currentHeader.hash = Math.random();
-			if(this.currentHeader.hash <= network.difficulty) {
+			this.currentHeader.guessNonce();
+			if(this.currentHeader.isBlock()) {
 				//console.log(this.name + " found a block!");
 				this.currentHeader.timestamp = Date.now() / 1000;
 				this.totalBlocksFound++;
@@ -745,9 +781,12 @@
 		}
 
 		// Called when a header is received
-		receive(newHeader) {
+		receive(from_ID, newHeader) {
 			//console.log("Block " + newHeader.height + ": Received by " + this.ID);
-
+			if(!newHeader.isBlock()) {
+				console.log(this.name + " received a fake block from " + from_ID + ".", newHeader)
+				return;
+			}
 			if(newHeader.height >= this.blockchain.length + this.blockchainOffset) {
 				// If at any point in receiving a block, there is an undefined header, this allows us to undo to the previous working header
 				let backupHeaders = [];
@@ -792,6 +831,10 @@
 	}
 
 	network = new Network();
+	// Quickly mine the genesis block
+	do {
+		network.genesis.guessNonce();
+	} while(!network.genesis.isBlock());
 
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
@@ -1865,6 +1908,18 @@
 		if(difficulty == null) return;
 		network.setDifficulty(difficulty);
 		alert("Difficulty has been set to " + network.difficulty * 100 + "% chance of a nonce being a block.");
+	}
+
+	function toggleSha256() {
+		if(network.useSHA256) {
+			network.useSHA256 = false;
+			$("#useSHA256Btn").text("Use secure SHA-256 (slower)");
+			alert("Using real security (SHA-256) has been disabled.");
+		} else {
+			network.useSHA256 = true;
+			$("#useSHA256Btn").text("Use fast block verification");
+			alert("Using real security (SHA-256) has been enabled.");
+		}
 	}
 
 	function DOM_setBlockSizes() {
