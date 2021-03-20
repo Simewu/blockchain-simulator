@@ -37,7 +37,26 @@
 				background-color: #FFF;
 				width: 100%;
 			}
-			#mynetwork, #minerStatsTable {
+			#canvasVisualizerCodeContainer {
+				position: absolute;
+				margin-left: 10px;
+				top: 0;
+				transition: opacity 0.5s, height 0.5s, max-height 0.5s;
+			}
+			#canvasVisualizerCodeLabel {
+				color: #AAA;
+			}
+			#canvasVisualizerCode {
+				border: none;
+				color: #FFF;
+				overflow-x: auto;
+				background-color: transparent;
+				width: 300px;
+			}
+			#canvasVisualizerCode:focus {
+				background-color: #343A40;
+			}
+			#canvasVisualizer, #networkVisualizer, #minerStatsTable {
 				background-color: #343A40;
 				transition: opacity 0.5s, height 0.5s, max-height 0.5s;
 			}
@@ -87,7 +106,7 @@
 								<a class="dropdown-item" onclick="DOM_globalSetLatency()">Globally set latency</a>
 								<a class="dropdown-item" onclick="DOM_globalSetDownloadMBPS()">Globally set download MBPS</a>
 								<a class="dropdown-item" onclick="DOM_globalSetUploadMBPS()">Globally set upload MBPS</a>
-								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Connect bidirectionally</a>
+								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Conne#ct bidirectionally</a>
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
 								<div class="dropdown-divider"></div>
@@ -145,8 +164,8 @@
 						<a class="dropdown-item" id="vis_refresh_btn" onclick="vis_setupNetworkSimulation()">Refresh topology visualizer</a>
 						<a class="dropdown-item" id="vis_line_length_btn" onclick="vis_setLineLengths()">Set line lengths</a>
 						<div class="dropdown-divider" id="vis_btn_delimeter" ></div>
+						<a class="dropdown-item" onclick="toggleVisualizations()">Toggle visualizations</a>
 						<a class="dropdown-item" onclick="DOM_toggleMinerStatsTable()">Toggle miner stats table</a>
-						<a class="dropdown-item" onclick="vis_toggleTopologyVisualizer()">Toggle topology visualizer</a>
 						<a class="dropdown-item" onclick="DOM_toggleSamplerForm()">Toggle sampler</a>
 					</div>
 				</div>
@@ -155,7 +174,16 @@
 		</div>
 		<div class="row">
 			<div class="col-md-12">
-				<div id="mynetwork"></div>
+				<div id="networkVisualizer"></div>
+			</div>
+		</div>
+		<div class="row">
+			<div id="canvasVisualizerContainer" class="col-md-12">
+				<div id="canvasVisualizerCodeContainer" class="col-md-12 m-0">
+					<label id="canvasVisualizerCodeLabel" for="canvasVisualizerCode">Plot:</label>
+					<input id="canvasVisualizerCode" type="text" onchange="saveSamplerSettings()"/>
+				</div>
+				<canvas id="canvasVisualizer" class="w-100" height="9"></canvas>
 			</div>
 		</div>
 		<div id="minerStatsDiv" class="row">
@@ -200,7 +228,7 @@
 							<label class="col-sm-3 col-form-label"></label>
 							<div class="col-sm-9 p-0">
 								<label class="btn btn-secondary">
-									<input id="logSamplesCheckbox" type="checkbox" onchange="saveSamplerSettings()"> Log samples
+									<input id="logSamplesCheckbox" type="checkbox" onchange="saveSamplerSettings()"> Log samples to file
 								</label>
 								<label class="btn btn-secondary">
 									<input id="resetBlockchainAfterEachSampleCheckbox" type="checkbox" onchange="saveSamplerSettings()" checked> Reset blockchain after each sample
@@ -211,9 +239,9 @@
 							</div>
 						</div>
 						<div id="logColumns" class="form-group row">
-							<label class="col-sm-3 col-form-label">Log Columns (multiselect)</label>
+							<label class="col-sm-3 col-form-label">Log columns (multiselect)</label>
 							<div class="col-sm-9 p-0">
-								<select id="logColumnsList" multiple="multiple" onchange="saveSamplerSettings()" class="form-control" size="6">
+								<select id="logColumnsList" multiple="multiple" onchange="saveSamplerSettings()" class="form-control" size="8">
 								</select>
 							</div>
 						</div>
@@ -369,7 +397,11 @@
 		samplerData: [],
 		samplerLog: [],
 		sampleStartTime: 0,
-		sampleEndTime: 0
+		sampleEndTime: 0,
+		canvasVisualizerThread: null,
+		canvasVisualizerBarWidth: 15,
+		canvasVisualizerPixelStepSize: 1,
+		canvasVisualizerInterval: 1000 / 30,
 	}
 
 
@@ -425,7 +457,8 @@
 				codeAfterSampling: "console.log(\"Sampling ended at \", Date.now());",
 				logSamples: false,
 				resetBlockchainAfterEachSample: true,
-				updateTableAfterEachSample: true
+				updateTableAfterEachSample: true,
+				canvasVisualizerCode: "miner.lastAcceptedBlock",
 			}
 		}
 
@@ -604,7 +637,7 @@
 	class NetworkBuffer {
 		constructor(parentID) {
 			this.parentID = parentID;
-			this.bufferSizeLimit = Infinity;
+			this.bufferSizeLimit = 1000;
 			this.clear();
 		}
 
@@ -647,7 +680,7 @@
 			} else { // Uploading data
 				let networkBufferTo = network.peers[packet.to].networkBuffer;
 
-				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length >= networkBufferTo.bufferSizeLimit) {
+				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
 					networkBufferTo.buffer.push(packet);
 					networkBufferTo.activateBufferProcessor();
 				} // else their size is too full and the packet must be dropped
@@ -707,12 +740,16 @@
 
 			this.blockchainOffset = 0; // Due to removing old blocks
 			this.blockchain = [network.genesis];
+			this.lastAcceptedBlock = null;
 			this.totalBlocksFound = 0;
 			this.staleBlocksFound = 0;
 			this.largestForkLength = 0;
 			this.currentHeader = this.newHeader(network.genesis);
 			this.color = "default";
 			this.networkBuffer = new NetworkBuffer(this.ID);
+
+			//this.blockchain_numHops = [];
+			//this.blockchain_blockDelay = [];
 			updateTools();
 		}
 
@@ -855,9 +892,11 @@
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
 			}
+			this.lastAcceptedBlock = this.blockchain[this.blockchain.length - 1];
 			for(let id of this.outgoingPeers) {
 				this.networkBuffer.send(id, header.clone());
 			}
+
 		}
 
 		// Called when a header is received
@@ -910,16 +949,11 @@
 	}
 
 	network = new Network();
+
 	// Quickly mine the genesis block
 	do {
 		network.genesis.guessNonce();
 	} while(!network.genesis.isBlock());
-
-	// Update the list of log columns
-	//$("#logColumnsList").empty();
-	//for(let column in network.logging.columns) {
-	//	$("#logColumnsList").append("<option value=\"" + column + "\">" + column + "</option>").prop("selected", network.logging.columns[column]);
-	//}
 	
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
@@ -1065,14 +1099,14 @@
 				"Number of peers": 10,
 				"Minimum number of connections": 1,
 				"Maximum number of connections": 1,
-				"Minimum power": 20,
-				"Maximum power": 20,
-				"Minimum download megabytes per second": 10,
-				"Maximum download megabytes per second": 10,
-				"Minimum upload megabytes per second": 10,
-				"Maximum upload megabytes per second": 10,
-				"Minimum latency": 0,
-				"Maximum latency": 0,
+				"Minimum power": 1,
+				"Maximum power": 1,
+				"Minimum download megabytes per second": 1,
+				"Maximum download megabytes per second": 1,
+				"Minimum upload megabytes per second": 1,
+				"Maximum upload megabytes per second": 1,
+				"Minimum latency": 100,
+				"Maximum latency": 100,
 			  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
 			  //let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
 			});
@@ -1085,7 +1119,7 @@
 		updateToolOptions.minerStatsTable_active = !updateToolOptions.minerStatsTable_active;
 		DOM_toggleMinerStatsTable();
 		updateToolOptions.vis_simulation_active = !updateToolOptions.vis_simulation_active;
-		vis_toggleTopologyVisualizer();
+		toggleVisualizations();
 	});
 
 	function saveLocalStorage() {
@@ -1496,14 +1530,13 @@
 		if(override !== undefined) network.logging.logNetworkData = !override;
 		if(network.logging.logNetworkData) {
 			network.logging.logNetworkData = false;
-			$("DOM_item_toggleLoggingNetworkData").text("Enable logging network<br>data within each miner");
+			$("#DOM_item_toggleLoggingNetworkData").html("Enable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Clean up
 				delete network.peers[peerID]["blockchain_numHops"];
 				delete network.peers[peerID]["blockchain_blockDelay"];
 			}
 		} else {
-			$("DOM_item_toggleLoggingNetworkData").text("Disable logging network<br>data within each miner");
-
+			$("#DOM_item_toggleLoggingNetworkData").html("Disable logging network<br>data within each miner");
 			if(network) for(peerID in network.peers) { // Initialization
 				network.peers[peerID]["blockchain_numHops"] = [];
 				network.peers[peerID]["blockchain_blockDelay"] = []
@@ -1575,14 +1608,14 @@
 					"Type": topology,
 					"Bidirectional": false,
 					"Number of peers": 6,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1594,14 +1627,14 @@
 					"Number of peers": 10,
 					"Minimum number of connections": 1,
 					"Maximum number of connections": 1,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				  	//"Naming cycle": ["Alice", "Andrew", "Bob", "George", "Jack", "Eve", "Frank", "Carl"]
 				};
@@ -1612,14 +1645,14 @@
 					"Bidirectional": true,
 					"Towards center (if bidirectional=false)": true,
 					"Number of peers": 6,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1627,14 +1660,14 @@
 				options = {
 					"Type": topology,
 					"Number of peers": 4,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1643,14 +1676,14 @@
 					"Type": topology,
 					"Bidirectional": true,
 					"Number of peers": 6,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1659,14 +1692,14 @@
 					"Type": topology,
 					"Bidirectional": true,
 					"Structure": [[[],[],[]],[[],[],[]],[[],[],[]]],
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1674,14 +1707,14 @@
 				options = {
 					"Type": topology,
 					"Number of peers": 6,
-					"Minimum power": 20,
-					"Maximum power": 20,
-					"Minimum download megabytes per second": 10,
-					"Maximum download megabytes per second": 10,
-					"Minimum upload megabytes per second": 10,
-					"Maximum upload megabytes per second": 10,
-					"Minimum latency": 0,
-					"Maximum latency": 0,
+					"Minimum power": 1,
+					"Maximum power": 1,
+					"Minimum download megabytes per second": 1,
+					"Maximum download megabytes per second": 1,
+					"Minimum upload megabytes per second": 1,
+					"Maximum upload megabytes per second": 1,
+					"Minimum latency": 100,
+					"Maximum latency": 100,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1701,7 +1734,7 @@
 				if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
 					let disableNetworkVisualizer  = confirm(`You are generating ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
 					if(disableNetworkVisualizer) {
-						vis_toggleTopologyVisualizer();
+						toggleVisualizations();
 					}
 				}
 			}
@@ -1725,8 +1758,8 @@
 			case "Ring":
 				bidirectional = !!options["Bidirectional"];
 				nPeers = options["Number of peers"] ?? 6;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1766,8 +1799,8 @@
 				bidirectional = !!options["Bidirectional"];
 				preventDuplicateConnections = !!options["Prevent duplicate connections"];
 				nPeers = options["Number of peers"] ?? 6;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1821,8 +1854,8 @@
 				towardsCenter = !!options["Towards center (if bidirectional=false)"];
 				bidirectional = !!options["Bidirectional"];
 				nPeers = options["Number of peers"] ?? 6;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1866,8 +1899,8 @@
 
 			case "Fully Connected":
 				nPeers = options["Number of peers"] ?? 4;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1903,8 +1936,8 @@
 			case "Line":
 				bidirectional = !!options["Bidirectional"];
 				nPeers = options["Number of peers"] ?? 6;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1938,8 +1971,8 @@
 			case "Tree":
 				bidirectional = !!options["Bidirectional"];
 				structure = options["Structure"];
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -1981,8 +2014,8 @@
 				break;
 			case "Bus":
 				nPeers = options["Number of peers"] ?? 6;
-				minPower = options["Minimum power"] ?? 20;
-				maxPower = options["Maximum power"] ?? 20;
+				minPower = options["Minimum power"] ?? 10;
+				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
 				maxDownloadMBPS = options["Maximum download megabytes per second"] ?? 10;
 				minUploadMBPS = options["Minimum upload megabytes per second"] ?? 10;
@@ -2064,6 +2097,7 @@
 			} else {
 				miner.startMining();
 				$("#toggleMiningBtn").text("Stop All Miners");
+				if(updateToolOptions.vis_simulation_active) startCanvasVisualizerThread();
 			}
 		}
 	}
@@ -2072,10 +2106,12 @@
 		if($("#toggleMiningBtn").text() == "Start All Miners") {
 			$("#toggleMiningBtn").text("Stop All Miners");
 			network.startAllMiners();
+			if(updateToolOptions.vis_simulation_active) startCanvasVisualizerThread();
 			$("#toggleMiningBtn").attr("class", "btn btn-warning rounded-0 border border-top-0 border-dark");
 		} else {
 			$("#toggleMiningBtn").text("Start All Miners");
 			network.stopAllMiners();
+			stopCanvasVisualizerThread();
 			$("#toggleMiningBtn").attr("class", "btn btn-dark rounded-0");
 		}
 	}
@@ -2257,14 +2293,18 @@
 		$("#minerStatsTable").html(html);
 	}
 
-	function vis_toggleTopologyVisualizer() {
-		let vis_container = document.getElementById("mynetwork");
+	function toggleVisualizations() {
+		let vis_container = document.getElementById("networkVisualizer");
 		if(updateToolOptions.vis_simulation_active) {
 			updateToolOptions.vis_simulation_active = false;
 			vis_clearNetworkSimulation();
 			$("#vis_refresh_btn").hide();
 			$("#vis_line_length_btn").hide();
 			$("#vis_btn_delimeter").hide();
+
+			$("#canvasVisualizerContainer").hide();
+			stopCanvasVisualizerThread();
+			clearCanvasVisualizer();
 		} else {
 			updateToolOptions.vis_simulation_active = true;
 			updateToolOptions.vis_timeout = null;
@@ -2274,11 +2314,104 @@
 			$("#vis_refresh_btn").show();
 			$("#vis_line_length_btn").show();
 			$("#vis_btn_delimeter").show();
+
+			$("#canvasVisualizerContainer").show();
+		}
+	}
+
+	function setupCanvasVisualizer() {
+		const canvas = document.getElementById("canvasVisualizer");
+		const ctx = canvas.getContext("2d");
+		canvas.width = $("#canvasVisualizer").width();
+		canvas.height = Object.keys(network.peers).length * updateToolOptions.canvasVisualizerBarWidth;
+
+		let numPeers = Object.keys(network.peers).length;
+		let barsize = Math.ceil(canvas.height / numPeers);
+		let i = 0;
+		for(let id in network.peers) {
+			let color = network.peers[id].color;
+			ctx.fillStyle = color;
+			let y = Math.floor(i * canvas.height / numPeers);
+			ctx.fillRect(canvas.width - barsize, y, barsize, barsize);
+			i++;
+		}
+
+
+		if($("#toggleMiningBtn").text().startsWith("Stop")) {
+			startCanvasVisualizerThread();
+		}
+	}
+
+	// java String#hashCode
+	function hashCode(str) {
+		var hash = 0;
+		for (var i = 0; i < str.length; i++) {
+			hash = str.charCodeAt(i) + ((hash << 5) - hash);
+		}
+		return hash;
+	} 
+
+	function intToRGB(i){
+		var c = (i & 0x00FFFFFF).toString(16).toUpperCase();
+		return "00000".substring(0, 6 - c.length) + c;
+	}
+
+	function startCanvasVisualizerThread() {
+		if(updateToolOptions.canvasVisualizerThread == null) {
+			updateToolOptions.canvasVisualizerThread = setInterval(updateCanvasVisualizer, updateToolOptions.canvasVisualizerInterval);
+		}
+	}
+
+	function stopCanvasVisualizerThread() {
+		clearInterval(updateToolOptions.canvasVisualizerThread);
+		updateToolOptions.canvasVisualizerThread = null;
+	}
+
+	function clearCanvasVisualizer() {
+		const canvas = document.getElementById("canvasVisualizer");
+		const ctx = canvas.getContext("2d");
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+	}
+
+	function updateCanvasVisualizer() {
+		if(updateToolOptions.vis_simulation_active == false) {
+			clearInterval(updateToolOptions.canvasVisualizerThread);
+			updateToolOptions.canvasVisualizerThread = null;
+			return;
+		}
+
+		let numPeers = Object.keys(network.peers).length;
+
+		const code = network.logging.canvasVisualizerCode;
+		const canvas = document.getElementById("canvasVisualizer");
+		const ctx = canvas.getContext("2d");
+		let barsize = Math.ceil(canvas.height / numPeers);
+		let px = updateToolOptions.canvasVisualizerPixelStepSize ?? 1;
+
+		imageData = ctx.getImageData(px, 0, canvas.width - px - Math.floor(barsize * 1.5), canvas.height);
+		ctx.putImageData(imageData, 0, 0);
+		ctx.clearRect(canvas.width - px - Math.floor(barsize * 1.5), 0, px, canvas.height);
+
+		let i = 0;
+		for(let id in network.peers) {
+			let obj = "", str = "";
+			try {
+				let miner = network.peers[id];
+				obj = eval(network.logging.canvasVisualizerCode) ?? "";
+				str = JSON.stringify(obj);
+			} catch(e) {}
+
+			let color = intToRGB(hashCode(str));
+
+			ctx.fillStyle = "#" + color;
+			let y = Math.floor(i * canvas.height / numPeers);
+			ctx.fillRect(canvas.width - px - Math.floor(barsize * 1.5), y, px, barsize);
+			i++;
 		}
 	}
 
 	function vis_clearNetworkSimulation() {
-		let vis_container = document.getElementById("mynetwork");
+		let vis_container = document.getElementById("networkVisualizer");
 		updateToolOptions.vis_nodeIDs = []
 		updateToolOptions.vis_network = new vis.Network(vis_container, {}, {});
 		vis_container.innerHTML = "";
@@ -2326,7 +2459,7 @@
 				});
 			}
 		}
-		let vis_container = document.getElementById("mynetwork");
+		let vis_container = document.getElementById("networkVisualizer");
 
 		updateToolOptions.vis_network_options = {
 			nodes: {
@@ -2381,6 +2514,8 @@
 			selectMiner(minerID);
 		});
 		updateToolOptions.vis_timeout = null;
+
+		setupCanvasVisualizer();
 	}
 
 	// Save the code from the DOM to the network data
@@ -2410,6 +2545,16 @@
 
 		if(network.logging.logSamples) $("#logColumns").show();
 		else $("#logColumns").hide();
+
+		network.logging.canvasVisualizerCode = "{" + $("#canvasVisualizerCode").val() + "}";
+
+		// Convert miner IDs into proper references
+		/*for(let id in network.ID_Registry) {
+			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
+			network.logging.codeBeforeSampling = network.logging.codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			network.logging.codeBetweenSamples = network.logging.codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			network.logging.codeAfterSampling = network.logging.codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
+		}*/
 	}
 
 	// Load the code from the network to the DOM
@@ -2423,17 +2568,17 @@
 		let codeBetweenSamples = network.logging.codeBetweenSamples;
 		let codeAfterSampling = network.logging.codeAfterSampling;
 
-		if(codeBeforeSampling.startsWith('{\n')) codeBeforeSampling = codeBeforeSampling.substring(2);
-		if(codeBetweenSamples.startsWith('{\n')) codeBetweenSamples = codeBetweenSamples.substring(2);
-		if(codeAfterSampling.startsWith('{\n')) codeAfterSampling = codeAfterSampling.substring(2);
+		if(codeBeforeSampling.startsWith("{\n")) codeBeforeSampling = codeBeforeSampling.substring(2);
+		if(codeBetweenSamples.startsWith("{\n")) codeBetweenSamples = codeBetweenSamples.substring(2);
+		if(codeAfterSampling.startsWith("{\n")) codeAfterSampling = codeAfterSampling.substring(2);
 
 		if(codeBeforeSampling.startsWith(_code)) codeBeforeSampling = codeBeforeSampling.substring(_code.length);
 		if(codeBetweenSamples.startsWith(_code)) codeBetweenSamples = codeBetweenSamples.substring(_code.length);
 		if(codeAfterSampling.startsWith(_code)) codeAfterSampling = codeAfterSampling.substring(_code.length);
 
-		if(codeBeforeSampling.endsWith('\n}')) codeBeforeSampling = codeBeforeSampling.slice(0, -2);
-		if(codeBetweenSamples.endsWith('\n}')) codeBetweenSamples = codeBetweenSamples.slice(0, -2);
-		if(codeAfterSampling.endsWith('\n}')) codeAfterSampling = codeAfterSampling.slice(0, -2);
+		if(codeBeforeSampling.endsWith("\n}")) codeBeforeSampling = codeBeforeSampling.slice(0, -2);
+		if(codeBetweenSamples.endsWith("\n}")) codeBetweenSamples = codeBetweenSamples.slice(0, -2);
+		if(codeAfterSampling.endsWith("\n}")) codeAfterSampling = codeAfterSampling.slice(0, -2);
 
 		$("#codeBeforeSampling").val(codeBeforeSampling);
 		$("#codeBetweenSamples").val(codeBetweenSamples);
@@ -2450,6 +2595,12 @@
 		}
 		if(network.logging.logSamples) $("#logColumns").show();
 		else $("#logColumns").hide();
+
+		// Canvas visualizer code
+		let canvasVisualizerCode = network.logging.canvasVisualizerCode;
+		if(canvasVisualizerCode.startsWith("{")) canvasVisualizerCode = canvasVisualizerCode.substring(1);
+		if(canvasVisualizerCode.endsWith("}")) canvasVisualizerCode = canvasVisualizerCode.slice(0, -1);
+		$("#canvasVisualizerCode").val(canvasVisualizerCode);
 	}
 
 	function DOM_toggleSamplerForm() {
@@ -2496,7 +2647,7 @@
 
 		if(updateToolOptions.vis_simulation_active) {
 			console.info("Disabling the topology visualizer for more precise measurements. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
-			vis_toggleTopologyVisualizer();
+			toggleVisualizations();
 		}
 
 		for(let id in network.ID_Registry) {
