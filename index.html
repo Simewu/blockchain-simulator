@@ -210,6 +210,13 @@
 								</label>
 							</div>
 						</div>
+						<div id="logColumns" class="form-group row">
+							<label class="col-sm-3 col-form-label">Log Columns (multiselect)</label>
+							<div class="col-sm-9 p-0">
+								<select id="logColumnsList" multiple="multiple" onchange="saveSamplerSettings()" class="form-control" size="6">
+								</select>
+							</div>
+						</div>
 						<div class="form-group row mb-0">
 							<button id="toggleSamplingBtn" class="btn btn-primary fillx border border-dark" onclick="toggleSampling()">Begin Sampling</button>
 						</div>
@@ -390,6 +397,27 @@
 
 			// When a block is received, keep track of number of networking data, such as the number of hops
 			this.logging = {
+				columns: {
+					"Sample": true,
+					"Sample time": true,
+					"Sample tag": false,
+					"Miner name": true,
+					"Balance": true,
+					"Balance %": false,
+					"Power (hash/s)": true,
+					"Power %": false,
+					"Block num hops": true,
+					"Block travel time (s)": true,
+					"Network buffer size limit": true,
+					"Blocks in flight": true,
+					"Latency (ms)": true,
+					"Download (MBPS)": true,
+					"Upload (MBPS)": true,
+					"Block height": true,
+					"Total blocks found": true,
+					"Stale blocks found": true,
+					"Max fork length": true,
+				},
 				logNetworkData: false,
 				msPerSample: 20000,
 				codeBeforeSampling: "console.log(\"Sampling started at \", Date.now());",
@@ -486,6 +514,7 @@
 			clearAllTimeouts();
 			let newNetworkObj = JSON.parse(json);
 			let network = new Network();
+			if(newNetworkObj?.logging?.columns === undefined) newNetworkObj.logging.columns = network.logging.columns; // Add logging if it doesn't exist
 			network = Object.assign(network, newNetworkObj);
 
 			for(let peer in network.peers) { // Make all miners Miner objects
@@ -510,7 +539,6 @@
 				let networkBuffer = new NetworkBuffer(miner.ID);
 				network.peers[peer].networkBuffer = networkBuffer;
 			}
-			// Note: miner.blockchain headers are not actually Header objects anymore, this can be fixed by
 			return network;
 		}
 	}
@@ -576,6 +604,7 @@
 	class NetworkBuffer {
 		constructor(parentID) {
 			this.parentID = parentID;
+			this.bufferSizeLimit = Infinity;
 			this.clear();
 		}
 
@@ -617,8 +646,11 @@
 
 			} else { // Uploading data
 				let networkBufferTo = network.peers[packet.to].networkBuffer;
-				networkBufferTo.buffer.push(packet);
-				networkBufferTo.activateBufferProcessor();
+
+				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length >= networkBufferTo.bufferSizeLimit) {
+					networkBufferTo.buffer.push(packet);
+					networkBufferTo.activateBufferProcessor();
+				} // else their size is too full and the packet must be dropped
 			}
 
 			// Schedule the next buffer process
@@ -883,6 +915,12 @@
 		network.genesis.guessNonce();
 	} while(!network.genesis.isBlock());
 
+	// Update the list of log columns
+	//$("#logColumnsList").empty();
+	//for(let column in network.logging.columns) {
+	//	$("#logColumnsList").append("<option value=\"" + column + "\">" + column + "</option>").prop("selected", network.logging.columns[column]);
+	//}
+	
 	const jsoneditorContainer = document.getElementById("jsoneditor");
 	const jsoneditor = new JSONEditor(jsoneditorContainer, {
 		mode: "tree",
@@ -2360,6 +2398,18 @@
 		network.logging.logSamples = $("#logSamplesCheckbox").prop("checked");
 		network.logging.resetBlockchainAfterEachSample = $("#resetBlockchainAfterEachSampleCheckbox").prop("checked");
 		network.logging.updateTableAfterEachSample = $("#updateTableAfterEachSampleCheckbox").prop("checked");
+
+		// Update the list of log columns
+		let columns = $("#logColumnsList").val();
+		for(let column in network.logging.columns) {
+			network.logging.columns[column] = false;
+		}
+		for(let column of columns) {
+			network.logging.columns[column] = true;
+		}
+
+		if(network.logging.logSamples) $("#logColumns").show();
+		else $("#logColumns").hide();
 	}
 
 	// Load the code from the network to the DOM
@@ -2392,6 +2442,14 @@
 		$("#logSamplesCheckbox").prop("checked", network.logging.logSamples);
 		$("#resetBlockchainAfterEachSampleCheckbox").prop("checked", network.logging.resetBlockchainAfterEachSample);
 		$("#updateTableAfterEachSampleCheckbox").prop("checked", network.logging.updateTableAfterEachSample);
+
+		$("#logColumnsList").empty();
+		for(let column in network.logging.columns) {
+			$("#logColumnsList").append("<option value=\"" + column + "\">" + column + "</option>");
+			$("#logColumnsList option[value=\"" + column + "\"]").prop("selected", network.logging.columns[column]);
+		}
+		if(network.logging.logSamples) $("#logColumns").show();
+		else $("#logColumns").hide();
 	}
 
 	function DOM_toggleSamplerForm() {
@@ -2429,25 +2487,38 @@
 		network.clearBlockchain();
 		updateToolOptions.numSamples = 0;
 		updateToolOptions.samplerData = [];
-		updateToolOptions.samplerLog = ["Sample,Sample Time,Sample Tag"];
+		updateToolOptions.samplerLog = [""];
 		updateToolOptions.sampleTag = "";
 
+		if(network.logging.columns["Sample"]) updateToolOptions.samplerLog[0] += "Sample,";
+		if(network.logging.columns["Sample time"]) updateToolOptions.samplerLog[0] += "Sample time,";
+		if(network.logging.columns["Sample tag"]) updateToolOptions.samplerLog[0] += "Sample tag,";
 
 		if(updateToolOptions.vis_simulation_active) {
-			console.info("Disabling the topology visualizer for more precise measurements.");
-			console.info("This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
+			console.info("Disabling the topology visualizer for more precise measurements. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
 			vis_toggleTopologyVisualizer();
 		}
 
 		for(let id in network.ID_Registry) {
-			updateToolOptions.samplerLog[0] += ",Name,Balance,Balance %,Power,Power %,"
+			for(let column in network.logging.columns) {
+				if(column == "Sample") continue;
+				if(column == "Sample time") continue;
+				if(column == "Sample tag") continue;
 
-			if(network.logging.logNetworkData) { // Keep track of networking data
-				updateToolOptions.samplerLog[0] += "Block num hops,";
-				updateToolOptions.samplerLog[0] += "Block travel time,";
+				if(column == "Block num hops" || column == "Block travel time (s)") {
+					if(network.logging.logNetworkData) { // Keep track of networking data
+						if(network.logging.columns[column]) {
+							updateToolOptions.samplerLog[0] += column + ",";
+						}
+					}
+					continue;
+				}
+
+				if(network.logging.columns[column]) {
+					updateToolOptions.samplerLog[0] += column + ",";
+				}
 			}
 
-			updateToolOptions.samplerLog[0] += "Blocks in flight,Latency,Download MBPS,Upload MBPS,Block Height,Total Blocks Found,Stale Blocks Found,Max Fork Length";
 			updateToolOptions.samplerData[id] = {
 				sumBalance: 0,
 				sumPower: 0,
@@ -2516,9 +2587,9 @@
 		}
 		if(network.logging.logSamples) {
 			let line = "", balanceTotal = 0, powerTotal = 0, latencyTotal = 0, downloadMBPSTotal = 0, uploadMBPSTotal = 0;
-			line += "\"" + updateToolOptions.samplerLog.length + "\",";
-			line += "\"" + sampleDuration + "\",";
-			line += "\"" + updateToolOptions.sampleTag + "\",";
+			if(network.logging.columns["Sample"]) line += "\"" + updateToolOptions.samplerLog.length + "\",";
+			if(network.logging.columns["Sample time"]) line += "\"" + sampleDuration + "\",";
+			if(network.logging.columns["Sample tag"]) line += "\"" + updateToolOptions.sampleTag + "\",";
 
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
@@ -2530,27 +2601,27 @@
 			}
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
-				line += "\"" + miner.name + "\",";
-				line += "\"" + miner.currentHeader.balances[id] + "\",";
-				line += "\"" + (miner.currentHeader.balances[id] / balanceTotal * 100) + "\",";
-				line += "\"" + miner.power + "\",";
-				line += "\"" + (miner.power / powerTotal * 100) + "\",";
+				
+				if(network.logging.columns["Miner name"]) line += "\"" + miner.name + "\",";
+				if(network.logging.columns["Balance"]) line += "\"" + miner.currentHeader.balances[id] + "\",";
+				if(network.logging.columns["Balance %"]) line += "\"" + (miner.currentHeader.balances[id] / balanceTotal * 100) + "\",";
+				if(network.logging.columns["Power (hash/s)"]) line += "\"" + miner.power + "\",";
+				if(network.logging.columns["Power %"]) line += "\"" + (miner.power / powerTotal * 100) + "\",";
 
 				if(network.logging.logNetworkData) { // Keep track of networking data
-					try {
-						line += "\"" + miner.blockchain_numHops.join(" ") + "\",";
-						line += "\"" + miner.blockchain_blockDelay.join(" ") + "\",";
-					} catch(e) {}
+					if(network.logging.columns["Block num hops"]) line += "\"" + miner.blockchain_numHops?.join(" ") + "\",";
+					if(network.logging.columns["Block travel time (s)"]) line += "\"" + miner.blockchain_blockDelay?.join(" ") + "\",";
 				}
 
-				line += "\"" + miner.networkBuffer.buffer.length + "\",";
-				line += "\"" + miner.latency + "\",";
-				line += "\"" + miner.downloadMBPS + "\",";
-				line += "\"" + miner.uploadMBPS + "\",";
-				line += "\"" + (miner.currentHeader.height - 1) + "\",";
-				line += "\"" + miner.totalBlocksFound + "\",";
-				line += "\"" + miner.staleBlocksFound + "\",";
-				line += "\"" + miner.largestForkLength + "\",";
+				if(network.logging.columns["Network buffer size limit"]) line += "\"" + miner.networkBuffer.bufferSizeLimit + "\",";
+				if(network.logging.columns["Blocks in flight"]) line += "\"" + miner.networkBuffer.buffer.length + "\",";
+				if(network.logging.columns["Latency (ms)"]) line += "\"" + miner.latency + "\",";
+				if(network.logging.columns["Download (MBPS)"]) line += "\"" + miner.downloadMBPS + "\",";
+				if(network.logging.columns["Upload (MBPS)"]) line += "\"" + miner.uploadMBPS + "\",";
+				if(network.logging.columns["Block height"]) line += "\"" + (miner.currentHeader.height - 1) + "\",";
+				if(network.logging.columns["Total blocks found"]) line += "\"" + miner.totalBlocksFound + "\",";
+				if(network.logging.columns["Stale blocks found"]) line += "\"" + miner.staleBlocksFound + "\",";
+				if(network.logging.columns["Max fork length"]) line += "\"" + miner.largestForkLength + "\",";
 			}
 			updateToolOptions.samplerLog.push(line);
 		}
@@ -2594,7 +2665,7 @@
 
 	function updateSamplerTable() {
 		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
-		let html = "<thead><th colspan='8'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
+		let html = "<thead><th colspan='9'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
 		if(updateToolOptions.sampler_running) html += " (" + sampleDuration + " seconds)";
 		if(updateToolOptions.sampleTag.length > 0) html += " (" + updateToolOptions.sampleTag + ")";
 		html += "</span>";
