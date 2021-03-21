@@ -180,7 +180,7 @@
 		<div class="row">
 			<div id="canvasVisualizerContainer" class="col-md-12">
 				<div id="canvasVisualizerCodeContainer" class="col-md-12 m-0">
-					<label id="canvasVisualizerCodeLabel" for="canvasVisualizerCode">Plot:</label>
+					<label id="canvasVisualizerCodeLabel" for="canvasVisualizerCode">Time Plot:</label>
 					<input id="canvasVisualizerCode" type="text" onchange="saveSamplerSettings()"/>
 				</div>
 				<canvas id="canvasVisualizer" class="w-100" height="9"></canvas>
@@ -561,6 +561,9 @@
 				currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
 				network.peers[peer].currentHeader = currentHeader;
 
+				// Make the currentHeader an actual Header object
+				let lastAcceptedBlock = currentHeader.clone();
+
 				// Make the blocks in the blockchain an actual Header object
 				for(let block in network.peers[peer].blockchain) {
 					let header = new Header();
@@ -738,9 +741,9 @@
 
 			this.sendInvalidMaliciousBlocks = false; // When enabled, this miner will mine like other miners, however when a "block" is found, it is actually an invalid block, so adjacent nodes will decline it, but it will have already used up part of the neighboring node's bandwidths
 
+			this.lastAcceptedBlock = null;
 			this.blockchainOffset = 0; // Due to removing old blocks
 			this.blockchain = [network.genesis];
-			this.lastAcceptedBlock = null;
 			this.totalBlocksFound = 0;
 			this.staleBlocksFound = 0;
 			this.largestForkLength = 0;
@@ -781,6 +784,7 @@
 				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
 			}
 			this.blockchain[height - this.blockchainOffset] = block;
+			this.lastAcceptedBlock = block.clone();
 		}
 
 		// Clear all blockchain data
@@ -788,11 +792,13 @@
 			this.blockchainOffset = 0;
 			this.blockchain = [network.genesis];
 			this.currentHeader = this.newHeader(network.genesis);
+			this.lastAcceptedBlock = this.currentHeader.clone();
 			this.totalBlocksFound = 0;
 			this.staleBlocksFound = 0;
 			this.largestForkLength = 0;
 		}
 
+		// Memory optimization with no impact on network, nodes become pruned nodes
 		// Check if it is time to remove old blocks, if it is, remove them
 		purgeBlockCheck() {
 			if(this.blockchain.length >= network.maximumBlockchainPurgeLength) {
@@ -831,9 +837,8 @@
 			if(this.currentHeader.isBlock()) {
 				//console.log(this.name + " found a block!");
 
-
-				this.totalBlocksFound++;
 				this.submit(this.currentHeader);
+				this.totalBlocksFound++;
 				// Set it as the new currentHeader, to mine off of
 				this.setBlock(this.currentHeader.height, this.currentHeader);
 				this.currentHeader = this.newHeader(this.currentHeader);
@@ -892,11 +897,9 @@
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
 			}
-			this.lastAcceptedBlock = this.blockchain[this.blockchain.length - 1];
 			for(let id of this.outgoingPeers) {
 				this.networkBuffer.send(id, header.clone());
 			}
-
 		}
 
 		// Called when a header is received
@@ -1573,6 +1576,7 @@
 		} else {
 			// Merge the changes into the peer, excluding the current header
 			miner.currentHeader = network.peers[miner.ID].currentHeader;
+			miner.lastAcceptedBlock = network.peers[miner.ID].lastAcceptedBlock;
 			miner.networkBuffer = network.peers[miner.ID].networkBuffer;
 			Object.assign(network.peers[miner.ID], miner);
 			$("#minerList  option[value='" + miner.ID + "']").text(miner.name);
