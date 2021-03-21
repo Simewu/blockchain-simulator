@@ -106,7 +106,7 @@
 								<a class="dropdown-item" onclick="DOM_globalSetLatency()">Globally set latency</a>
 								<a class="dropdown-item" onclick="DOM_globalSetDownloadMBPS()">Globally set download MBPS</a>
 								<a class="dropdown-item" onclick="DOM_globalSetUploadMBPS()">Globally set upload MBPS</a>
-								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Conne#ct bidirectionally</a>
+								<a class="dropdown-item" onclick="bidirectionallyConnectPeers()">Connect bi-directionally</a>
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
 								<div class="dropdown-divider"></div>
@@ -2335,9 +2335,12 @@
 		let i = 0;
 		for(let id in network.peers) {
 			let color = network.peers[id].color;
-			ctx.fillStyle = color;
 			let y = Math.floor(i * canvas.height / numPeers);
-			ctx.fillRect(canvas.width - barsize, y, barsize, barsize);
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, barsize / 2 - 1, 0, 2 * Math.PI);
+			ctx.fill();
+			//ctx.fillRect(canvas.width - barsize, y, barsize, barsize);
 			i++;
 		}
 
