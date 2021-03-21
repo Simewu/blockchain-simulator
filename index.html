@@ -657,9 +657,9 @@
 			if(this.thread == null) {
 				let packet = this.buffer[0], delay;
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000;
+					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000 * 1000;
 				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000;
+					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000 * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
 				this.thread = setTimeout(this.processBuffer.bind(this), delay);
@@ -694,9 +694,9 @@
 			if(this.buffer.length > 0) {
 				let packet = this.buffer[0];
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000;
+					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000 * 1000;
 				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000;
+					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000 * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
 			}
