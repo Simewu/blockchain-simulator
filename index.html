@@ -412,7 +412,7 @@
 	class Network {
 		constructor() {
 			this.peers = {};
-			this.difficulty = 0.1;
+			this.difficulty = 0.01;
 
 			this.blockSize = 1000000;
 
@@ -778,6 +778,7 @@
 		}
 
 		setBlock(height, block) {
+			if(block == undefined) return;
 			if(network.logging.logNetworkData) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_numHops[height] = block.numHops;
@@ -1102,14 +1103,14 @@
 				"Number of peers": 10,
 				"Minimum number of connections": 1,
 				"Maximum number of connections": 1,
-				"Minimum power": 1,
-				"Maximum power": 1,
+				"Minimum power": 10,
+				"Maximum power": 10,
 				"Minimum download megabytes per second": 1,
-				"Maximum download megabytes per second": 1,
+				"Maximum download megabytes per second": 50,
 				"Minimum upload megabytes per second": 1,
-				"Maximum upload megabytes per second": 1,
-				"Minimum latency": 100,
-				"Maximum latency": 100,
+				"Maximum upload megabytes per second": 50,
+				"Minimum latency": 10,
+				"Maximum latency": 10,
 			  "Naming cycle": ["Alice", "Andrew", "Bob", "Chris", "George", "James", "Jack", "Eve", "Frank", "Carl"]
 			  //let minerNames = ["Aaron", "Adam", "Alan", "Albert", "Alex", "Alice", "Andrew", "Anthony", "Arthur", "Austin", "Ben", "Bill", "Bob", "Bobby", "Brandon", "Brian", "Bruce", "Carl", "Charles", "Chris", "Dan", "Daniel", "David", "Dennis", "Donald", "Douglas", "Dylan", "Edward", "Eric", "Ethan", "Eugene", "Frank", "Gabriel", "Gary", "George", "Gerald", "Gregory", "Harold", "Harry", "Henry", "Jack", "Jacob", "James", "Jason", "Jeffrey", "Jeremy", "Jerry", "Jesse", "Joe", "John", "Johnny", "Jonathan", "Jordan", "Jose", "Joseph", "Joshua", "Juan", "Justin", "Keith", "Kenneth", "Kevin", "Kyle", "Larry", "Lawrence", "Logan", "Louis", "Mark", "Matthew", "Michael", "Nathan", "Nicholas", "Noah", "Patrick", "Paul", "Peter", "Philip", "Ralph", "Randy", "Raymond", "Richard", "Robert", "Roger", "Ronald", "Roy", "Russell", "Ryan", "Samuel", "Scott", "Sean", "Stephen", "Steven", "Terry", "Thomas", "Timothy", "Tyler", "Vincent", "Walter", "Wayne", "Will", "Zachary"];
 			});
@@ -1612,14 +1613,14 @@
 					"Type": topology,
 					"Bidirectional": false,
 					"Number of peers": 6,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1631,14 +1632,14 @@
 					"Number of peers": 10,
 					"Minimum number of connections": 1,
 					"Maximum number of connections": 1,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				  	//"Naming cycle": ["Alice", "Andrew", "Bob", "George", "Jack", "Eve", "Frank", "Carl"]
 				};
@@ -1649,14 +1650,14 @@
 					"Bidirectional": true,
 					"Towards center (if bidirectional=false)": true,
 					"Number of peers": 6,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1664,14 +1665,14 @@
 				options = {
 					"Type": topology,
 					"Number of peers": 4,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1680,14 +1681,14 @@
 					"Type": topology,
 					"Bidirectional": true,
 					"Number of peers": 6,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1696,14 +1697,14 @@
 					"Type": topology,
 					"Bidirectional": true,
 					"Structure": [[[],[],[]],[[],[],[]],[[],[],[]]],
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
@@ -1711,14 +1712,14 @@
 				options = {
 					"Type": topology,
 					"Number of peers": 6,
-					"Minimum power": 1,
-					"Maximum power": 1,
+					"Minimum power": 5,
+					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
-					"Maximum download megabytes per second": 1,
+					"Maximum download megabytes per second": 50,
 					"Minimum upload megabytes per second": 1,
-					"Maximum upload megabytes per second": 1,
-					"Minimum latency": 100,
-					"Maximum latency": 100,
+					"Maximum upload megabytes per second": 50,
+					"Minimum latency": 10,
+					"Maximum latency": 10,
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
 				};
 				break;
