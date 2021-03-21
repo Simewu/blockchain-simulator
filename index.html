@@ -528,6 +528,7 @@
 			delete newNetwork.genesis;
 			for(let ID in newNetwork.peers) {
 				let peer = newNetwork.peers[ID];
+				delete peer.lastAcceptedBlock;
 				delete peer.blockchain;
 				delete peer.blockchainOffset;
 				delete peer.currentHeader;
