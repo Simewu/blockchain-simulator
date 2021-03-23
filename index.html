@@ -40,7 +40,7 @@
 			#canvasVisualizerCodeContainer {
 				position: absolute;
 				margin-left: 10px;
-				top: 0;
+				top: -32px;
 				transition: opacity 0.5s, height 0.5s, max-height 0.5s;
 			}
 			#canvasVisualizerCodeLabel {
@@ -183,7 +183,7 @@
 					<label id="canvasVisualizerCodeLabel" for="canvasVisualizerCode">Time Plot:</label>
 					<input id="canvasVisualizerCode" type="text" onchange="saveSamplerSettings()"/>
 				</div>
-				<canvas id="canvasVisualizer" class="w-100" height="9"></canvas>
+				<canvas id="canvasVisualizer" onclick="canvasVisualizerClicked(event)" class="w-100" height="9"></canvas>
 			</div>
 		</div>
 		<div id="minerStatsDiv" class="row">
@@ -387,11 +387,13 @@
 	let updateToolOptions = {
 		timeout: null,
 		minerStatsTable_active: true,
+		vis_canvas: null,
 		vis_network: null,
 		vis_simulation_active: true,
 		vis_timeout: null,
 		vis_nodeIDs: [],
 		vis_lineLength: undefined,
+		vis_network_blur_timeout: null,
 		sampler_DOM_active: true,
 		sampler_running: false,
 		samplerData: [],
@@ -1279,6 +1281,7 @@
 		if(id === undefined) return;
 		$("#minerList option[value='" + id + "']").prop("selected", true);
 		$("#minerList option:selected").change();
+		//focusOnNode(nodeId, [options])
 	}
 
 	$("#addMinerModal").on("shown.bs.modal", function (e) {
@@ -2350,6 +2353,21 @@
 		}
 	}
 
+	function canvasVisualizerClicked(event) {
+		let canvas = document.getElementById("canvasVisualizer");
+		const rect = canvas.getBoundingClientRect();
+		const x = event.clientX - rect.left;
+		const y = event.clientY - rect.top;
+
+		let minerIDs = Object.keys(network.peers);
+		let numPeers = minerIDs.length;
+		let barsize = Math.ceil(canvas.height / numPeers);
+		let minerIndex = Math.floor(y / barsize);
+		if(minerIndex < 0 || minerIndex >= numPeers) return;
+		let miner = minerIDs[minerIndex];
+		selectMiner(miner);
+	}
+
 	// java String#hashCode
 	function hashCode(str) {
 		var hash = 0;
@@ -2488,8 +2506,9 @@
 			interaction:{
 				dragView: false,
 				selectConnectedEdges: false,
-				zoomView: false
-			}
+				zoomView: true
+			},
+			clickToUse: true,
 		};
 
 		updateToolOptions.vis_network = new vis.Network(vis_container, {
@@ -2520,6 +2539,33 @@
 				}
 			}
 			selectMiner(minerID);
+		});
+
+		updateToolOptions.vis_network.on("click", function (params) {
+			if(updateToolOptions.vis_network.isActive()) {
+				$(".vis-network canvas").css('background-color', '#333');
+				clearInterval(updateToolOptions.vis_network_blur_timeout);
+				updateToolOptions.vis_network_blur_timeout = setTimeout(function() {
+					$(".vis-network canvas").css('background-color', 'transparent');
+					updateToolOptions.vis_network_blur_timeout = null;
+				}, 1000);
+			} else {
+				$(".vis-network canvas").css('background-color', 'transparent');
+			}
+		});
+
+		updateToolOptions.vis_network.on("zoom", function () {
+			pos = updateToolOptions.vis_network.getViewPosition();
+			if(updateToolOptions.vis_network.getScale() <= 0.11) {
+				updateToolOptions.vis_network.moveTo({
+					position: { x: 0, y: 0},
+					scale: 0.11,
+				});
+			} else {
+				updateToolOptions.vis_network.moveTo({
+					position: { x: 0, y: 0},
+				});
+			}
 		});
 		updateToolOptions.vis_timeout = null;
 
@@ -2959,30 +3005,6 @@
 		canvasProto.getContext = function() {
 			return ctx;
 		}
-		/*
-		updateToolOptions.vis_network_options = {
-			nodes: {
-				shape: "dot",
-				size: 30,
-				font: {
-					size: 32,
-					color: "#FFF"
-				},
-				borderWidth: 4,
-			},
-			edges: {
-				width: 6
-			},
-			layout: {
-				improvedLayout: false
-			},
-			interaction:{
-				dragView: false,
-				selectConnectedEdges: false,
-				zoomView: false
-			}
-		};
-		*/
 		var svgOptions = {
 			nodes: {
 				/*shape: "dot",
