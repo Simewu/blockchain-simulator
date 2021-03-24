@@ -550,7 +550,9 @@
 			clearAllTimeouts();
 			let newNetworkObj = JSON.parse(json);
 			let network = new Network();
-			if(newNetworkObj?.logging?.columns === undefined) newNetworkObj.logging.columns = network.logging.columns; // Add logging if it doesn't exist
+			// Add logging if it doesn't exist
+			if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
+			if(newNetworkObj.logging.columns === undefined) newNetworkObj.logging.columns = network.logging.columns;
 			network = Object.assign(network, newNetworkObj);
 
 			for(let peer in network.peers) { // Make all miners Miner objects
