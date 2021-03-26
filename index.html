@@ -2508,9 +2508,8 @@
 			interaction:{
 				dragView: false,
 				selectConnectedEdges: false,
-				zoomView: true
+				zoomView: false,
 			},
-			clickToUse: true,
 		};
 
 		updateToolOptions.vis_network = new vis.Network(vis_container, {
@@ -2543,20 +2542,24 @@
 			selectMiner(minerID);
 		});
 
-		updateToolOptions.vis_network.on("click", function (params) {
-			if(updateToolOptions.vis_network.isActive()) {
-				$(".vis-network canvas").css('background-color', '#333');
-				clearInterval(updateToolOptions.vis_network_blur_timeout);
-				updateToolOptions.vis_network_blur_timeout = setTimeout(function() {
-					$(".vis-network canvas").css('background-color', 'transparent');
-					updateToolOptions.vis_network_blur_timeout = null;
-				}, 1000);
-			} else {
-				$(".vis-network canvas").css('background-color', 'transparent');
-			}
+		updateToolOptions.vis_network.view.canvas.frame.addEventListener("focus", function() {
+			let option = {
+				interaction: {
+					zoomView: true
+				}
+			};
+			updateToolOptions.vis_network.setOptions(option);
 		});
-
-		updateToolOptions.vis_network.on("zoom", function () {
+		updateToolOptions.vis_network.view.canvas.frame.addEventListener("blur", function() {
+			let option = {
+				interaction: {
+					zoomView: false
+				}
+			};
+			updateToolOptions.vis_network.setOptions(option);
+		});
+		
+		updateToolOptions.vis_network.on("zoom", function (e) {
 			pos = updateToolOptions.vis_network.getViewPosition();
 			if(updateToolOptions.vis_network.getScale() <= 0.11) {
 				updateToolOptions.vis_network.moveTo({
