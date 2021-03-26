@@ -2503,12 +2503,13 @@
 				width: 6
 			},
 			layout: {
-				improvedLayout: false
+				improvedLayout: true
 			},
 			interaction:{
 				dragView: false,
 				selectConnectedEdges: false,
 				zoomView: false,
+				dragNodes: false
 			},
 		};
 
@@ -2545,7 +2546,8 @@
 		updateToolOptions.vis_network.view.canvas.frame.addEventListener("focus", function() {
 			let option = {
 				interaction: {
-					zoomView: true
+					zoomView: true,
+					dragNodes: true
 				}
 			};
 			updateToolOptions.vis_network.setOptions(option);
@@ -2553,7 +2555,8 @@
 		updateToolOptions.vis_network.view.canvas.frame.addEventListener("blur", function() {
 			let option = {
 				interaction: {
-					zoomView: false
+					zoomView: false,
+					dragNodes: false
 				}
 			};
 			updateToolOptions.vis_network.setOptions(option);
