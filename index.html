@@ -418,6 +418,8 @@
 	// Network class
 	class Network {
 		constructor() {
+			this.name = "";
+			
 			this.peers = {};
 			this.difficulty = 0.01;
 
@@ -1258,12 +1260,14 @@
 				files.push(key.substring(13));
 			}
 		}
-		let filename = prompt("Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n[\"" + files.join("\", \"") + "\"]\n\nEnter a file name to create/replace:");
-		if(filename == null) return;
-		filename = "NETWORK_FILE_" + filename;
+		let fileName = prompt("Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n[\"" + files.join("\", \"") + "\"]\n\nEnter a file name to create/replace:", network.name);
+		if(fileName == null) return;
+
+		network.name = fileName;
+		fileName = "NETWORK_FILE_" + fileName;
 
 		let json = Network.serialize(network);
-		localStorage.setItem(filename, json);
+		localStorage.setItem(fileName, json);
 	}
 
 	function loadLocalStorage() {
@@ -1273,11 +1277,11 @@
 				files.push(key.substring(13));
 			}
 		}
-		let filename = prompt("Files:\n[\"" + files.join("\", \"") + "\"]\n\nPlease enter a file name to load:");
-		if(filename == null) return;
-		filename = "NETWORK_FILE_" + filename;
+		let fileName = prompt("Files:\n[\"" + files.join("\", \"") + "\"]\n\nPlease enter a file name to load:", network.name);
+		if(fileName == null) return;
+		fileName = "NETWORK_FILE_" + fileName;
 
-		let json = localStorage.getItem(filename);
+		let json = localStorage.getItem(fileName);
 		if(json == null) {
 			alert("File could not be found.")
 		} else {
@@ -1291,10 +1295,10 @@
 		}
 	}
 
-	function loadLocalStorageQuiet(filename) {
-		filename = "NETWORK_FILE_" + filename;
+	function loadLocalStorageQuiet(fileName) {
+		fileName = "NETWORK_FILE_" + fileName;
 
-		let json = localStorage.getItem(filename);
+		let json = localStorage.getItem(fileName);
 		if(json == null) {
 			return false;
 		} else {
@@ -1315,11 +1319,11 @@
 				files.push(key.substring(13));
 			}
 		}
-		let filename = prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file name to delete:");
-		if(filename == null) return;
-		filename = "NETWORK_FILE_" + filename;
+		let fileName = prompt("Files:\n[" + files.join(", ") + "]\n\nPlease enter a file name to delete:");
+		if(fileName == null) return;
+		fileName = "NETWORK_FILE_" + fileName;
 
-		localStorage.removeItem(filename);
+		localStorage.removeItem(fileName);
 	}
 
 	function clearAllLocalStorage() {
@@ -1334,7 +1338,7 @@
 
 		var a=document.createElement("a");
 		a.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(json));
-		a.setAttribute("download", "simulator_network.json");
+		a.setAttribute("download", "simulator_network_" + network.name.replace(/\s/g, '_') + ".json");
 		a.click();
 	}
 
@@ -1915,7 +1919,7 @@
 		try {
 			// Do an extra check to disable the network visualizer if it may be too computationally taxing
 			let json = topologyjsoneditor.get();
-			if(json["Number of peers"] !== undefined) {
+			if(json["Number of peers"] !== undefined && json["Type"] != "Bitcoin") { // The Bitcoin topology automatically disables the visualizer
 				numPeers = parseInt(json["Number of peers"]) || 0;
 				if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
 					let disableNetworkVisualizer  = confirm(`You are generating ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
