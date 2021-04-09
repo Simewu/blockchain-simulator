@@ -1075,6 +1075,58 @@
         return arrData;
     }
 
+
+	// Extracts all strings/quotes from a block of code, replacing them by temporary characters, and returns the resulting string along with the array of quotes
+	// " --> \u04DC, ' --> \u04DD, ` --> \u04DE
+	function extractQuotes(code) {
+		code = code.replace(/\u04DC|\u04DD|\u04DE/g, ""); // Prevent intervention
+		let outputCode = "", extractedQuotes = [];
+		let split = code.split("\"");
+		for(let i in split) {
+			if(i % 2 == 0) {
+				outputCode += split[i];
+			} else {
+				outputCode += "\u04DC"
+				extractedQuotes.push(split[i]);
+			}
+		}
+		split = outputCode.split("'");
+		outputCode = ""
+		for(let i in split) {
+			if(i % 2 == 0) {
+				outputCode += split[i];
+			} else {
+				outputCode += "\u04DD"
+				extractedQuotes.push(split[i]);
+			}
+		}
+		split = outputCode.split("`");
+		outputCode = ""
+		for(let i in split) {
+			if(i % 2 == 0) {
+				outputCode += split[i];
+			} else {
+				outputCode += "\u04DE"
+				extractedQuotes.push(split[i]);
+			}
+		}
+		return [outputCode, extractedQuotes];
+	}
+
+	// Take the output from the extractQuotes function, and return the full code with the strings/quotes inserted
+	function reinsertQuotes(array) {
+		while(array[0].includes("\u04DC")) {
+			array[0] = array[0].replace("\u04DC", "\"" + array[1].shift() + "\"");
+		}
+		while(array[0].includes("\u04DD")) {
+			array[0] = array[0].replace("\u04DD", "'" + array[1].shift() + "'");
+		}
+		while(array[0].includes("\u04DE")) {
+			array[0] = array[0].replace("\u04DE", "`" + array[1].shift() + "`");
+		}
+		return array[0];
+	}
+
 	// Create a new miner
 	function newMiner(name0, power, latency, downloadMBPS, uploadMBPS, createNewIfExists = true) {
 		let name = name0;
@@ -1796,10 +1848,11 @@
 					"Number of peer connections": 25,
 					"Minimum power": 1,
 					"Maximum power": 1,
-					"Minimum download megabytes per second": 34.82,
-					"Maximum download megabytes per second": 34.82,
-					"Minimum upload megabytes per second": 10.99,
-					"Maximum upload megabytes per second": 10.99,
+					// https://www.statista.com/statistics/896779/average-mobile-fixed-broadband-download-upload-speeds
+					"Minimum download megabytes per second": 84.33,
+					"Maximum download megabytes per second": 84.33,
+					"Minimum upload megabytes per second": 44.1,
+					"Maximum upload megabytes per second": 44.1,
 					// Recorded average latency of every public node in Bitcoin as of 04/01/2021
 					"Latency distribution URL": "data/bitcoin_latencies/bitcoin_latencies.csv",
 					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
@@ -1837,6 +1890,7 @@
 	}
 
 	function generateTopology(options) {
+		console.log("Function called:\n\ngenerateTopology(" + JSON.stringify(options) + ")")
 		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("");
 		DOM_removeAllMiners();
@@ -2770,14 +2824,6 @@
 		else $("#logColumns").hide();
 
 		network.logging.canvasVisualizerCode = "{" + $("#canvasVisualizerCode").val() + "}";
-
-		// Convert miner IDs into proper references
-		/*for(let id in network.ID_Registry) {
-			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
-			network.logging.codeBeforeSampling = network.logging.codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			network.logging.codeBetweenSamples = network.logging.codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			network.logging.codeAfterSampling = network.logging.codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
-		}*/
 	}
 
 	// Load the code from the network to the DOM
@@ -2910,14 +2956,23 @@
 		}
 
 		saveSamplerSettings();
+
+		let temp1 = extractQuotes(network.logging.codeBeforeSampling);
+		let temp2 = extractQuotes(network.logging.codeBetweenSamples);
+		let temp3 = extractQuotes(network.logging.codeAfterSampling);
 		
 		// Convert miner IDs into proper references
 		for(let id in network.ID_Registry) {
 			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
-			network.logging.codeBeforeSampling = network.logging.codeBeforeSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			network.logging.codeBetweenSamples = network.logging.codeBetweenSamples.replace(r, "$1network.peers[\"" + id + "\"]$2");
-			network.logging.codeAfterSampling = network.logging.codeAfterSampling.replace(r, "$1network.peers[\"" + id + "\"]$2");
+			temp1[0] = temp1[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
+			temp2[0] = temp2[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
+			temp3[0] = temp3[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
 		}
+
+		network.logging.codeBeforeSampling = reinsertQuotes(temp1);
+		network.logging.codeBetweenSamples = reinsertQuotes(temp2);
+		network.logging.codeAfterSampling = reinsertQuotes(temp3);
+
 		try {
 			eval(network.logging.codeBeforeSampling);
 		} catch(e) {
@@ -3011,7 +3066,7 @@
 			eval(network.logging.codeBetweenSamples);
 		} catch(e) {
 			alert(e);
-			console.warn(e);
+			console.warn(e, network.logging.codeBetweenSamples);
 			stopSampling();
 			return;
 		}
