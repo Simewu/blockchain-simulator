@@ -1277,7 +1277,9 @@
 				files.push(key.substring(13));
 			}
 		}
-		let fileName = prompt("Files:\n[\"" + files.join("\", \"") + "\"]\n\nPlease enter a file name to load:", network.name);
+		let prefill = network.name;
+		if(prefill == '' && files.length == 1) prefill = files[0];
+		let fileName = prompt("Files:\n[\"" + files.join("\", \"") + "\"]\n\nPlease enter a file name to load:", prefill);
 		if(fileName == null) return;
 		fileName = "NETWORK_FILE_" + fileName;
 
@@ -2411,6 +2413,8 @@
 	}
 
 	function updateMinerStatsTable() {
+		if(!updateToolOptions.minerStatsTable_active) return;
+
 		let html = "<thead>";
 		html += "<th scope='col'><button onclick='updateMinerStatsTable()' class='btn btn-secondary'>Refresh</button></th>";
 		html += "<th scope='col'>Account balance</th>";
@@ -2989,6 +2993,10 @@
 		if(updateToolOptions.vis_simulation_active) {
 			console.info("Disabling the topology visualizer for more precise measurements. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
 			toggleVisualizations();
+		}
+		if(updateToolOptions.minerStatsTable_active) {
+			console.info("Disabling the miner stats table for improved performance. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle miner stats table\".");
+			DOM_toggleMinerStatsTable();
 		}
 
 		for(let id in network.ID_Registry) {
