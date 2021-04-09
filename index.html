@@ -797,7 +797,7 @@
 
 		setBlock(height, block) {
 			if(block == undefined) return;
-			if(network.logging.logNetworkData) { // Keep track of networking data
+			if(network.logging.logNetworkData && this.blockchain_numHops !== undefined && this.blockchain_blockDelay !== undefined) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_numHops[height] = block.numHops;
 				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
@@ -2956,6 +2956,23 @@
 		}
 	}
 
+	function registerSamplerForId(id) {
+		updateToolOptions.samplerData[id] = {
+			sumBalance: 0,
+			sumPower: 0,
+			sumNumHops: 0,
+			sumBlockDelay: 0,
+			sumBlocksInFlight: 0,
+			sumLatency: 0,
+			sumDownloadMBPS: 0,
+			sumUploadMBPS: 0,
+			sumBlockHeight: 0,
+			sumTotalBlocks: 0,
+			sumStaleBlocks: 0,
+			sumMaxForkLength: 0,
+		}
+	}
+
 	function initSampler() {
 		network.stopAllMiners();
 		network.removeBlocksInFlight();
@@ -2994,20 +3011,7 @@
 				}
 			}
 
-			updateToolOptions.samplerData[id] = {
-				sumBalance: 0,
-				sumPower: 0,
-				sumNumHops: 0,
-				sumBlockDelay: 0,
-				sumBlocksInFlight: 0,
-				sumLatency: 0,
-				sumDownloadMBPS: 0,
-				sumUploadMBPS: 0,
-				sumBlockHeight: 0,
-				sumTotalBlocks: 0,
-				sumStaleBlocks: 0,
-				sumMaxForkLength: 0,
-			}
+			registerSamplerForId(id);
 		}
 
 		saveSamplerSettings();
@@ -3048,6 +3052,10 @@
 		updateToolOptions.numSamples++;
 		for(let id in network.ID_Registry) {
 			let miner = network.peers[id];
+			if(updateToolOptions.samplerData[id] === undefined) {
+				// If new nodes were added since the beginning of logging, include them in the samples
+				registerSamplerForId(id);
+			}
 			updateToolOptions.samplerData[id].sumBalance += miner.currentHeader.balances[id];
 			updateToolOptions.samplerData[id].sumPower += miner.power;
 
@@ -3226,7 +3234,7 @@
 		if(updateToolOptions.minerStatsTable_active) updateMinerStatsTable();
 	}
 
-	function downloadSampleLog(name = "PoW_log.csv") {
+	function downloadSampleLog(name = "PoW_log_" + network.name.replace(/\s/g, '_') + ".csv") {
 		// Confidence interval
 		// =CONFIDENCE(0.05, STDEV(A2:A21), COUNT(A2:A21))
 		let log = updateToolOptions.samplerLog.join("\r\n");
