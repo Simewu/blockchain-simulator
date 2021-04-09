@@ -2252,6 +2252,11 @@
 				latencyUrl = options["Latency distribution URL"] ?? "data/bitcoin_latencies/bitcoin_latencies.csv";
 				names = options["Naming cycle"] ?? ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 
+				if(updateToolOptions.vis_simulation_active) {
+					console.info("Disabling the topology visualizer for improved performance. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
+					toggleVisualizations();
+				}
+
 				const gen = () => {
 					miners = [];
 					chosenNames = [];
