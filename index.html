@@ -110,10 +110,13 @@
 								<a class="dropdown-item" onclick="fullyConnectPeers()">Connect all peers</a>
 								<a class="dropdown-item" onclick="fullyDisconnectPeers()">Disconnect all peers</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item" onclick="saveLocalStorage()">Save to LocalStorage</a>
-								<a class="dropdown-item" onclick="loadLocalStorage()">Load from LocalStorage</a>
-								<a class="dropdown-item" onclick="deleteLocalStorage()">Delete from LocalStorage</a>
-								<a class="dropdown-item" onclick="clearAllLocalStorage()">Clear All LocalStorage</a>
+								<a class="dropdown-item" onclick="saveLocalStorage()">Save network to LocalStorage</a>
+								<a class="dropdown-item" onclick="loadLocalStorage()">Load network from LocalStorage</a>
+								<a class="dropdown-item" onclick="deleteLocalStorage()">Delete network from LocalStorage</a>
+								<a class="dropdown-item" onclick="clearAllLocalStorage()">Clear all LocalStorage</a>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" onclick="saveToFile()">Save network to File</a>
+								<a class="dropdown-item" onclick="loadFromFile()">Load network from File</a>
 							</div>
 						</div>
 					</div>
@@ -550,39 +553,45 @@
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
 		static deserialize(json) {
 			clearAllTimeouts();
-			let newNetworkObj = JSON.parse(json);
-			let network = new Network();
-			// Add logging if it doesn't exist
-			if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
-			if(newNetworkObj.logging.columns === undefined) newNetworkObj.logging.columns = network.logging.columns;
-			network = Object.assign(network, newNetworkObj);
+			try {
+				let newNetworkObj = JSON.parse(json);
+				let network = new Network();
+				// Add logging if it doesn't exist
+				if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
+				if(newNetworkObj.logging.columns === undefined) newNetworkObj.logging.columns = network.logging.columns;
+				network = Object.assign(network, newNetworkObj);
 
-			for(let peer in network.peers) { // Make all miners Miner objects
+				for(let peer in network.peers) { // Make all miners Miner objects
 
-				let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].downloadMBPS, network.peers[peer].uploadMBPS);
-				miner = Object.assign(miner, network.peers[peer]);
-				network.peers[peer] = miner;
+					let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].downloadMBPS, network.peers[peer].uploadMBPS);
+					miner = Object.assign(miner, network.peers[peer]);
+					network.peers[peer] = miner;
 
-				// Make the currentHeader an actual Header object
-				let currentHeader = new Header();
-				currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
-				network.peers[peer].currentHeader = currentHeader;
+					// Make the currentHeader an actual Header object
+					let currentHeader = new Header();
+					currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
+					network.peers[peer].currentHeader = currentHeader;
 
-				// Make the currentHeader an actual Header object
-				let lastAcceptedBlock = currentHeader.clone();
+					// Make the currentHeader an actual Header object
+					let lastAcceptedBlock = currentHeader.clone();
 
-				// Make the blocks in the blockchain an actual Header object
-				for(let block in network.peers[peer].blockchain) {
-					let header = new Header();
-					header = Object.assign(header, network.peers[peer].blockchain[block]);
-					network.peers[peer].blockchain[block] = header;
+					// Make the blocks in the blockchain an actual Header object
+					for(let block in network.peers[peer].blockchain) {
+						let header = new Header();
+						header = Object.assign(header, network.peers[peer].blockchain[block]);
+						network.peers[peer].blockchain[block] = header;
+					}
+
+					// Recreate the networkBuffer
+					let networkBuffer = new NetworkBuffer(miner.ID);
+					network.peers[peer].networkBuffer = networkBuffer;
 				}
-
-				// Recreate the networkBuffer
-				let networkBuffer = new NetworkBuffer(miner.ID);
-				network.peers[peer].networkBuffer = networkBuffer;
+				return network;
+			} catch(e) {
+				console.error(e);
+				alert("Error deserializing the network. See console for more information.");
+				return null;
 			}
-			return network;
 		}
 	}
 
@@ -1273,6 +1282,7 @@
 			alert("File could not be found.")
 		} else {
 			network = Network.deserialize(json);
+			if(network == null) return;
 			updateTools();
 			updateMinerList();
 			loadSamplerSettings();
@@ -1280,8 +1290,6 @@
 			DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
 		}
 	}
-
-
 
 	function loadLocalStorageQuiet(filename) {
 		filename = "NETWORK_FILE_" + filename;
@@ -1291,6 +1299,7 @@
 			return false;
 		} else {
 			network = Network.deserialize(json);
+			if(network == null) return;
 			updateTools();
 			updateMinerList();
 			loadSamplerSettings();
@@ -1318,6 +1327,43 @@
 			localStorage.clear();
 			alert("LocalStorage has been cleared.")
 		}
+	}
+
+	function saveToFile() {
+		let json = Network.serialize(network);
+
+		var a=document.createElement("a");
+		a.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(json));
+		a.setAttribute("download", "simulator_network.json");
+		a.click();
+	}
+
+	function loadFromFile() {
+		file = new Promise((resolve) => {
+			const input = document.createElement("input");
+			input.type = "file";
+			input.accept = ".json"
+			input.addEventListener("change", () => {
+				resolve(input.files[0]);
+			});
+			input.click();
+		}).then(file => {
+			//var file = e.dataTransfer.files[0],
+			read = new FileReader();
+			read.readAsBinaryString(file);
+			read.onloadend = function(){
+				let json = read.result;
+				network = Network.deserialize(json);
+				if(network == null) return;
+				updateTools();
+				updateMinerList();
+				loadSamplerSettings();
+				if(Object.keys(network.peers).length > 0) selectMiner(Object.keys(network.peers)[0]);
+				DOM_toggleLoggingNetworkData(network.logging.logNetworkData);
+			}
+		});
+
+		/**/
 	}
 
 	// Called when a node is created or deleted
