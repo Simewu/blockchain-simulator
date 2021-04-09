@@ -769,8 +769,10 @@
 			this.color = "default";
 			this.networkBuffer = new NetworkBuffer(this.ID);
 
-			//this.blockchain_numHops = [];
-			//this.blockchain_blockDelay = [];
+			if(network.logging.logNetworkData) {
+				this.blockchain_numHops = [];
+				this.blockchain_blockDelay = [];
+			}
 			updateTools();
 		}
 
@@ -1946,6 +1948,7 @@
 		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("");
 		DOM_removeAllMiners();
+		let promise = null;
 		let miners, chosenNames, bidirectional, nPeers, minPower, maxPower, minLatency, maxLatency, names, minNumConnections, maxNumConnections, structure;
 		switch(options["Type"]) {
 			case "Ring":
@@ -2312,18 +2315,17 @@
 
 				// Dynamically fetch the URL files, and cache them in updateToolOptions for later use
 				if(latencyUrl != updateToolOptions.bitcoin_latency_data.url) {
-					openAndReadFile(latencyUrl).then(latencies => {
+					promise = openAndReadFile(latencyUrl).then(latencies => {
 						let latencyArray = CSVToArray(latencies);
 						if(latencyArray.length < 2) {
-							console.error("An error occured while processing the URL CSV data.");
-							console.log("Latency array:", latencyArray);
-							return;
+							console.warn("Unable to find the URL CSV latency data. Using global average latency as backup.");
+							updateToolOptions.bitcoin_latency_data.url = latencyUrl;							updateToolOptions.bitcoin_latency_data.data = [["Global average", 409.91]]; // Average hardcoded latency of the network
+						} else {
+							// Remove the CSV headers
+							latencyArray.shift();
+							updateToolOptions.bitcoin_latency_data.url = latencyUrl;
+							updateToolOptions.bitcoin_latency_data.data = latencyArray;
 						}
-						// Remove the CSV headers
-						latencyArray.shift();
-
-						updateToolOptions.bitcoin_latency_data.url = latencyUrl;
-						updateToolOptions.bitcoin_latency_data.data = latencyArray;
 						gen();
 					});
 				} else gen();
@@ -2336,6 +2338,17 @@
 		DOM_selectedMiner();
 		$("#addMinerBadge").attr("class", "badge badge-success");
 		$("#addMinerBadge").text("SUCCESS");
+
+		if(promise == null) {
+			// Create a blank promise that resolved instantly
+			promise = Promise.resolve();
+		}
+		return promise; // Either a Promise or null
+	}
+
+	// Check if an object is a promise
+	function isPromise(promise) {  
+		return !!promise && typeof promise.then === 'function'
 	}
 
 	function DOM_setNetworkDifficulty() {
@@ -2977,19 +2990,18 @@
 		}
 	}
 
+	// Given a code with miner IDs referenced by the user, convert it into executable JavaScript by inserting the network.peers[] wrapper around code not surrounded by quotes
+	function getDynamicSampleCode(code) {
+		let temp = extractQuotes(code);
+		// Convert miner IDs into proper references
+		for(let id in network.ID_Registry) {
+			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
+			temp[0] = temp[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
+		}
+		return reinsertQuotes(temp);
+	}
+
 	function initSampler() {
-		network.stopAllMiners();
-		network.removeBlocksInFlight();
-		network.clearBlockchain();
-		updateToolOptions.numSamples = 0;
-		updateToolOptions.samplerData = [];
-		updateToolOptions.samplerLog = [""];
-		updateToolOptions.sampleTag = "";
-
-		if(network.logging.columns["Sample"]) updateToolOptions.samplerLog[0] += "Sample,";
-		if(network.logging.columns["Sample time"]) updateToolOptions.samplerLog[0] += "Sample time,";
-		if(network.logging.columns["Sample tag"]) updateToolOptions.samplerLog[0] += "Sample tag,";
-
 		if(updateToolOptions.vis_simulation_active) {
 			console.info("Disabling the topology visualizer for more precise measurements. This can be re-enabled by clicking the dropdown above the table and selecting \"Toggle topology visualizer\".");
 			toggleVisualizations();
@@ -2999,53 +3011,58 @@
 			DOM_toggleMinerStatsTable();
 		}
 
-		for(let id in network.ID_Registry) {
-			for(let column in network.logging.columns) {
-				if(column == "Sample") continue;
-				if(column == "Sample time") continue;
-				if(column == "Sample tag") continue;
+		network.stopAllMiners();
+		network.removeBlocksInFlight();
+		network.clearBlockchain();
 
-				if(column == "Block num hops" || column == "Block travel time (s)") {
-					if(network.logging.logNetworkData) { // Keep track of networking data
-						if(network.logging.columns[column]) {
-							updateToolOptions.samplerLog[0] += column + ",";
-						}
-					}
-					continue;
-				}
+		updateToolOptions.numSamples = 0;
+		updateToolOptions.samplerData = [];
+		updateToolOptions.samplerLog = [""];
+		updateToolOptions.sampleTag = "";
 
-				if(network.logging.columns[column]) {
-					updateToolOptions.samplerLog[0] += column + ",";
-				}
-			}
-
-			registerSamplerForId(id);
-		}
-
+		// Move the DOM textareas into the network logging code
 		saveSamplerSettings();
 
-		let temp1 = extractQuotes(network.logging.codeBeforeSampling);
-		let temp2 = extractQuotes(network.logging.codeBetweenSamples);
-		let temp3 = extractQuotes(network.logging.codeAfterSampling);
-		
-		// Convert miner IDs into proper references
-		for(let id in network.ID_Registry) {
-			const r = new RegExp("([^A-z0-9_])" + id + "([^A-z0-9_])", "gi");
-			temp1[0] = temp1[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
-			temp2[0] = temp2[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
-			temp3[0] = temp3[0].replace(r, "$1network.peers[\"" + id + "\"]$2");
-		}
-
-		network.logging.codeBeforeSampling = reinsertQuotes(temp1);
-		network.logging.codeBetweenSamples = reinsertQuotes(temp2);
-		network.logging.codeAfterSampling = reinsertQuotes(temp3);
-
-		try {
-			eval(network.logging.codeBeforeSampling);
+		network.logging.codeBeforeSampling = getDynamicSampleCode(network.logging.codeBeforeSampling);
+		let promise = null;
+		try { // Run the user code before samples
+			promise = eval(network.logging.codeBeforeSampling);
 		} catch(e) {
 			alert(e);
 			console.warn(e);
 		}
+
+		if(!isPromise(promise)) promise = Promise.resolve(); // Temp promise resolves immediately
+
+		promise.then(() => {
+			// Keep these three columns outside the peer for loop since they are static columns
+			if(network.logging.columns["Sample"]) updateToolOptions.samplerLog[0] += "Sample,";
+			if(network.logging.columns["Sample time"]) updateToolOptions.samplerLog[0] += "Sample time,";
+			if(network.logging.columns["Sample tag"]) updateToolOptions.samplerLog[0] += "Sample tag,";
+
+			for(let id in network.peers) {
+				for(let column in network.logging.columns) {
+					if(column == "Sample") continue;
+					if(column == "Sample time") continue;
+					if(column == "Sample tag") continue;
+
+					if(column == "Block num hops" || column == "Block travel time (s)") {
+						if(!network.logging.logNetworkData) continue;
+					}
+
+					if(network.logging.columns[column]) {
+						updateToolOptions.samplerLog[0] += column + ",";
+					}
+				}
+
+				registerSamplerForId(id);
+			}
+
+			saveSamplerSettings();
+			network.logging.codeBeforeSampling = getDynamicSampleCode(network.logging.codeBeforeSampling);
+			network.logging.codeBetweenSamples = getDynamicSampleCode(network.logging.codeBetweenSamples);
+			network.logging.codeAfterSampling = getDynamicSampleCode(network.logging.codeAfterSampling);
+		});
 	}
 
 	function sample() {
@@ -3133,22 +3150,26 @@
 		if(network.logging.updateTableAfterEachSample) {
 			updateSamplerTable();
 		}
+		let promise = null;
 		try {
-			eval(network.logging.codeBetweenSamples);
+			promise = eval(network.logging.codeBetweenSamples);
 		} catch(e) {
-			alert(e);
 			console.warn(e, network.logging.codeBetweenSamples);
-			stopSampling();
-			return;
+			//stopSampling();
+			//return;
 		}
 
-		if(network.logging.resetBlockchainAfterEachSample) {
-			network.startAllMiners();
-		}
-		if(updateToolOptions.sampler_running) {
-			updateToolOptions.sampleStartTime = new Date().getTime();
-			setTimeout(sample, network.logging.msPerSample);
-		}
+		if(!isPromise(promise)) promise = Promise.resolve(); // Temp promise resolves immediately
+
+		promise.then(() => { // Support promises being resolved in the code
+			if(network.logging.resetBlockchainAfterEachSample) {
+				network.startAllMiners();
+			}
+			if(updateToolOptions.sampler_running) {
+				updateToolOptions.sampleStartTime = new Date().getTime();
+				setTimeout(sample, network.logging.msPerSample);
+			}
+		});
 	}
 
 	function stopSampling() {
@@ -3165,11 +3186,17 @@
 
 	function updateSamplerTable() {
 		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
-		let html = "<thead><th colspan='9'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
+		let html = "<thead>"
+		if(updateToolOptions.samplerLog.length > 1) {
+			html += "<th colspan='3'><button onclick='downloadSampleLog()' class='btn btn-warning fillx'>Download log"
+			// Display how many samples are logged, if it's different from the sample number (i.e. if samples were dynamically toggled during experiment)
+			if(updateToolOptions.numSamples != updateToolOptions.samplerLog.length - 1) html += " (" + (updateToolOptions.samplerLog.length - 1) + ")"
+			html += "</button></th>";
+		}
+		html += "<th colspan='8'><span class='text-warning lead'>" + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? " sample" : " samples") + " taken"
 		if(updateToolOptions.sampler_running) html += " (" + sampleDuration + " seconds)";
 		if(updateToolOptions.sampleTag.length > 0) html += " (" + updateToolOptions.sampleTag + ")";
 		html += "</span>";
-		if(updateToolOptions.samplerLog.length > 1) html += "</th><th colspan='3'><button onclick='downloadSampleLog()' class='btn btn-warning fillx'>Download log</button></th>";
 		html += "</thead><thead>";
 		html += "<th scope='col'></th>";
 		html += "<th scope='col'>Average<br>account balance</th>";
