@@ -406,7 +406,6 @@
 		canvasVisualizerPixelStepSize: 1,
 		canvasVisualizerInterval: 1000 / 30,
 		bitcoin_latency_data: { url: null, data: null },
-		bitcoin_num_peer_connections_data: { url: null, data: null },
 	}
 
 
@@ -1066,7 +1065,7 @@
             } else {
                 strMatchedValue = arrMatches[3];
             }
-            matchedValue = parseInt(strMatchedValue);
+            matchedValue = Number(strMatchedValue);
             if(!isNaN(matchedValue)) {
         	    arrData[arrData.length - 1].push(matchedValue);
             } else {
@@ -1793,8 +1792,8 @@
 			case "Bitcoin":
 				options = {
 					"Type": topology,
-					"Number of peers": 1000,
-					"Number of connections distribution URL": "data/bitcoin_num_peer_connections.csv",
+					"Number of peers": 100,
+					"Number of peer connections": 25,
 					"Minimum power": 1,
 					"Maximum power": 1,
 					"Minimum download megabytes per second": 34.82,
@@ -2139,24 +2138,9 @@
 				break;
 
 			case "Bitcoin":
-			/*
-				options = {
-					"Type": topology,
-					"Number of peers": 1000,
-					"Number of connections distribution URL": "data/bitcoin_num_peer_connections.csv",
-					"Minimum power": 1,
-					"Maximum power": 1,
-					"Minimum download megabytes per second": 34.82,
-					"Maximum download megabytes per second": 34.82,
-					"Minimum upload megabytes per second": 10.99,
-					"Maximum upload megabytes per second": 10.99,
-					// Recorded average latency of every public node in Bitcoin as of 04/01/2021
-					"Latency distribution URL": "data/bitcoin_latencies/bitcoin_latencies.csv",
-					"Naming cycle": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
-				};
-			*/
+
 				nPeers = options["Number of peers"] ?? 100;
-				numConnectionsUrl = options["Number of connections distribution URL"] ?? "data/bitcoin_num_peer_connections.csv";
+				numConnections = options["Number of peer connections"] ?? 25;
 				bidirectional = true;
 				preventDuplicateConnections = true;
 				minPower = options["Minimum power"] ?? 10;
@@ -2168,7 +2152,6 @@
 				latencyUrl = options["Latency distribution URL"] ?? "data/bitcoin_latencies/bitcoin_latencies.csv";
 				names = options["Naming cycle"] ?? ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 
-				//!!!!!!!!!!!!!!!!1
 				const gen = () => {
 					miners = [];
 					chosenNames = [];
@@ -2191,8 +2174,8 @@
 						miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 					}
 					for(let i = 0; i < miners.length; i++) {
-						// Pick a random latency from the real-world Bitcoin distribution data
-						let nConnections = updateToolOptions.bitcoin_num_peer_connections_data.data[Math.floor(Math.random() * updateToolOptions.bitcoin_num_peer_connections_data.data.length)][1]; // Second column in the CSV file
+						// m=n-1 if n<25 and m=24 if n>=25 --> The number of connections per node
+						let nConnections = miners.length < numConnections ? miners.length - 1 : numConnections;
 
 						for(let j = 0; j < nConnections; j++) {
 							let r = rnd(0, miners.length - 1);
@@ -2217,29 +2200,19 @@
 				}
 
 				// Dynamically fetch the URL files, and cache them in updateToolOptions for later use
-				if(latencyUrl != updateToolOptions.bitcoin_latency_data.url
-				|| numConnectionsUrl != updateToolOptions.bitcoin_num_peer_connections_data.url) {
-					Promise.all([openAndReadFile(latencyUrl), openAndReadFile(numConnectionsUrl)]).then((values) => {
-						let latencyArray = CSVToArray(values[0]);
-						let numConnectionsArray = CSVToArray(values[1]);
-						if(latencyArray.length < 2 || numConnectionsArray < 2) {
+				if(latencyUrl != updateToolOptions.bitcoin_latency_data.url) {
+					openAndReadFile(latencyUrl).then(latencies => {
+						let latencyArray = CSVToArray(latencies);
+						if(latencyArray.length < 2) {
 							console.error("An error occured while processing the URL CSV data.");
 							console.log("Latency array:", latencyArray);
-							console.log("Number of connections array:", numConnectionsArray);
 							return;
 						}
 						// Remove the CSV headers
 						latencyArray.shift();
-						numConnectionsArray.shift();
 
 						updateToolOptions.bitcoin_latency_data.url = latencyUrl;
 						updateToolOptions.bitcoin_latency_data.data = latencyArray;
-						updateToolOptions.bitcoin_num_peer_connections_data.url = numConnectionsUrl;
-						updateToolOptions.bitcoin_num_peer_connections_data.data = numConnectionsArray;
-
-						console.log('Downloaded files')
-						console.log(updateToolOptions.bitcoin_latency_data.data)
-						console.log(updateToolOptions.bitcoin_num_peer_connections_data.data)
 						gen();
 					});
 				} else gen();
