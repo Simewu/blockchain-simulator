@@ -12,6 +12,7 @@
 		<script type="text/javascript" src="lib/vis-network.min.js"></script>
 		<script type="text/javascript" src="lib/canvas2svg.js"></script>
 		<script src="lib/jsoneditor.min.js"></script>
+		<script src="lib/lz-string.min.js"></script>
 		<title>Blockchain Simulator</title>
 		<style>
 			.container {
@@ -115,7 +116,8 @@
 								<a class="dropdown-item" onclick="deleteLocalStorage()">Delete network from LocalStorage</a>
 								<a class="dropdown-item" onclick="clearAllLocalStorage()">Clear all LocalStorage</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item" onclick="saveToFile()">Save network to File</a>
+								<a class="dropdown-item" onclick="saveToFile(true)">Save network to File</a>
+								<a class="dropdown-item" onclick="saveToFile(false)">Save (uncompressed)</a>
 								<a class="dropdown-item" onclick="loadFromFile()">Load network from File</a>
 							</div>
 						</div>
@@ -390,6 +392,8 @@
 
 	let updateToolOptions = {
 		timeout: null,
+		selectMinerTimeout: null,
+		updateMinerListTimeout: null,
 		minerStatsTable_active: true,
 		vis_canvas: null,
 		vis_network: null,
@@ -519,7 +523,6 @@
 			}
 			clearAllTimeouts();
 		}
-
 		findPeerByName(name) {
 			for(let id in this.ID_Registry) {
 				if(this.peers[id].name == name) return this.peers[id];
@@ -528,7 +531,7 @@
 		}
 
 		// Given a network object, return it in its serialized JSON form
-		static serialize(network) {
+		static serialize(network, compress = true) {
 			network.stopAllMiners();
 			network.removeBlocksInFlight();
 			let json = JSON.stringify(network);
@@ -548,13 +551,20 @@
 				delete peer.blockchain_blockDelay;
 				delete peer.networkBuffer;
 			}
-			let fixedJSON = JSON.stringify(newNetwork);
+			let fixedJSON = JSON.stringify(newNetwork, null, "\t");
+			if(compress) {
+				let compressed = LZString.compressToUTF16('\n' + fixedJSON);
+				return compressed;
+			}
 			return fixedJSON;
 		}
 
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
 		static deserialize(json) {
 			clearAllTimeouts();
+			let decompressed = LZString.decompressFromUTF16(json);
+			if(decompressed != null && decompressed.startsWith('\n')) json = decompressed.substring(1);
+
 			try {
 				let newNetworkObj = JSON.parse(json);
 				let network = new Network();
@@ -1156,7 +1166,8 @@
 			if(network.peers[id].name == name) return;
 		}
 		const miner = new Miner(name, power, latency, downloadMBPS, uploadMBPS);
-		$("#minerList").append("<option value=\"" + miner.ID + "\">" + miner.name + "</option>");
+		//$("#minerList").append("<option value=\"" + miner.ID + "\">" + miner.name + "</option>");
+		updateMinerList();
 		selectMiner(miner.ID); // Select it
 		return miner;
 	}
@@ -1289,8 +1300,18 @@
 		if(json == null) {
 			alert("File could not be found.")
 		} else {
-			network = Network.deserialize(json);
-			if(network == null) return;
+			temp_network = Network.deserialize(json);
+			if(temp_network == null) return;
+			network = temp_network;
+
+			numPeers = Object.keys(network.peers).length;
+			if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
+				let disableNetworkVisualizer  = confirm(`You are loading ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
+				if(disableNetworkVisualizer) {
+					toggleVisualizations();
+				}
+			}
+
 			updateTools();
 			updateMinerList();
 			loadSamplerSettings();
@@ -1306,8 +1327,15 @@
 		if(json == null) {
 			return false;
 		} else {
-			network = Network.deserialize(json);
-			if(network == null) return;
+			temp_network = Network.deserialize(json);
+			if(temp_network == null) return;
+			network = temp_network;
+
+			numPeers = Object.keys(network.peers).length;
+			if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
+				toggleVisualizations();
+			}
+
 			updateTools();
 			updateMinerList();
 			loadSamplerSettings();
@@ -1337,12 +1365,31 @@
 		}
 	}
 
-	function saveToFile() {
-		let json = Network.serialize(network);
-
-		var a=document.createElement("a");
-		a.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(json));
-		a.setAttribute("download", "simulator_network_" + network.name.replace(/\s/g, '_') + ".json");
+	function saveToFile(compress = true) {
+		let data = Network.serialize(network, compress);
+		var a = document.createElement("a");
+		if (compress) {
+			// ref: https://stackoverflow.com/q/6226189
+			var charCode, byteArray = [];
+			byteArray.push(254, 255); // BE BOM
+			// byteArray.push(255, 254); // LE BOM
+			for (var i = 0; i < data.length; ++i) {
+				charCode = data.charCodeAt(i);
+				byteArray.push((charCode & 0xFF00) >>> 8); // BE Bytes
+				byteArray.push(charCode & 0xFF);
+				// byteArray.push(charCode & 0xff); // LE Bytes
+				// byteArray.push(charCode / 256 >>> 0);
+			}
+			var blob = new Blob([new Uint8Array(byteArray)], {
+				type: 'text/plain;charset=UTF-16BE;'
+			});
+			var blobUrl = URL.createObjectURL(blob);
+			a.setAttribute("href", blobUrl);
+			a.setAttribute("download", "simulator_network_" + network.name.replace(/\s/g, '_') + ".dat");
+		} else {
+			a.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(data));
+			a.setAttribute("download", "simulator_network_" + network.name.replace(/\s/g, '_') + ".json");
+		}
 		a.click();
 	}
 
@@ -1350,7 +1397,7 @@
 		file = new Promise((resolve) => {
 			const input = document.createElement("input");
 			input.type = "file";
-			input.accept = ".json"
+			input.accept = ".json, .dat"
 			input.addEventListener("change", () => {
 				resolve(input.files[0]);
 			});
@@ -1358,11 +1405,22 @@
 		}).then(file => {
 			//var file = e.dataTransfer.files[0],
 			read = new FileReader();
-			read.readAsBinaryString(file);
+			read.readAsText(file, "text/plain;charset=UTF-16BE;");
 			read.onloadend = function(){
 				let json = read.result;
-				network = Network.deserialize(json);
-				if(network == null) return;
+
+				temp_network = Network.deserialize(json);
+				if(temp_network == null) return;
+				network = temp_network;
+
+				numPeers = Object.keys(network.peers).length;
+				if(numPeers >= 50 && updateToolOptions.vis_simulation_active) {
+					let disableNetworkVisualizer  = confirm(`You are loading ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
+					if(disableNetworkVisualizer) {
+						toggleVisualizations();
+					}
+				}
+
 				updateTools();
 				updateMinerList();
 				loadSamplerSettings();
@@ -1393,10 +1451,18 @@
 
 	// Update the list of miners
 	function updateMinerList() {
+		clearTimeout(updateToolOptions.updateMinerListTimeout);
+		updateToolOptions.updateMinerListTimeout = setTimeout(_updateMinerList, 300);
+	}
+
+	// Update the list of miners
+	function _updateMinerList() {
 		$("#minerList").empty();
 		for(let peer in network.peers) {
 			$("#minerList").append("<option value=\"" + peer + "\">" + network.peers[peer].name + "</option>");
 		}
+		if(updateToolOptions.selectedMiner == null) updateToolOptions.selectedMiner = Object.keys(network.peers)[0];
+		selectMiner(updateToolOptions.selectedMiner);
 	}
 
 	function addMinerBtnClicked() {
@@ -1442,8 +1508,16 @@
 		else jsoneditor.set(id);
 	}
 
-	// Select a miner from the mining list
+	// Prevent computational overhead of repeated selectMiner calls
 	function selectMiner(id) {
+		if(id == null) return;
+		clearTimeout(updateToolOptions.selectMinerTimeout);
+		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id);
+		updateToolOptions.selectedMiner = id;
+	}
+
+	// Select a miner from the mining list
+	function _selectMiner(id) {
 		$("#minerList option:selected").prop("selected", false);
 		if(id === undefined) return;
 		$("#minerList option[value='" + id + "']").prop("selected", true);
@@ -2340,10 +2414,10 @@
 		$("#addMinerBadge").text("SUCCESS");
 
 		if(promise == null) {
-			// Create a blank promise that resolved instantly
+			// Create a blank promise that resolves instantly
 			promise = Promise.resolve();
 		}
-		return promise; // Either a Promise or null
+		return promise;
 	}
 
 	// Check if an object is a promise
