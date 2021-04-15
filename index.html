@@ -551,12 +551,14 @@
 				delete peer.blockchain_blockDelay;
 				delete peer.networkBuffer;
 			}
-			let fixedJSON = JSON.stringify(newNetwork, null, "\t");
 			if(compress) {
+				let fixedJSON = JSON.stringify(newNetwork);
 				let compressed = LZString.compressToUTF16('\n' + fixedJSON);
 				return compressed;
+			} else {
+				let fixedJSONFormatted = JSON.stringify(newNetwork, null, "\t");
+				return fixedJSONFormatted;
 			}
-			return fixedJSON;
 		}
 
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
