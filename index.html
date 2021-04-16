@@ -2,9 +2,10 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
+		<meta name="author" content="Simeon Wuthier">
+		<meta name="description" content="A proof-of-work network simulator for blockchain and cryptocurrency research.">
+		<meta name="keywords" content="blockchain, bitcoin, proof of work, pow, network, simulator, simulation, blockchain, cryptocurrency, research, peer to peer, p2p">
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-		<meta name="description" content="A blockchain proof-of-work simulation tool.">
-		<meta name="author" content="Simeon">
 		<link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
 		<link rel="icon" href="img/favicon.ico" type="image/x-icon">
 		<link rel="stylesheet" href="lib/bootstrap.min.css">
@@ -187,11 +188,11 @@
 					</div>
 
 					<div class="btn-group fillx" style="max-height: 35px; cursor: pointer; padding: 0 1px">
-						<button id="toggleMiningBtn" onclick="DOM_toggleAllMining()" type="button" class="btn btn-dark rounded-0" style="width: 100%">Start All Miners <span id="miningOptionMsg" class="badge badge-light"></span></button>
+						<button id="toggleMiningBtn" onclick="DOM_toggleAllMining()" type="button" class="btn btn-dark rounded-0" style="width: 100%">Start All Miners</button>
 
 
 						<!-- Miner Options -->
-						<button type="button" class="btn btn-dark rounded-0 dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						<button type="button" class="btn btn-dark rounded-0 dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" onclick="DOM_clearOptionMsg()">
 							<span class="sr-only">Toggle Dropdown</span>
 						</button>
 						<div class="dropdown-menu">
@@ -419,7 +420,7 @@
 						<button id="closeAddMinerModal" type="button" class="close" data-dismiss="modal">&times;</button>
 					</div>
 					<div class="modal-body">
-						<textarea id="copyToClipboardTextarea" style="width: 100%; height: 500px" readonly></textarea>
+						<textarea id="copyToClipboardTextarea" style="width: 100%; height: 400px" readonly></textarea>
 						<button class="btn btn-dark fillx" onclick="DOM_copyToClipboardButton()" data-dismiss="modal">Copy</button>
 					</div>
 				</div>
@@ -435,7 +436,7 @@
 					</div>
 					<div class="modal-body">
 						<p>Compressed and uncompressed (JSON) strings are supported.</p>
-						<textarea id="pasteNetworkTextarea" style="width: 100%; height: 500px"></textarea>
+						<textarea id="pasteNetworkTextarea" style="width: 100%; height: 400px"></textarea>
 						<button id="loadPastedNetworkBtn" class="btn btn-dark fillx" onclick="DOM_loadPastedNetwork()" data-dismiss="modal">Load network</button>
 					</div>
 				</div>
@@ -1281,10 +1282,10 @@
 		const e = $("#minerList option:selected");
 		const miner = network.peers[e.val()];
 		if(miner === undefined) {
-			DOM_setOptionMsg("NO MINER SELECTED", "mining", "badge-warning");
+			DOM_setOptionMsg("NO MINER SELECTED", "network", "badge-warning");
 		} else {
 			miner.clearBlockchain();
-			DOM_setOptionMsg("SUCCESS", "mining", "badge-success");
+			DOM_setOptionMsg("SUCCESS", "network", "badge-success");
 		}
 	}
 
@@ -1572,6 +1573,7 @@
 	}
 
 	function DOM_selectedMiner() {
+		DOM_clearOptionMsg();
 		const miner = network.peers[$("#minerList").val()];
 		updateMinerJsonEditor(miner);
 		if(miner === undefined) return;
@@ -2524,10 +2526,6 @@
 		} else if(topic == "display") {
 			$("#displayOptionMsg").attr("class", "badge " + style);
 			$("#displayOptionMsg").text(msg);
-
-		} else if(topic == "mining") {
-			$("#miningOptionMsg").attr("class", "badge " + style);
-			$("#miningOptionMsg").text(msg);
 		}
 	}
 
@@ -2540,15 +2538,13 @@
 		$("#topologyOptionMsg").text("");
 		$("#displayOptionMsg").attr("class", "badge badge-success");
 		$("#displayOptionMsg").text("");
-		$("#miningOptionMsg").attr("class", "badge badge-success");
-		$("#miningOptionMsg").text("");
 	}
 
 	function DOM_toggleMining() {
 		const e = $("#minerList option:selected");
 		const miner = network.peers[e.val()];
 		if(miner === undefined) {
-			DOM_setOptionMsg("NO MINER SELECTED", "mining", "badge-warning");
+			DOM_setOptionMsg("NO MINER SELECTED", "network", "badge-warning");
 		} else {
 			if(network.miningThreads[miner.ID] !== undefined) {
 				miner.stopMining();
