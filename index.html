@@ -15,6 +15,9 @@
 		<script src="lib/lz-string.min.js"></script>
 		<title>Blockchain Simulator</title>
 		<style>
+			a {
+				color: #000;
+			}
 			.container {
 				max-width: 960px;
 				-webkit-transition: height 2s; /* Safari prior 6.1 */
@@ -105,7 +108,9 @@
 								<a class="dropdown-item" data-toggle="modal" data-target="#copyToClipboardModal" onclick="DOM_saveToClipboard()">Copy network to clipboard</a>
 								<a class="dropdown-item" data-toggle="modal" data-target="#loadFromClipboardModal" onclick="DOM_loadFromClipboard()">Load network from clipboard</a>
 								<div class="dropdown-divider"></div>
-								<a class="dropdown-item bg-gradient badge-secondary text-white" href="https://github.com/simewu/blockchain-simulator" target="_blank" style="border-radius: 100px; width: 80%; margin: 0 auto; text-align: center">View on GitHub</a>
+								<a class="dropdown-item" href="https://github.com/simewu/blockchain-simulator" target="_blank">View on GitHub</a>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" data-toggle="modal" data-target="#aboutModal" onclick="loadAboutModal()">About</a>
 							</div>
 						</div>
 						<div class="btn-group w-100" style="max-height: 35px; cursor: pointer">
@@ -441,7 +446,32 @@
 				</div>
 			</div>
 		</div>
+		<div class="modal fade" id="aboutModal" role="dialog">
+			<div class="modal-dialog">
+				<!-- Modal content-->
+				<div class="modal-content">
+					<div class="modal-header">
+						<h4 id="topologyTitle" class="modal-title">Blockchain Simulator</h4>
+						<button id="closeAddMinerModal" type="button" class="close" data-dismiss="modal">&times;</button>
+					</div>
+					<div class="modal-body" style="font-size: small">
+						<p>
+							Blockchain and the proof-of-work (PoW) distributed consensus protocol rely on peer-to-peer (P2P) networking. We introduce a PoW P2P simulator for the modeling and analyses of permissionless blockchain and cryptocurrency. We publish our simulator in open source to facilitate its use for blockchain and P2P networking research and especially recommend it for scalability research or preliminary testing.
+							<hr>
+							Visit the GitHub repository <a href="https://github.com/simewu/blockchain-simulator">here</a>. Additionally, if you have any questions, comments, or suggestions, please send them to <span id="contactAddress"></span>.
+							<hr>
+							If you'd like to support this work then donations can be made to the following Bitcoin address <a href="bitcoin://188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh">188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh</a>.
+						</p>
+						<p style="text-align: center">
+							<svg shape-rendering="crispEdges" height="128" width="128" style="display: block; margin: 5px auto" viewBox="0 0 29 29" class="qrcode"><path fill="#FFFFFF" d="M0,0 h29v29H0z"></path><path fill="#000000" d="M0 0h7v1H0zM8 0h1v1H8zM10 0h1v1H10zM12 0h1v1H12zM15 0h4v1H15zM20 0h1v1H20zM22,0 h7v1H22zM0 1h1v1H0zM6 1h1v1H6zM9 1h6v1H9zM17 1h2v1H17zM22 1h1v1H22zM28,1 h1v1H28zM0 2h1v1H0zM2 2h3v1H2zM6 2h1v1H6zM8 2h3v1H8zM13 2h1v1H13zM18 2h1v1H18zM20 2h1v1H20zM22 2h1v1H22zM24 2h3v1H24zM28,2 h1v1H28zM0 3h1v1H0zM2 3h3v1H2zM6 3h1v1H6zM8 3h3v1H8zM12 3h4v1H12zM20 3h1v1H20zM22 3h1v1H22zM24 3h3v1H24zM28,3 h1v1H28zM0 4h1v1H0zM2 4h3v1H2zM6 4h1v1H6zM8 4h1v1H8zM11 4h2v1H11zM14 4h7v1H14zM22 4h1v1H22zM24 4h3v1H24zM28,4 h1v1H28zM0 5h1v1H0zM6 5h1v1H6zM10 5h2v1H10zM13 5h1v1H13zM16 5h1v1H16zM19 5h1v1H19zM22 5h1v1H22zM28,5 h1v1H28zM0 6h7v1H0zM8 6h1v1H8zM10 6h1v1H10zM12 6h1v1H12zM14 6h1v1H14zM16 6h1v1H16zM18 6h1v1H18zM20 6h1v1H20zM22,6 h7v1H22zM10 7h1v1H10zM12 7h1v1H12zM17 7h1v1H17zM19 7h2v1H19zM0 8h4v1H0zM6 8h1v1H6zM8 8h1v1H8zM10 8h3v1H10zM14 8h1v1H14zM17 8h5v1H17zM24 8h3v1H24zM28,8 h1v1H28zM0 9h1v1H0zM5 9h1v1H5zM8 9h1v1H8zM10 9h1v1H10zM12 9h1v1H12zM14 9h1v1H14zM16 9h1v1H16zM20 9h1v1H20zM22 9h1v1H22zM24 9h1v1H24zM27,9 h2v1H27zM0 10h1v1H0zM2 10h2v1H2zM6 10h1v1H6zM9 10h4v1H9zM14 10h1v1H14zM16 10h1v1H16zM18 10h1v1H18zM22 10h4v1H22zM27 10h1v1H27zM0 11h1v1H0zM3 11h2v1H3zM9 11h2v1H9zM13 11h1v1H13zM16 11h1v1H16zM18 11h2v1H18zM22 11h1v1H22zM28,11 h1v1H28zM0 12h2v1H0zM6 12h2v1H6zM9 12h2v1H9zM12 12h1v1H12zM14 12h2v1H14zM17 12h1v1H17zM19 12h2v1H19zM23 12h2v1H23zM26 12h1v1H26zM1 13h1v1H1zM4 13h2v1H4zM7 13h1v1H7zM11 13h2v1H11zM14 13h6v1H14zM22 13h1v1H22zM25 13h1v1H25zM27,13 h2v1H27zM1 14h2v1H1zM5 14h2v1H5zM9 14h1v1H9zM11 14h1v1H11zM14 14h1v1H14zM18 14h5v1H18zM26,14 h3v1H26zM2 15h4v1H2zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM18 15h2v1H18zM21 15h1v1H21zM25 15h1v1H25zM0 16h4v1H0zM6 16h4v1H6zM12 16h1v1H12zM15 16h4v1H15zM20 16h2v1H20zM24 16h1v1H24zM28,16 h1v1H28zM2 17h1v1H2zM4 17h1v1H4zM7 17h1v1H7zM10 17h1v1H10zM13 17h1v1H13zM15 17h1v1H15zM17 17h4v1H17zM22 17h1v1H22zM25 17h2v1H25zM0 18h1v1H0zM2 18h1v1H2zM6 18h4v1H6zM13 18h3v1H13zM18 18h1v1H18zM20 18h2v1H20zM24 18h2v1H24zM2 19h1v1H2zM4 19h1v1H4zM7 19h2v1H7zM10 19h2v1H10zM14 19h7v1H14zM22 19h5v1H22zM28,19 h1v1H28zM1 20h2v1H1zM4 20h3v1H4zM8 20h2v1H8zM14 20h1v1H14zM16 20h2v1H16zM19 20h8v1H19zM28,20 h1v1H28zM8 21h1v1H8zM13 21h1v1H13zM15 21h2v1H15zM20 21h1v1H20zM24,21 h5v1H24zM0 22h7v1H0zM9 22h2v1H9zM14 22h1v1H14zM16 22h1v1H16zM18 22h3v1H18zM22 22h1v1H22zM24 22h1v1H24zM27 22h1v1H27zM0 23h1v1H0zM6 23h1v1H6zM11 23h3v1H11zM16 23h1v1H16zM20 23h1v1H20zM24 23h2v1H24zM0 24h1v1H0zM2 24h3v1H2zM6 24h1v1H6zM9 24h3v1H9zM17 24h1v1H17zM20,24 h9v1H20zM0 25h1v1H0zM2 25h3v1H2zM6 25h1v1H6zM8 25h1v1H8zM11 25h1v1H11zM13 25h6v1H13zM21 25h1v1H21zM24 25h1v1H24zM28,25 h1v1H28zM0 26h1v1H0zM2 26h3v1H2zM6 26h1v1H6zM8 26h3v1H8zM12 26h1v1H12zM14 26h1v1H14zM18 26h2v1H18zM25 26h2v1H25zM28,26 h1v1H28zM0 27h1v1H0zM6 27h1v1H6zM8 27h1v1H8zM10 27h1v1H10zM12 27h2v1H12zM16 27h1v1H16zM18 27h2v1H18zM21 27h4v1H21zM27 27h1v1H27zM0 28h7v1H0zM8 28h1v1H8zM11 28h1v1H11zM16 28h5v1H16zM22 28h2v1H22zM25 28h1v1H25zM27 28h1v1H27z"></path></svg>
+							
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
+
 	<!-- jQuery first, imageMapResizer, then Popper.js, then Bootstrap JS -->
 	<script src="lib/jquery-3.2.1.slim.min.js"></script>
 	<script src="lib/imageMapResizer.min.js"></script>
@@ -1486,6 +1516,12 @@
 			}, 500);
 		})
 		.catch(err => {});
+	}
+
+	function loadAboutModal() {
+		setTimeout(function() {
+			$("#contactAddress").html(LZString.decompressFromEncodedURIComponent("DwQwBAFgTgpgZgXgEQFsQEsA2AXA9gLgGcB3AV2wnRigAFSBjewgOhgBNSkA+E8y6uoxbtSwAPQguQA"));
+		}, 1000);
 	}
 
 	function DOM_loadPastedNetwork() {
