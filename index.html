@@ -30,6 +30,12 @@
 			a {
 				color: #000;
 			}
+
+			select option:checked {
+				background: linear-gradient(#343a40, #343a40);
+				background-color: #343a40 !important;
+				color: #FFF !important;
+			}
 			.container {
 				max-width: 960px;
 				-webkit-transition: height 2s; /* Safari prior 6.1 */
@@ -46,6 +52,7 @@
 			#minerList {
 				overflow-y: auto;
 			}
+
 			#networkjsoneditor, #topologyjsoneditor {
 				height: 500px;
 			}
@@ -86,6 +93,13 @@
 			}
 			.jsoneditor-menu { border-bottom: 0 !important; }
 			.jsoneditor-text { color: #FFF; }
+			#timePerSample {
+				background-color: #292E33;
+				color: #FF5370;
+				font-family: monospace;
+				font-size: 1rem;
+				padding-left: 49px;
+			}
 			.CodeMirror {
 				border: 1px solid #6C757D !important;
 				border-radius: 0.25rem;
@@ -257,12 +271,13 @@
 			<div class='col-md-12'>
 				<div class='card text-white bg-dark rounded-0 px-2'>
 					<div class='card-header'>
+						<br>
 						<div class='form-group row'>
 							<div class='input-group'>
-							<label for='timePerSample' class='col-sm-3 col-form-label'>Time per sample (s)</label>
-							<div class='col-sm-9 p-0'>
-								<input  id='timePerSample' type='number' onchange='saveSamplerSettings()' class='form-control text-white bg-dark border border-secondary' min='0' value='60' required>
-							</div>
+								<label for='timePerSample' class='col-sm-3 col-form-label'>Time per sample (s)</label>
+								<div class='col-sm-9 p-0'>
+									<input  id='timePerSample' type='number' onchange='saveSamplerSettings()' class='form-control border border-secondary' min='0' value='60' required>
+								</div>
 							</div>
 						</div>
 						<div class='form-group row'>
@@ -1348,7 +1363,7 @@
 				'Type': 'Mesh',
 				'Bidirectional': true,
 				'Prevent duplicate connections': true,
-				'Number of peers': 10,
+				'Number of peers': 30,
 				'Minimum number of outgoing connections': 1,
 				'Maximum number of outgoing connections': 1,
 				'Minimum power': 10,
@@ -1369,8 +1384,10 @@
 			saveSamplerSettings();
 		}
 		
-		$('#minerList option:first').prop('selected', true);
-		$('#minerList option:first').change();
+		setTimeout(function() {
+			$('#minerList option:first').prop('selected', true);
+			$('#minerList option:first').change();
+		}, 500);
 		DOM_clearOptionMsg();
 		updateToolOptions.minerStatsTable_active = !updateToolOptions.minerStatsTable_active;
 		DOM_toggleMinerStatsTable();
@@ -1393,7 +1410,7 @@
 
 	function setupSampleCodeEditors() {
 		const options = {
-			autofocus: true,
+			autofocus: false,
 			autohint: true,
 			dragDrop: false,
 			lineNumbers: true,
@@ -2039,9 +2056,9 @@
 					'Type': 'Mesh',
 					'Bidirectional': true,
 					'Prevent duplicate connections': true,
-					'Number of peers': 10,
+					'Number of peers': 30,
 					'Minimum number of outgoing connections': 1,
-					'Maximum number of outgoing connections': 1,
+					'Maximum number of outgoing connections': 2,
 					'Minimum power': 5,
 					'Maximum power': 10,
 					'Minimum download megabytes per second': 1,
