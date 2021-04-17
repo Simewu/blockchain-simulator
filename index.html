@@ -1327,8 +1327,8 @@
 				"Bidirectional": true,
 				"Prevent duplicate connections": true,
 				"Number of peers": 10,
-				"Minimum number of connections": 1,
-				"Maximum number of connections": 1,
+				"Minimum number of outgoing connections": 1,
+				"Maximum number of outgoing connections": 1,
 				"Minimum power": 10,
 				"Maximum power": 10,
 				"Minimum download megabytes per second": 1,
@@ -1970,8 +1970,8 @@
 					"Bidirectional": true,
 					"Prevent duplicate connections": true,
 					"Number of peers": 10,
-					"Minimum number of connections": 1,
-					"Maximum number of connections": 1,
+					"Minimum number of outgoing connections": 1,
+					"Maximum number of outgoing connections": 1,
 					"Minimum power": 5,
 					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
@@ -2051,7 +2051,7 @@
 			case "Bus":
 				options = {
 					"Type": topology,
-					"Number of peers": 6,
+					"Number of peers": 4,
 					"Minimum power": 5,
 					"Maximum power": 10,
 					"Minimum download megabytes per second": 1,
@@ -2068,7 +2068,7 @@
 				options = {
 					"Type": topology,
 					"Number of peers": 100,
-					"Number of peer connections": 25,
+					"Number of outgoing connections": 10,
 					"Minimum power": 1,
 					"Maximum power": 1,
 					// https://www.statista.com/statistics/896779/average-mobile-fixed-broadband-download-upload-speeds
@@ -2159,8 +2159,8 @@
 				break;
 
 			case "Mesh":
-				minNumConnections = options["Minimum number of connections"] ?? 1;
-				maxNumConnections = options["Maximum number of connections"] ?? 1;
+				minNumConnections = options["Minimum number of outgoing connections"] ?? 1;
+				maxNumConnections = options["Maximum number of outgoing connections"] ?? 1;
 				bidirectional = !!options["Bidirectional"];
 				preventDuplicateConnections = !!options["Prevent duplicate connections"];
 				nPeers = options["Number of peers"] ?? 6;
@@ -2381,7 +2381,7 @@
 				break;
 
 			case "Bus":
-				nPeers = options["Number of peers"] ?? 6;
+				nPeers = options["Number of peers"] ?? 4;
 				minPower = options["Minimum power"] ?? 10;
 				maxPower = options["Maximum power"] ?? 10;
 				minDownloadMBPS = options["Minimum download megabytes per second"] ?? 10;
@@ -2409,16 +2409,18 @@
 					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
 					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 				}
-				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addConnection(miners[i + 1].ID);
-					miners[i + 1].addConnection(miners[i].ID);
+				for(let i = 0; i < miners.length; i++) {
+					for(let j = 0; j < miners.length; j++) {
+						miners[i].addConnection(miners[j].ID);
+						miners[j].addConnection(miners[i].ID);
+					}
 				}
 				break;
 
 			case "Bitcoin":
 
 				nPeers = options["Number of peers"] ?? 100;
-				numConnections = options["Number of peer connections"] ?? 25;
+				numConnections = options["Number of outgoing connections"] ?? 10;
 				bidirectional = true;
 				preventDuplicateConnections = true;
 				minPower = options["Minimum power"] ?? 10;
@@ -2457,7 +2459,7 @@
 						miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
 					}
 					for(let i = 0; i < miners.length; i++) {
-						// m=n-1 if n<25 and m=24 if n>=25 --> The number of connections per node
+						// m=n-1 if n<10 and m=9 if n>=10 --> The number of connections per node
 						let nConnections = miners.length < numConnections ? miners.length - 1 : numConnections;
 
 						for(let j = 0; j < nConnections; j++) {
