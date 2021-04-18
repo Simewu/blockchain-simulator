@@ -14,102 +14,20 @@
 		<script type='text/javascript' src='lib/vis-network.min.js'></script>
 		<script src='lib/jsoneditor.min.js'></script>
 		<script src='lib/lz-string.min.js'></script>
-
-		<!-- Code editor -->
 		<link rel="stylesheet" href="lib/codemirror/lint.css">
 		<link rel='stylesheet' href='lib/codemirror/codemirror.css'>
 		<link rel='stylesheet' href='lib/codemirror/material-darker.css'>
+		<link rel='stylesheet' href='style.css'>
 		<script src='lib/codemirror/codemirror.js'></script>
 		<script src='lib/codemirror/formatting.js'></script>
 		<script src='lib/codemirror/javascript.js'></script>
 		<script src="lib/codemirror/jshint.js"></script>
 		<script src="lib/codemirror/lint.js"></script>
 		<script src="lib/codemirror/javascript-lint.js"></script>
-
-		<style>
-			a {
-				color: #000;
-			}
-
-			select option:checked {
-				background: linear-gradient(#343a40, #343a40);
-				background-color: #343a40 !important;
-				color: #FFF !important;
-			}
-			.container {
-				max-width: 960px;
-				-webkit-transition: height 2s; /* Safari prior 6.1 */
-  				transition: height 2s;
-			}
-			.fillx { 
-				min-width: 100%;
-				width: 100%;
-			}
-			.filly { 
-				min-height: 100%;
-				height: 100%;
-			}
-			#minerList {
-				overflow-y: auto;
-			}
-
-			#networkjsoneditor, #topologyjsoneditor {
-				height: 500px;
-			}
-			#jsoneditor, #topologyjsoneditor, #networkjsoneditor {
-				background-color: #FFF;
-				width: 100%;
-			}
-			#canvasVisualizerCodeContainer {
-				position: absolute;
-				margin-left: 10px;
-				top: -32px;
-				transition: opacity 0.5s, height 0.5s, max-height 0.5s;
-			}
-			#canvasVisualizerCodeLabel {
-				color: #AAA;
-			}
-			#canvasVisualizerCode {
-				border: none;
-				color: #FFF;
-				overflow-x: auto;
-				background-color: transparent;
-				width: 300px;
-			}
-			#canvasVisualizerCode:focus {
-				background-color: #343A40;
-			}
-			#canvasVisualizer, #networkVisualizer, #minerStatsTable {
-				background-color: #343A40;
-				transition: opacity 0.5s, height 0.5s, max-height 0.5s;
-			}
-			.jsoneditor-search, .jsoneditor-frame, .jsoneditor-menu, .jsoneditor-frame table tbody tr td input, option:checked {
-				background-color: #343A40 !important;
-				color: #FFF !important;
-			}
-			div .jsoneditor, div .jsoneditor-mode-form, #minerList {
-				border-color: #343A40;
-				border-radius: 0;
-			}
-			.jsoneditor-menu { border-bottom: 0 !important; }
-			.jsoneditor-text { color: #FFF; }
-			#timePerSample {
-				background-color: #292E33;
-				color: #FF5370;
-				font-family: monospace;
-				font-size: 1rem;
-				padding-left: 49px;
-			}
-			.CodeMirror {
-				border: 1px solid #6C757D !important;
-				border-radius: 0.25rem;
-				height: auto;
-			}
-		</style>
 		<style id='miner-colors-selector'></style>
 	</head>
 
-<body class='bg-dark py-3'>
+<body class='py-3'>
 	<div class='container bg-light rounded pb-3'>
 		<div class='py-2 text-center'>
 			<h1 class='display-4 d-inline'>Blockchain Simulator</h1> <span class='badge badge-primary'>v1.0</span> <span class='badge badge-secondary'><a class='text-white' href='index_v0.12.html'>v0.12 can be found here</a></span>
@@ -117,8 +35,8 @@
 		<div class='jumbotron p-3 mb-3'>
 			<div class='row'>
 				<div class='col-md-12 mb-3'>
-					<div class='btn-group fillx' style='max-height: 35px; cursor: pointer'>
-						<div class='btn-group w-100' style='max-height: 35px; cursor: pointer'>
+					<div class='btn-group fillx' style='max-height:35px;cursor:pointer'>
+						<div class='btn-group w-100'>
 
 							<!-- File Options Dropdown -->
 							<button type='button' class='btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false' onclick='DOM_clearOptionMsg()'>
@@ -127,8 +45,8 @@
 								File
 							</button>
 							<div class='dropdown-menu'>
-								<a class='dropdown-item' onclick='loadFromFile()'>Open network file<span class='badge badge-secondary float-right' style='margin-top: 3px'>CTRL+O</span></a>
-								<a class='dropdown-item' onclick='saveToFile(true)'>Save network file <span class='badge badge-secondary float-right' style='margin-top: 3px'>CTRL+S</span></a>
+								<a class='dropdown-item' onclick='loadFromFile()'>Open network file<span class='badge badge-secondary float-right' style='margin-top:3px'>CTRL+O</span></a>
+								<a class='dropdown-item' onclick='saveToFile(true)'>Save network file <span class='badge badge-secondary float-right' style='margin-top:3px'>CTRL+S</span></a>
 								<a class='dropdown-item' onclick='saveToFile(false)'>Save network file (uncompressed)</a>
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='saveLocalStorage()'>Save network to LocalStorage</a>
@@ -144,7 +62,7 @@
 								<a class='dropdown-item' data-toggle='modal' data-target='#aboutModal' onclick='loadAboutModal()'>About</a>
 							</div>
 						</div>
-						<div class='btn-group w-100' style='max-height: 35px; cursor: pointer'>
+						<div class='btn-group w-100' style='max-height:35px;cursor:pointer'>
 
 							<!-- Network Options Dropdown -->
 							<button type='button' class='btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false' onclick='DOM_clearOptionMsg()'>
@@ -173,7 +91,7 @@
 								<a class='dropdown-item' data-toggle='modal' data-target='#viewNetworkModal' onclick='DOM_viewNetworkJSON()'>View full network structure</a>
 							</div>
 						</div>
-						<div class='btn-group w-100' style='max-height: 35px; cursor: pointer'>
+						<div class='btn-group w-100' style='max-height:35px;cursor:pointer'>
 
 							<!-- Topology Options Dropdown -->
 							<button type='button' class='btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false' onclick='DOM_clearOptionMsg()'>
@@ -191,7 +109,7 @@
 							</div>
 						</div>
 
-						<div class='btn-group w-100' style='max-height: 35px; cursor: pointer'>
+						<div class='btn-group w-100' style='max-height:35px;cursor:pointer'>
 
 							<!-- Display Options Dropdown -->
 							<button type='button' class='btn btn-dark dropdown-toggle dropdown-toggle-split rounded-0' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false' onclick='DOM_clearOptionMsg()'>
@@ -218,13 +136,13 @@
 			</div>
 			<div class='row'>
 				<div class='col-md-4'>
-					<div class='row px-3' style='height: calc(100% - 35px)'>
+					<div class='row px-3' style='height:calc(100% - 35px)'>
 						<select id='minerList' onclick='DOM_selectedMiner()' onchange='DOM_selectedMiner()' size='6' class='form-control fillx filly'>
 						</select>
 					</div>
 
-					<div class='btn-group fillx' style='max-height: 35px; cursor: pointer; padding: 0 1px'>
-						<button id='toggleMiningBtn' onclick='DOM_toggleAllMining()' type='button' class='btn btn-dark rounded-0' style='width: 100%'>Start All Miners</button>
+					<div class='btn-group fillx' style='max-height:35px;cursor:pointer;padding:0 1px'>
+						<button id='toggleMiningBtn' onclick='DOM_toggleAllMining()' type='button' class='btn btn-dark rounded-0' style='width:100%'>Start All Miners</button>
 
 
 						<!-- Miner Options -->
@@ -399,7 +317,7 @@
 						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
-						<img src='img/topologies.png' style='width: 100%' usemap='#topologies'>
+						<img src='img/topologies.png' style='width:100%' usemap='#topologies'>
 						<map id='topologyMap' name='topologies' data-dismiss='modal'  data-toggle='modal' data-target='#generateTopologyModal2'>
 							<area shape='rect' coords='10, 10, 450, 506' alt='Ring' onclick='DOM_selectTopology("Ring")'>
 							<area shape='rect' coords='471, 10, 1005, 506' alt='Mesh' onclick='DOM_selectTopology("Mesh")'>
@@ -457,7 +375,7 @@
 						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
-						<textarea id='copyToClipboardTextarea' style='width: 100%; height: 400px' readonly></textarea>
+						<textarea id='copyToClipboardTextarea' style='width:100%;height:400px' readonly></textarea>
 						<button class='btn btn-dark fillx' onclick='DOM_copyToClipboardButton()' data-dismiss='modal'>Copy</button>
 					</div>
 				</div>
@@ -473,7 +391,7 @@
 					</div>
 					<div class='modal-body'>
 						<p>Compressed and uncompressed (JSON) strings are supported.</p>
-						<textarea id='pasteNetworkTextarea' style='width: 100%; height: 400px'></textarea>
+						<textarea id='pasteNetworkTextarea' style='width:100%;height:400px'></textarea>
 						<button id='loadPastedNetworkBtn' class='btn btn-dark fillx' onclick='DOM_loadPastedNetwork()' data-dismiss='modal'>Load network</button>
 					</div>
 				</div>
@@ -487,7 +405,7 @@
 						<h4 id='topologyTitle' class='modal-title'>Blockchain Simulator</h4>
 						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
-					<div class='modal-body' style='font-size: small'>
+					<div class='modal-body' style='font-size:small'>
 						<p>
 							Blockchain and the proof-of-work (PoW) distributed consensus protocol rely on peer-to-peer (P2P) networking. We introduce a PoW P2P simulator for the modeling and analyses of permissionless blockchain and cryptocurrency. We publish our simulator in open source to facilitate its use for blockchain and P2P networking research and especially recommend it for scalability research or preliminary testing.
 							<hr>
@@ -495,9 +413,9 @@
 							<hr>
 							We appreciate you using our app. If you'd like to support us, donations can be made to the following Bitcoin address <a href='https://www.blockchain.com/btc/address/188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh' target='_blank'>188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh</a>.
 						</p>
-						<p style='text-align: center'>
+						<p style='text-align:center'>
 							<a href='https://www.blockchain.com/btc/address/188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh' target='_blank'>
-								<svg shape-rendering='crispEdges' height='128' width='128' style='display: block; margin: 5px auto' viewBox='0 0 29 29' class='qrcode'><path fill='#FFF' d='M0,0 h29v29H0z'></path><path fill='#000' d='M0 0h7v1H0zM8 0h1v1H8zM10 0h1v1H10zM12 0h1v1H12zM15 0h4v1H15zM20 0h1v1H20zM22,0 h7v1H22zM0 1h1v1H0zM6 1h1v1H6zM9 1h6v1H9zM17 1h2v1H17zM22 1h1v1H22zM28,1 h1v1H28zM0 2h1v1H0zM2 2h3v1H2zM6 2h1v1H6zM8 2h3v1H8zM13 2h1v1H13zM18 2h1v1H18zM20 2h1v1H20zM22 2h1v1H22zM24 2h3v1H24zM28,2 h1v1H28zM0 3h1v1H0zM2 3h3v1H2zM6 3h1v1H6zM8 3h3v1H8zM12 3h4v1H12zM20 3h1v1H20zM22 3h1v1H22zM24 3h3v1H24zM28,3 h1v1H28zM0 4h1v1H0zM2 4h3v1H2zM6 4h1v1H6zM8 4h1v1H8zM11 4h2v1H11zM14 4h7v1H14zM22 4h1v1H22zM24 4h3v1H24zM28,4 h1v1H28zM0 5h1v1H0zM6 5h1v1H6zM10 5h2v1H10zM13 5h1v1H13zM16 5h1v1H16zM19 5h1v1H19zM22 5h1v1H22zM28,5 h1v1H28zM0 6h7v1H0zM8 6h1v1H8zM10 6h1v1H10zM12 6h1v1H12zM14 6h1v1H14zM16 6h1v1H16zM18 6h1v1H18zM20 6h1v1H20zM22,6 h7v1H22zM10 7h1v1H10zM12 7h1v1H12zM17 7h1v1H17zM19 7h2v1H19zM0 8h4v1H0zM6 8h1v1H6zM8 8h1v1H8zM10 8h3v1H10zM14 8h1v1H14zM17 8h5v1H17zM24 8h3v1H24zM28,8 h1v1H28zM0 9h1v1H0zM5 9h1v1H5zM8 9h1v1H8zM10 9h1v1H10zM12 9h1v1H12zM14 9h1v1H14zM16 9h1v1H16zM20 9h1v1H20zM22 9h1v1H22zM24 9h1v1H24zM27,9 h2v1H27zM0 10h1v1H0zM2 10h2v1H2zM6 10h1v1H6zM9 10h4v1H9zM14 10h1v1H14zM16 10h1v1H16zM18 10h1v1H18zM22 10h4v1H22zM27 10h1v1H27zM0 11h1v1H0zM3 11h2v1H3zM9 11h2v1H9zM13 11h1v1H13zM16 11h1v1H16zM18 11h2v1H18zM22 11h1v1H22zM28,11 h1v1H28zM0 12h2v1H0zM6 12h2v1H6zM9 12h2v1H9zM12 12h1v1H12zM14 12h2v1H14zM17 12h1v1H17zM19 12h2v1H19zM23 12h2v1H23zM26 12h1v1H26zM1 13h1v1H1zM4 13h2v1H4zM7 13h1v1H7zM11 13h2v1H11zM14 13h6v1H14zM22 13h1v1H22zM25 13h1v1H25zM27,13 h2v1H27zM1 14h2v1H1zM5 14h2v1H5zM9 14h1v1H9zM11 14h1v1H11zM14 14h1v1H14zM18 14h5v1H18zM26,14 h3v1H26zM2 15h4v1H2zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM18 15h2v1H18zM21 15h1v1H21zM25 15h1v1H25zM0 16h4v1H0zM6 16h4v1H6zM12 16h1v1H12zM15 16h4v1H15zM20 16h2v1H20zM24 16h1v1H24zM28,16 h1v1H28zM2 17h1v1H2zM4 17h1v1H4zM7 17h1v1H7zM10 17h1v1H10zM13 17h1v1H13zM15 17h1v1H15zM17 17h4v1H17zM22 17h1v1H22zM25 17h2v1H25zM0 18h1v1H0zM2 18h1v1H2zM6 18h4v1H6zM13 18h3v1H13zM18 18h1v1H18zM20 18h2v1H20zM24 18h2v1H24zM2 19h1v1H2zM4 19h1v1H4zM7 19h2v1H7zM10 19h2v1H10zM14 19h7v1H14zM22 19h5v1H22zM28,19 h1v1H28zM1 20h2v1H1zM4 20h3v1H4zM8 20h2v1H8zM14 20h1v1H14zM16 20h2v1H16zM19 20h8v1H19zM28,20 h1v1H28zM8 21h1v1H8zM13 21h1v1H13zM15 21h2v1H15zM20 21h1v1H20zM24,21 h5v1H24zM0 22h7v1H0zM9 22h2v1H9zM14 22h1v1H14zM16 22h1v1H16zM18 22h3v1H18zM22 22h1v1H22zM24 22h1v1H24zM27 22h1v1H27zM0 23h1v1H0zM6 23h1v1H6zM11 23h3v1H11zM16 23h1v1H16zM20 23h1v1H20zM24 23h2v1H24zM0 24h1v1H0zM2 24h3v1H2zM6 24h1v1H6zM9 24h3v1H9zM17 24h1v1H17zM20,24 h9v1H20zM0 25h1v1H0zM2 25h3v1H2zM6 25h1v1H6zM8 25h1v1H8zM11 25h1v1H11zM13 25h6v1H13zM21 25h1v1H21zM24 25h1v1H24zM28,25 h1v1H28zM0 26h1v1H0zM2 26h3v1H2zM6 26h1v1H6zM8 26h3v1H8zM12 26h1v1H12zM14 26h1v1H14zM18 26h2v1H18zM25 26h2v1H25zM28,26 h1v1H28zM0 27h1v1H0zM6 27h1v1H6zM8 27h1v1H8zM10 27h1v1H10zM12 27h2v1H12zM16 27h1v1H16zM18 27h2v1H18zM21 27h4v1H21zM27 27h1v1H27zM0 28h7v1H0zM8 28h1v1H8zM11 28h1v1H11zM16 28h5v1H16zM22 28h2v1H22zM25 28h1v1H25zM27 28h1v1H27z'></path></svg>
+								<svg shape-rendering='crispEdges' height='128' width='128' style='display:block;margin:5px auto' viewBox='0 0 29 29' class='qrcode'><path fill='#FFF' d='M0,0 h29v29H0z'></path><path fill='#000' d='M0 0h7v1H0zM8 0h1v1H8zM10 0h1v1H10zM12 0h1v1H12zM15 0h4v1H15zM20 0h1v1H20zM22,0 h7v1H22zM0 1h1v1H0zM6 1h1v1H6zM9 1h6v1H9zM17 1h2v1H17zM22 1h1v1H22zM28,1 h1v1H28zM0 2h1v1H0zM2 2h3v1H2zM6 2h1v1H6zM8 2h3v1H8zM13 2h1v1H13zM18 2h1v1H18zM20 2h1v1H20zM22 2h1v1H22zM24 2h3v1H24zM28,2 h1v1H28zM0 3h1v1H0zM2 3h3v1H2zM6 3h1v1H6zM8 3h3v1H8zM12 3h4v1H12zM20 3h1v1H20zM22 3h1v1H22zM24 3h3v1H24zM28,3 h1v1H28zM0 4h1v1H0zM2 4h3v1H2zM6 4h1v1H6zM8 4h1v1H8zM11 4h2v1H11zM14 4h7v1H14zM22 4h1v1H22zM24 4h3v1H24zM28,4 h1v1H28zM0 5h1v1H0zM6 5h1v1H6zM10 5h2v1H10zM13 5h1v1H13zM16 5h1v1H16zM19 5h1v1H19zM22 5h1v1H22zM28,5 h1v1H28zM0 6h7v1H0zM8 6h1v1H8zM10 6h1v1H10zM12 6h1v1H12zM14 6h1v1H14zM16 6h1v1H16zM18 6h1v1H18zM20 6h1v1H20zM22,6 h7v1H22zM10 7h1v1H10zM12 7h1v1H12zM17 7h1v1H17zM19 7h2v1H19zM0 8h4v1H0zM6 8h1v1H6zM8 8h1v1H8zM10 8h3v1H10zM14 8h1v1H14zM17 8h5v1H17zM24 8h3v1H24zM28,8 h1v1H28zM0 9h1v1H0zM5 9h1v1H5zM8 9h1v1H8zM10 9h1v1H10zM12 9h1v1H12zM14 9h1v1H14zM16 9h1v1H16zM20 9h1v1H20zM22 9h1v1H22zM24 9h1v1H24zM27,9 h2v1H27zM0 10h1v1H0zM2 10h2v1H2zM6 10h1v1H6zM9 10h4v1H9zM14 10h1v1H14zM16 10h1v1H16zM18 10h1v1H18zM22 10h4v1H22zM27 10h1v1H27zM0 11h1v1H0zM3 11h2v1H3zM9 11h2v1H9zM13 11h1v1H13zM16 11h1v1H16zM18 11h2v1H18zM22 11h1v1H22zM28,11 h1v1H28zM0 12h2v1H0zM6 12h2v1H6zM9 12h2v1H9zM12 12h1v1H12zM14 12h2v1H14zM17 12h1v1H17zM19 12h2v1H19zM23 12h2v1H23zM26 12h1v1H26zM1 13h1v1H1zM4 13h2v1H4zM7 13h1v1H7zM11 13h2v1H11zM14 13h6v1H14zM22 13h1v1H22zM25 13h1v1H25zM27,13 h2v1H27zM1 14h2v1H1zM5 14h2v1H5zM9 14h1v1H9zM11 14h1v1H11zM14 14h1v1H14zM18 14h5v1H18zM26,14 h3v1H26zM2 15h4v1H2zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM18 15h2v1H18zM21 15h1v1H21zM25 15h1v1H25zM0 16h4v1H0zM6 16h4v1H6zM12 16h1v1H12zM15 16h4v1H15zM20 16h2v1H20zM24 16h1v1H24zM28,16 h1v1H28zM2 17h1v1H2zM4 17h1v1H4zM7 17h1v1H7zM10 17h1v1H10zM13 17h1v1H13zM15 17h1v1H15zM17 17h4v1H17zM22 17h1v1H22zM25 17h2v1H25zM0 18h1v1H0zM2 18h1v1H2zM6 18h4v1H6zM13 18h3v1H13zM18 18h1v1H18zM20 18h2v1H20zM24 18h2v1H24zM2 19h1v1H2zM4 19h1v1H4zM7 19h2v1H7zM10 19h2v1H10zM14 19h7v1H14zM22 19h5v1H22zM28,19 h1v1H28zM1 20h2v1H1zM4 20h3v1H4zM8 20h2v1H8zM14 20h1v1H14zM16 20h2v1H16zM19 20h8v1H19zM28,20 h1v1H28zM8 21h1v1H8zM13 21h1v1H13zM15 21h2v1H15zM20 21h1v1H20zM24,21 h5v1H24zM0 22h7v1H0zM9 22h2v1H9zM14 22h1v1H14zM16 22h1v1H16zM18 22h3v1H18zM22 22h1v1H22zM24 22h1v1H24zM27 22h1v1H27zM0 23h1v1H0zM6 23h1v1H6zM11 23h3v1H11zM16 23h1v1H16zM20 23h1v1H20zM24 23h2v1H24zM0 24h1v1H0zM2 24h3v1H2zM6 24h1v1H6zM9 24h3v1H9zM17 24h1v1H17zM20,24 h9v1H20zM0 25h1v1H0zM2 25h3v1H2zM6 25h1v1H6zM8 25h1v1H8zM11 25h1v1H11zM13 25h6v1H13zM21 25h1v1H21zM24 25h1v1H24zM28,25 h1v1H28zM0 26h1v1H0zM2 26h3v1H2zM6 26h1v1H6zM8 26h3v1H8zM12 26h1v1H12zM14 26h1v1H14zM18 26h2v1H18zM25 26h2v1H25zM28,26 h1v1H28zM0 27h1v1H0zM6 27h1v1H6zM8 27h1v1H8zM10 27h1v1H10zM12 27h2v1H12zM16 27h1v1H16zM18 27h2v1H18zM21 27h4v1H21zM27 27h1v1H27zM0 28h7v1H0zM8 28h1v1H8zM11 28h1v1H11zM16 28h5v1H16zM22 28h2v1H22zM25 28h1v1H25zM27 28h1v1H27z'></path></svg>
 							</a>
 						</p>
 					</div>
@@ -1366,14 +1284,14 @@
 				'Number of peers': 30,
 				'Minimum number of outgoing connections': 1,
 				'Maximum number of outgoing connections': 1,
-				'Minimum power': 10,
-				'Maximum power': 10,
-				'Minimum download megabytes per second': 1,
+				'Minimum power': 1,
+				'Maximum power': 5,
+				'Minimum download megabytes per second': 10,
 				'Maximum download megabytes per second': 50,
-				'Minimum upload megabytes per second': 1,
+				'Minimum upload megabytes per second': 10,
 				'Maximum upload megabytes per second': 50,
 				'Minimum latency': 10,
-				'Maximum latency': 10,
+				'Maximum latency': 100,
 				'Naming cycle': shuffleArray(
 					['Aaron', 'Adam', 'Alan', 'Albert', 'Alex', 'Alice', 'Andrew', 'Anthony', 'Arthur', 'Austin', 'Ben', 'Bill', 'Bob', 'Bobby', 'Brandon', 'Brian', 'Bruce', 'Carl', 'Charles', 'Chris', 'Dan', 'Daniel', 'David', 'Dennis', 'Donald', 'Douglas', 'Dylan', 'Edward', 'Eric', 'Ethan', 'Eugene', 'Frank', 'Gabriel', 'Gary', 'George', 'Gerald', 'Gregory', 'Harold', 'Harry', 'Henry', 'Jack', 'Jacob', 'James', 'Jason', 'Jeffrey', 'Jeremy', 'Jerry', 'Jesse', 'Joe', 'John', 'Johnny', 'Jonathan', 'Jordan', 'Jose', 'Joseph', 'Joshua', 'Juan', 'Justin', 'Keith', 'Kenneth', 'Kevin', 'Kyle', 'Larry', 'Lawrence', 'Logan', 'Louis', 'Mark', 'Matthew', 'Michael', 'Nathan', 'Nicholas', 'Noah', 'Patrick', 'Paul', 'Peter', 'Philip', 'Ralph', 'Randy', 'Raymond', 'Richard', 'Robert', 'Roger', 'Ronald', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Steven', 'Terry', 'Thomas', 'Timothy', 'Tyler', 'Vincent', 'Walter', 'Wayne', 'Will', 'Zachary']
 				),
@@ -1723,16 +1641,17 @@
 		if(id == null) return;
 		clearTimeout(updateToolOptions.selectMinerTimeout);
 		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id);
-		updateToolOptions.selectedMiner = id;
 	}
 
 	// Select a miner from the mining list
 	function _selectMiner(id) {
+		updateToolOptions.selectedMiner = id;
 		$('#minerList option:selected').prop('selected', false);
 		if(id === undefined) return;
 		$('#minerList option[value="' + id + '"]').prop('selected', true);
 		$('#minerList option:selected').change();
-		//focusOnNode(nodeId, [options])
+		drawCanvasVisualizerMinerCircles();
+		updateToolOptions.selectMinerTimeout = null;
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -2058,17 +1977,16 @@
 					'Prevent duplicate connections': true,
 					'Number of peers': 30,
 					'Minimum number of outgoing connections': 1,
-					'Maximum number of outgoing connections': 2,
-					'Minimum power': 5,
-					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
+					'Maximum number of outgoing connections': 1,
+					'Minimum power': 1,
+					'Maximum power': 5,
+					'Minimum download megabytes per second': 10,
 					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
+					'Minimum upload megabytes per second': 10,
 					'Maximum upload megabytes per second': 50,
 					'Minimum latency': 10,
-					'Maximum latency': 10,
-					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-				  	//'Naming cycle': ['Alice', 'Andrew', 'Bob', 'George', 'Jack', 'Eve', 'Frank', 'Carl']
+					'Maximum latency': 100,
+					'Naming cycle': ['Aaron', 'Adam', 'Alan', 'Albert', 'Alex', 'Alice', 'Andrew', 'Anthony', 'Arthur', 'Austin', 'Ben', 'Bill', 'Bob', 'Bobby', 'Brandon', 'Brian', 'Bruce', 'Carl', 'Charles', 'Chris', 'Dan', 'Daniel', 'David', 'Dennis', 'Donald', 'Douglas', 'Dylan', 'Edward', 'Eric', 'Ethan', 'Eugene', 'Frank', 'Gabriel', 'Gary', 'George', 'Gerald', 'Gregory', 'Harold', 'Harry', 'Henry', 'Jack', 'Jacob', 'James', 'Jason', 'Jeffrey', 'Jeremy', 'Jerry', 'Jesse', 'Joe', 'John', 'Johnny', 'Jonathan', 'Jordan', 'Jose', 'Joseph', 'Joshua', 'Juan', 'Justin', 'Keith', 'Kenneth', 'Kevin', 'Kyle', 'Larry', 'Lawrence', 'Logan', 'Louis', 'Mark', 'Matthew', 'Michael', 'Nathan', 'Nicholas', 'Noah', 'Patrick', 'Paul', 'Peter', 'Philip', 'Ralph', 'Randy', 'Raymond', 'Richard', 'Robert', 'Roger', 'Ronald', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Steven', 'Terry', 'Thomas', 'Timothy', 'Tyler', 'Vincent', 'Walter', 'Wayne', 'Will', 'Zachary']
 				};
 				break;
 			case 'Star':
@@ -2165,7 +2083,7 @@
 					'Maximum upload megabytes per second': 44.1,
 					// Recorded average latency of every public node in Bitcoin as of 04/01/2021
 					'Latency distribution URL': 'data/bitcoin_latencies/bitcoin_latencies.csv',
-					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+					'Naming cycle': ['Node ']
 				};
 				break;
 			default:
@@ -2224,7 +2142,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2265,7 +2183,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2320,7 +2238,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2365,7 +2283,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2403,7 +2321,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2440,7 +2358,7 @@
 				function recursivelyGenerateTreeTopology(structure, parent) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2483,7 +2401,7 @@
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
 					if(chosenNames[name] !== undefined) {
-						let count = 1;
+						let count = 2;
 						do {
 							name = names[i % names.length] + count.toString();
 							count++;
@@ -2505,7 +2423,6 @@
 				break;
 
 			case 'Bitcoin':
-
 				nPeers = options['Number of peers'] ?? 100;
 				numConnections = options['Number of outgoing connections'] ?? 10;
 				bidirectional = true;
@@ -2517,7 +2434,7 @@
 				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
 				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
 				latencyUrl = options['Latency distribution URL'] ?? 'data/bitcoin_latencies/bitcoin_latencies.csv';
-				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+				names = options['Naming cycle'] ?? ['Node '];
 
 				if(updateToolOptions.visSimulationActive) {
 					console.info('Disabling the topology visualizer for improved performance. This can be re-enabled under "Display" --> "Toggle visualizations".');
@@ -2530,7 +2447,7 @@
 					for(let i = 0; i < nPeers; i++) {
 						let name = names[i % names.length];
 						if(chosenNames[name] !== undefined) {
-							let count = 1;
+							let count = 2;
 							do {
 								name = names[i % names.length] + count.toString();
 								count++;
@@ -2547,9 +2464,9 @@
 					}
 					for(let i = 0; i < miners.length; i++) {
 						// m=n-1 if n<10 and m=9 if n>=10 --> The number of connections per node
-						let nConnections = miners.length < numConnections ? miners.length - 1 : numConnections;
+						//let nConnections = miners.length < numConnections ? miners.length - 1 : numConnections;
 
-						for(let j = 0; j < nConnections; j++) {
+						for(let j = 0; j < numConnections; j++) {
 							let r = rnd(0, miners.length - 1);
 							// Attempt to connect to a unique connections at most 10 times
 							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
@@ -2898,25 +2815,38 @@
 		}
 	}
 
-	function setupCanvasVisualizer() {
+	function drawCanvasVisualizerMinerCircles() {
 		const canvas = document.getElementById('canvasVisualizer');
 		const ctx = canvas.getContext('2d');
-		canvas.width = $('#canvasVisualizer').width();
-		canvas.height = Object.keys(network.peers).length * updateToolOptions.canvasVisualizerBarWidth;
-
 		let numPeers = Object.keys(network.peers).length;
 		let barsize = Math.ceil(canvas.height / numPeers);
 		let i = 0;
+		ctx.clearRect(canvas.width - barsize * 1.5, 0, canvas.width, canvas.height);
 		for(let id in network.peers) {
 			let color = network.peers[id].color;
 			let y = Math.floor(i * canvas.height / numPeers);
 			ctx.fillStyle = color;
 			ctx.beginPath();
-			ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, barsize / 2 - 1, 0, 2 * Math.PI);
+			ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(2, barsize / 2 - 1), 0, 2 * Math.PI);
 			ctx.fill();
+			
+			if(id == updateToolOptions.selectedMiner) {
+				ctx.fillStyle = '#000';
+				ctx.beginPath();
+				ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(1, barsize / 2 - 4), 0, 2 * Math.PI);
+				ctx.fill();
+			}
 			//ctx.fillRect(canvas.width - barsize, y, barsize, barsize);
 			i++;
 		}
+	}
+
+	function setupCanvasVisualizer() {
+		const canvas = document.getElementById('canvasVisualizer');
+		canvas.width = $('#canvasVisualizer').width();
+		canvas.height = Object.keys(network.peers).length * updateToolOptions.canvasVisualizerBarWidth;
+
+		drawCanvasVisualizerMinerCircles();
 
 		if($('#toggleMiningBtn').text().startsWith('Stop')) {
 			startCanvasVisualizerThread();
@@ -3100,7 +3030,7 @@
 				let vis_rawNode = vis_rawNodeData[updateToolOptions.visNodeIDs[id]];
 				let color = vis_rawNode.options.color.background;
 				network.peers[id].color = color;
-				style += '#minerList option:checked[value="' + id + '"]{border-right:20px solid ' + color + ';padding-left:10px}';
+				style += `#minerList option:checked[value="${id}"]{border-right:22px solid ${color};padding-left:10px}`;
 			} catch(e) {}
 		}
 		document.getElementById('miner-colors-selector').innerHTML = style;
