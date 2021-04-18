@@ -76,10 +76,10 @@
 								<a class='dropdown-item' onclick='if(confirm("You are about to remove all miners.")) DOM_removeAllMiners()'>Remove all miners</a>
 								<a class='dropdown-item' onclick='DOM_sortMiners()'>Sort miners</a>
 								<div class='dropdown-divider'></div>
-								<a class='dropdown-item' onclick='DOM_globalSetPower()'>Globally set power</a>
-								<a class='dropdown-item' onclick='DOM_globalSetLatency()'>Globally set latency</a>
-								<a class='dropdown-item' onclick='DOM_globalSetDownloadMBPS()'>Globally set download MBPS</a>
-								<a class='dropdown-item' onclick='DOM_globalSetUploadMBPS()'>Globally set upload MBPS</a>
+								<a class='dropdown-item' onclick='DOM_globalSetPower()'>Globally set power (hashes/s)</a>
+								<a class='dropdown-item' onclick='DOM_globalSetLatency()'>Globally set latency (ms)</a>
+								<a class='dropdown-item' onclick='DOM_globalSetDownloadMBPS()'>Globally set downlink bandwidth (MBps)</a>
+								<a class='dropdown-item' onclick='DOM_globalSetUploadMBPS()'>Globally set uplink bandwidth (MBps)</a>
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='DOM_toggleLoggingNetworkData()' id='DOM_item_toggleLoggingNetworkData'>Enable logging network<br>data within each miner</a>
 								<div class='dropdown-divider'></div>
@@ -285,13 +285,13 @@
 								</div>
 							</div>
 							<div class='form-group row'>
-								<label for='addMinerDownloadMBPS' class='col-sm-4 col-form-label'>Network Download (mb per second)</label>
+								<label for='addMinerDownloadMBPS' class='col-sm-4 col-form-label'>Network Downlink (mb per second)</label>
 								<div class='col-sm-8'>
 									<input type='number' class='form-control' id='addMinerDownloadMBPS' min='0' value='10' required>
 								</div>
 							</div>
 							<div class='form-group row'>
-								<label for='addMinerUploadMBPS' class='col-sm-4 col-form-label'>Network Upload (mb per second)</label>
+								<label for='addMinerUploadMBPS' class='col-sm-4 col-form-label'>Network Uplink (mb per second)</label>
 								<div class='col-sm-8'>
 									<input type='number' class='form-control' id='addMinerUploadMBPS' min='0' value='10' required>
 								</div>
@@ -505,8 +505,8 @@
 					'Network buffer size limit': true,
 					'Blocks in flight': true,
 					'Latency (ms)': true,
-					'Download (MBPS)': true,
-					'Upload (MBPS)': true,
+					'Downlink (MBps)': true,
+					'Uplink (MBps)': true,
 					'Block height': true,
 					'Total blocks found': true,
 					'Stale blocks found': true,
@@ -631,7 +631,7 @@
 
 				for(let peer in network.peers) { // Make all miners Miner objects
 
-					let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].downloadMBPS, network.peers[peer].uploadMBPS);
+					let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].bandwidth.downlink, network.peers[peer].bandwidth.uplink);
 					miner = Object.assign(miner, network.peers[peer]);
 					network.peers[peer] = miner;
 
@@ -741,9 +741,9 @@
 			if(this.thread == null) {
 				let packet = this.buffer[0], delay;
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000 * 1000;
+					delay = packet.size / network.peers[this.parentID].bandwidth.downlink / 1000000 * 1000;
 				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000 * 1000;
+					delay = packet.size / network.peers[this.parentID].bandwidth.uplink / 1000000 * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
 				this.thread = setTimeout(this.processBuffer.bind(this), delay);
@@ -778,9 +778,9 @@
 			if(this.buffer.length > 0) {
 				let packet = this.buffer[0];
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].downloadMBPS / 1000000 * 1000;
+					delay = packet.size / network.peers[this.parentID].bandwidth.downlink / 1000000 * 1000;
 				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].uploadMBPS / 1000000 * 1000;
+					delay = packet.size / network.peers[this.parentID].bandwidth.uplink / 1000000 * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
 			}
@@ -802,7 +802,7 @@
 
 	// Miner class
 	class Miner {
-		constructor(name, power, latency, downloadMBPS, uploadMBPS) {
+		constructor(name, power, latency, downlinkMBPS, uplinkMBPS) {
 			this.name = name;
 			// Register a unique ID
 			if(network.ID_Registry[this.name] === undefined) {
@@ -818,8 +818,10 @@
 			network.peers[this.ID] = this;
 			this.power = power;
 			this.latency = latency; // Additional latency from the network (milliseconds)
-			this.downloadMBPS = downloadMBPS; // Used by the download buffer to receive data
-			this.uploadMBPS = uploadMBPS; // Used by the upload buffer to send data
+			this.bandwidth = {
+				downlink: downlinkMBPS, // Used by the download buffer to receive data
+				uplink: uplinkMBPS // Used by the upload buffer to send data
+			}
 			this.incomingPeers = [];
 			this.outgoingPeers = [];
 
@@ -992,7 +994,7 @@
 
 		receivedBlockUpdateColor() {
 			this.setVisualizerColor('#000');
-			setTimeout(this.setVisualizerColor.bind(this), 200);
+			setTimeout(this.setVisualizerColor.bind(this), 200 + this.latency * 2);
 			requestVisRedraw();
 		}
 
@@ -1231,7 +1233,7 @@
 	}
 
 	// Create a new miner
-	function newMiner(name0, power, latency, downloadMBPS, uploadMBPS, createNewIfExists = true) {
+	function newMiner(name0, power, latency, downlinkMBPS, uplinkMBPS, createNewIfExists = true) {
 		let name = name0;
 		if(createNewIfExists) {
 			// Create a new name/miner by appending a counter to the end, so that the name is unique
@@ -1245,7 +1247,7 @@
 		for(let id in network.ID_Registry) {
 			if(network.peers[id].name == name) return;
 		}
-		const miner = new Miner(name, power, latency, downloadMBPS, uploadMBPS);
+		const miner = new Miner(name, power, latency, downlinkMBPS, uplinkMBPS);
 		updateMinerList();
 		selectMiner(miner.ID); // Select it
 		return miner;
@@ -1328,12 +1330,12 @@
 				'Maximum number of outgoing connections': 1,
 				'Minimum power': 1,
 				'Maximum power': 5,
-				'Minimum download megabytes per second': 10,
-				'Maximum download megabytes per second': 50,
-				'Minimum upload megabytes per second': 10,
-				'Maximum upload megabytes per second': 50,
+				'Minimum downlink megabytes per second': 10,
+				'Maximum downlink megabytes per second': 50,
+				'Minimum uplink megabytes per second': 10,
+				'Maximum uplink megabytes per second': 50,
 				'Minimum latency': 10,
-				'Maximum latency': 100,
+				'Maximum latency': 10,
 				'Naming cycle': shuffleArray(
 					['Node ']
 				),
@@ -1644,8 +1646,8 @@
 			$('#addMinerName').val(miner.name);
 			$('#addMinerPower').val(miner.power);
 			$('#addMinerLatency').val(miner.latency);
-			$('#addMinerDownloadMBPS').val(miner.downloadMBPS);
-			$('#addMinerUploadMBPS').val(miner.uploadMBPS);
+			$('#addMinerDownloadMBPS').val(miner.bandwidth.downlink);
+			$('#addMinerUploadMBPS').val(miner.bandwidth.uplink);
 			for(let id of miner.outgoingPeers) {
 				$('#multiselectAddPeers option[value=' + id + ']').prop('selected', true);
 			}
@@ -1765,7 +1767,7 @@
 
 	function DOM_globalSetDownloadMBPS() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the network download megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s download rate the same.\n• Enter two expressions (separated by a space) to set the download rate randomly between a range.', '0.5 10');
+		const input = prompt('You are about to set the network downlink megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s download rate the same.\n• Enter two expressions (separated by a space) to set the download rate randomly between a range.', '0.5 10');
 		if(input == null) return; // Cancel button pressed
 		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
 		try {
@@ -1781,7 +1783,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].downloadMBPS = Math.max(0, rnd(num1, num2))
+				network.peers[id].bandwidth.downlink = Math.max(0, rnd(num1, num2))
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -1795,7 +1797,7 @@
 
 	function DOM_globalSetUploadMBPS() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the network upload megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s upload rate the same.\n• Enter two expressions (separated by a space) to set the upload rate randomly between a range.', '0.5 10');
+		const input = prompt('You are about to set the network uplink megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s upload rate the same.\n• Enter two expressions (separated by a space) to set the upload rate randomly between a range.', '0.5 10');
 		if(input == null) return; // Cancel button pressed
 		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
 		try {
@@ -1811,7 +1813,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].uploadMBPS = Math.max(0, rnd(num1, num2))
+				network.peers[id].bandwidth.uplink = Math.max(0, rnd(num1, num2))
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -1828,14 +1830,14 @@
 		const name = fixCase($('#addMinerName').val());
 		const power = parseFloat($('#addMinerPower').val());
 		const latency = parseFloat($('#addMinerLatency').val());
-		const downloadMBPS = parseFloat($('#addMinerDownloadMBPS').val());
-		const uploadMBPS = parseFloat($('#addMinerUploadMBPS').val());
+		const downlinkMBPS = parseFloat($('#addMinerDownloadMBPS').val());
+		const uplinkMBPS = parseFloat($('#addMinerUploadMBPS').val());
 		const peers = $('#multiselectAddPeers').val();
-		let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS, false);
+		let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, false);
 		if(miner === undefined) {
 			// The same name exists, check if any options have changed, otherwise edit the miner
 			miner = network.findPeerByName(name);
-			if(miner.power == power && miner.latency == latency && miner.downloadMBPS == downloadMBPS && miner.uploadMBPS == uploadMBPS) {
+			if(miner.power == power && miner.latency == latency && miner.bandwidth.downlink == downlinkMBPS && miner.bandwidth.uplink == uplinkMBPS) {
 				let noChanges = true;
 				for(let id of peers) {
 					if(miner.ID == id) continue;
@@ -1858,8 +1860,8 @@
 			}
 			miner.power = power;
 			miner.latency = latency;
-			miner.downloadMBPS = downloadMBPS;
-			miner.uploadMBPS = uploadMBPS;
+			miner.bandwidth.downlink = downlinkMBPS;
+			miner.bandwidth.uplink = uplinkMBPS;
 			for(let id of miner.outgoingPeers) {
 				miner.removeConnection(id);
 			}
@@ -1948,7 +1950,7 @@
 					break;
 				}
 			}
-			let miner = newMiner(newName, peer.power, peer.latency, peer.downloadMBPS, peer.uploadMBPS, true);
+			let miner = newMiner(newName, peer.power, peer.latency, peer.bandwidth.downlink, peer.bandwidth.uplink, true);
 			translation[peer.ID] = miner.ID;
 		}
 		for(let peerID in translation) {
@@ -2002,7 +2004,7 @@
 		} else if(network.peers[miner.ID] === undefined) {
 			$('#editMinerBadge').attr('class', 'ml-auto badge badge-warning');
 			$('#editMinerBadge').text('ID NOT FOUND');
-		} else if(typeof miner.power != 'number' || typeof miner.latency != 'number' || typeof miner.downloadMBPS != 'number' || typeof miner.uploadMBPS != 'number') {
+		} else if(typeof miner.power != 'number' || typeof miner.latency != 'number' || typeof miner.bandwidth.downlink != 'number' || typeof miner.bandwidth.uplink != 'number') {
 			// Type checking
 			$('#editMinerBadge').attr('class', 'ml-auto badge badge-danger');
 			$('#editMinerBadge').text('MUST BE A NUMBER');
@@ -2046,10 +2048,10 @@
 					'Number of peers': 6,
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2065,10 +2067,10 @@
 					'Maximum number of outgoing connections': 1,
 					'Minimum power': 1,
 					'Maximum power': 5,
-					'Minimum download megabytes per second': 10,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 10,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 10,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 10,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 100,
 					'Naming cycle': ['Aaron', 'Adam', 'Alan', 'Albert', 'Alex', 'Alice', 'Andrew', 'Anthony', 'Arthur', 'Austin', 'Ben', 'Bill', 'Bob', 'Bobby', 'Brandon', 'Brian', 'Bruce', 'Carl', 'Charles', 'Chris', 'Dan', 'Daniel', 'David', 'Dennis', 'Donald', 'Douglas', 'Dylan', 'Edward', 'Eric', 'Ethan', 'Eugene', 'Frank', 'Gabriel', 'Gary', 'George', 'Gerald', 'Gregory', 'Harold', 'Harry', 'Henry', 'Jack', 'Jacob', 'James', 'Jason', 'Jeffrey', 'Jeremy', 'Jerry', 'Jesse', 'Joe', 'John', 'Johnny', 'Jonathan', 'Jordan', 'Jose', 'Joseph', 'Joshua', 'Juan', 'Justin', 'Keith', 'Kenneth', 'Kevin', 'Kyle', 'Larry', 'Lawrence', 'Logan', 'Louis', 'Mark', 'Matthew', 'Michael', 'Nathan', 'Nicholas', 'Noah', 'Patrick', 'Paul', 'Peter', 'Philip', 'Ralph', 'Randy', 'Raymond', 'Richard', 'Robert', 'Roger', 'Ronald', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Steven', 'Terry', 'Thomas', 'Timothy', 'Tyler', 'Vincent', 'Walter', 'Wayne', 'Will', 'Zachary']
@@ -2082,10 +2084,10 @@
 					'Number of peers': 6,
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2097,10 +2099,10 @@
 					'Number of peers': 4,
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2113,10 +2115,10 @@
 					'Number of peers': 6,
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2129,10 +2131,10 @@
 					'Structure': [[[],[],[]],[[],[],[]],[[],[],[]]],
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2144,10 +2146,10 @@
 					'Number of peers': 4,
 					'Minimum power': 5,
 					'Maximum power': 10,
-					'Minimum download megabytes per second': 1,
-					'Maximum download megabytes per second': 50,
-					'Minimum upload megabytes per second': 1,
-					'Maximum upload megabytes per second': 50,
+					'Minimum downlink megabytes per second': 1,
+					'Maximum downlink megabytes per second': 50,
+					'Minimum uplink megabytes per second': 1,
+					'Maximum uplink megabytes per second': 50,
 					'Minimum latency': 10,
 					'Maximum latency': 10,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2162,10 +2164,10 @@
 					'Minimum power': 1,
 					'Maximum power': 1,
 					// https://www.statista.com/statistics/896779/average-mobile-fixed-broadband-download-upload-speeds
-					'Minimum download megabytes per second': 84.33,
-					'Maximum download megabytes per second': 84.33,
-					'Minimum upload megabytes per second': 44.1,
-					'Maximum upload megabytes per second': 44.1,
+					'Minimum downlink megabytes per second': 84.33,
+					'Maximum downlink megabytes per second': 84.33,
+					'Minimum uplink megabytes per second': 44.1,
+					'Maximum uplink megabytes per second': 44.1,
 					// Recorded average latency of every public node in Bitcoin as of 04/01/2021
 					'Latency distribution URL': 'data/bitcoin_latencies/bitcoin_latencies.csv',
 					'Naming cycle': ['Node ']
@@ -2215,10 +2217,10 @@
 				nPeers = options['Number of peers'] ?? 6;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2236,9 +2238,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addConnection(miners[i + 1].ID);
@@ -2256,10 +2258,10 @@
 				nPeers = options['Number of peers'] ?? 6;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2277,9 +2279,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					let nConnections = rnd(minNumConnections, maxNumConnections);
@@ -2311,10 +2313,10 @@
 				nPeers = options['Number of peers'] ?? 6;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2332,9 +2334,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				if(bidirectional) {
 					for(let i = 1; i < miners.length; i++) {
@@ -2356,10 +2358,10 @@
 				nPeers = options['Number of peers'] ?? 4;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2377,9 +2379,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
@@ -2394,10 +2396,10 @@
 				nPeers = options['Number of peers'] ?? 6;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2415,9 +2417,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
 					miners[i].addConnection(miners[i + 1].ID);
@@ -2430,10 +2432,10 @@
 				structure = options['Structure'];
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2452,9 +2454,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					let miner = newMiner(name, power, latency, downloadMBPS, uploadMBPS, true);
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true);
 					if(parent != null) {
 						if(bidirectional) {
 							miner.addConnection(parent.ID);
@@ -2474,10 +2476,10 @@
 				nPeers = options['Number of peers'] ?? 4;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				minLatency = options['Minimum latency'] ?? 10;
 				maxLatency = options['Maximum latency'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
@@ -2495,9 +2497,9 @@
 					chosenNames[name] = true;
 					let power = rnd(minPower, maxPower);
 					let latency = rnd(minLatency, maxLatency);
-					let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-					let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-					miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
@@ -2514,10 +2516,10 @@
 				preventDuplicateConnections = true;
 				minPower = options['Minimum power'] ?? 10;
 				maxPower = options['Maximum power'] ?? 10;
-				minDownloadMBPS = options['Minimum download megabytes per second'] ?? 10;
-				maxDownloadMBPS = options['Maximum download megabytes per second'] ?? 10;
-				minUploadMBPS = options['Minimum upload megabytes per second'] ?? 10;
-				maxUploadMBPS = options['Maximum upload megabytes per second'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink megabytes per second'] ?? 10;
+				maxDownlinkMBPS = options['Maximum downlink megabytes per second'] ?? 10;
+				minUplinkMBPS = options['Minimum uplink megabytes per second'] ?? 10;
+				maxUplinkMBPS = options['Maximum uplink megabytes per second'] ?? 10;
 				latencyUrl = options['Latency distribution URL'] ?? 'data/bitcoin_latencies/bitcoin_latencies.csv';
 				names = options['Naming cycle'] ?? ['Node '];
 
@@ -2543,9 +2545,9 @@
 						// Pick a random latency from the real-world Bitcoin distribution data
 						let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
 
-						let downloadMBPS = rnd(minDownloadMBPS, maxDownloadMBPS);
-						let uploadMBPS = rnd(minUploadMBPS, maxUploadMBPS);
-						miners.push(newMiner(name, power, latency, downloadMBPS, uploadMBPS, true));
+						let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+						let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+						miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 					}
 					for(let i = 0; i < miners.length; i++) {
 						// m=n-1 if n<10 and m=9 if n>=10 --> The number of connections per node
@@ -2742,8 +2744,8 @@
 			blockDelay: 0,
 			blocksInFlight: 0,
 			latency: 0,
-			downloadMBPS: 0,
-			uploadMBPS: 0,
+			downlinkMBPS: 0,
+			uplinkMBPS: 0,
 			balance: 0,
 			incomingPeers: 0,
 			outgoingPeers: 0,
@@ -2758,8 +2760,8 @@
 			blockDelay: 0,
 			blocksInFlight: 0,
 			latency: 0,
-			downloadMBPS: 0,
-			uploadMBPS: 0,
+			downlinkMBPS: 0,
+			uplinkMBPS: 0,
 			balance: 0,
 			incomingPeers: 0,
 			outgoingPeers: 0,
@@ -2784,8 +2786,8 @@
 
 			sum.blocksInFlight += miner.networkBuffer.buffer.length;
 			sum.latency += miner.latency;
-			sum.downloadMBPS += miner.downloadMBPS;
-			sum.uploadMBPS += miner.uploadMBPS;
+			sum.downlinkMBPS += miner.bandwidth.downlink;
+			sum.uplinkMBPS += miner.bandwidth.uplink;
 			sum.balance += (miner.currentHeader.balances[id] - 1);
 			sum.incomingPeers += miner.incomingPeers.length;
 			sum.outgoingPeers += miner.outgoingPeers.length;
@@ -2802,8 +2804,8 @@
 		}
 		avg.blocksInFlight = Math.floor(sum.blocksInFlight / numPeers * 1000) / 1000;
 		avg.latency = Math.floor(sum.latency / numPeers * 1000) / 1000;
-		avg.downloadMBPS = Math.floor(sum.downloadMBPS / numPeers * 1000) / 1000;
-		avg.uploadMBPS = Math.floor(sum.uploadMBPS / numPeers * 1000) / 1000;
+		avg.downlinkMBPS = Math.floor(sum.downlinkMBPS / numPeers * 1000) / 1000;
+		avg.uplinkMBPS = Math.floor(sum.uplinkMBPS / numPeers * 1000) / 1000;
 		avg.balance = Math.floor(sum.balance / numPeers * 1000) / 1000;
 		avg.incomingPeers = Math.floor(sum.incomingPeers / numPeers * 1000) / 1000;
 		avg.outgoingPeers = Math.floor(sum.outgoingPeers / numPeers * 1000) / 1000;
@@ -2835,8 +2837,8 @@
 
 			html += '<th scope="col">' + miner.networkBuffer.buffer.length + '</th>';
 			html += '<th scope="col">' + miner.latency + '</th>';
-			html += '<th scope="col">' + miner.downloadMBPS + '</th>';
-			html += '<th scope="col">' + miner.uploadMBPS + '</th>';
+			html += '<th scope="col">' + miner.bandwidth.downlink + '</th>';
+			html += '<th scope="col">' + miner.bandwidth.uplink + '</th>';
 
 			html += '<th scope="col">' + miner.incomingPeers.length + '</th>';
 			html += '<th scope="col">' + miner.outgoingPeers.length + '</th>';
@@ -2860,8 +2862,8 @@
 
 		html += '<th scope="col">' + sum.blocksInFlight + '<br>' + avg.blocksInFlight + '</th>';
 		html += '<th scope="col">' + sum.latency + '<br>' + avg.latency + '</th>';
-		html += '<th scope="col">' + sum.downloadMBPS + '<br>' + avg.downloadMBPS + '</th>';
-		html += '<th scope="col">' + sum.uploadMBPS + '<br>' + avg.uploadMBPS + '</th>';
+		html += '<th scope="col">' + sum.downlinkMBPS + '<br>' + avg.downlinkMBPS + '</th>';
+		html += '<th scope="col">' + sum.uplinkMBPS + '<br>' + avg.uplinkMBPS + '</th>';
 		html += '<th scope="col">' + sum.incomingPeers + '<br>' + avg.incomingPeers + '</th>';
 		html += '<th scope="col">' + sum.outgoingPeers + '<br>' + avg.outgoingPeers + '</th>';
 		html += '<th scope="col">' + sum.height + '<br>' + avg.height + '</th>';
@@ -3430,8 +3432,8 @@
 			}
 
 			updateToolOptions.samplerData[id].sumLatency += miner.latency;
-			updateToolOptions.samplerData[id].sumDownloadMBPS += miner.downloadMBPS;
-			updateToolOptions.samplerData[id].sumUploadMBPS += miner.uploadMBPS;
+			updateToolOptions.samplerData[id].sumDownloadMBPS += miner.bandwidth.downlink;
+			updateToolOptions.samplerData[id].sumUploadMBPS += miner.bandwidth.uplink;
 			updateToolOptions.samplerData[id].sumBlockHeight += miner.currentHeader.height - 1;
 			updateToolOptions.samplerData[id].sumTotalBlocks += miner.totalBlocksFound;
 			updateToolOptions.samplerData[id].sumStaleBlocks += miner.staleBlocksFound;
@@ -3449,8 +3451,8 @@
 				balanceTotal += miner.currentHeader.balances[id];
 				powerTotal += miner.power;
 				latencyTotal += miner.latency;
-				downloadMBPSTotal += miner.downloadMBPS;
-				uploadMBPSTotal += miner.uploadMBPS;
+				downloadMBPSTotal += miner.bandwidth.downlink;
+				uploadMBPSTotal += miner.bandwidth.uplink;
 			}
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
@@ -3469,8 +3471,8 @@
 				if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
 				if(network.logging.columns['Blocks in flight']) line += '"' + miner.networkBuffer.buffer.length + '",';
 				if(network.logging.columns['Latency (ms)']) line += '"' + miner.latency + '",';
-				if(network.logging.columns['Download (MBPS)']) line += '"' + miner.downloadMBPS + '",';
-				if(network.logging.columns['Upload (MBPS)']) line += '"' + miner.uploadMBPS + '",';
+				if(network.logging.columns['Downlink (MBPS)']) line += '"' + miner.bandwidth.downlink + '",';
+				if(network.logging.columns['Uplink (MBPS)']) line += '"' + miner.bandwidth.uplink + '",';
 				if(network.logging.columns['Block height']) line += '"' + (miner.currentHeader.height - 1) + '",';
 				if(network.logging.columns['Total blocks found']) line += '"' + miner.totalBlocksFound + '",';
 				if(network.logging.columns['Stale blocks found']) line += '"' + miner.staleBlocksFound + '",';
@@ -3546,8 +3548,8 @@
 		html += '<th scope="col">Average<br>blocks in flight</th>';
 
 		html += '<th scope="col">Average<br>latency (ms)</th>';
-		html += '<th scope="col">Average<br>download MBPS</th>';
-		html += '<th scope="col">Average<br>upload MBPS</th>';
+		html += '<th scope="col">Average<br>download (MBps)</th>';
+		html += '<th scope="col">Average<br>upload (MBps)</th>';
 		html += '<th scope="col">Average<br>block height</th>';
 		html += '<th scope="col">Average<br>total blocks found</th>';
 		html += '<th scope="col">Average<br>stale blocks found</th>';
