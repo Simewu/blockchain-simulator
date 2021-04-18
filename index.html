@@ -631,7 +631,7 @@
 
 				for(let peer in network.peers) { // Make all miners Miner objects
 
-					let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].bandwidth.downlink, network.peers[peer].bandwidth.uplink);
+					let miner = new Miner(network.peers[peer].name, network.peers[peer].power, network.peers[peer].latency, network.peers[peer].bandwidth?.downlink || network.peers[peer].downloadMBPS, network.peers[peer].bandwidth?.uplink || network.peers[peer].uploadMBPS);
 					miner = Object.assign(miner, network.peers[peer]);
 					network.peers[peer] = miner;
 
@@ -640,8 +640,19 @@
 					currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
 					network.peers[peer].currentHeader = currentHeader;
 
-					// Make the currentHeader an actual Header object
 					let lastAcceptedBlock = currentHeader.clone();
+
+					// Copy over the bandwidth
+					let bandwidth = {uplink: Infinity, downlink: Infinity};
+					bandwidth = Object.assign(bandwidth, network.peers[peer].bandwidth);
+					network.peers[peer].bandwidth = bandwidth;
+					if(network.peers[peer].downloadMBPS !== undefined && network.peers[peer].uploadMBPS !== undefined) {
+						delete network.peers[peer].downloadMBPS;
+						delete network.peers[peer].uploadMBPS; // Backward compatibility
+					}
+
+					delete network.peers[peer].networkBufferManager; // Clean up old version data
+
 
 					// Make the blocks in the blockchain an actual Header object
 					for(let block in network.peers[peer].blockchain) {
