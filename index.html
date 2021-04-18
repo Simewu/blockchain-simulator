@@ -152,6 +152,9 @@
 						<div class='dropdown-menu'>
 							<a id='toggleMinerMiningBtn' class='dropdown-item' onclick='DOM_toggleMining()'>Toggle mining for miner</a>
 							<a id='clearMinerBlockchainBtn' class='dropdown-item' onclick='DOM_clearMinerBlockchain()'>Clear blockchain for miner</a>
+
+							<div class='dropdown-divider'></div>
+							<a id='stopBlocksInFlightBtn' class='dropdown-item' onclick='DOM_toggleStoppingBlocksInFlight()'>Stop blocks in flight<br>after stopping all miners</a>
 						</div>
 					</div>
 				</div>
@@ -440,10 +443,11 @@
 		canvasVisualizerInterval: 1000 / 30,
 		canvasVisualizerPixelStepSize: 1,
 		canvasVisualizerThread: null,
+		codeEditorAfterSampling: null,
 		codeEditorBeforeSampling: null,
 		codeEditorBetweenSamples: null,
-		codeEditorAfterSampling: null,
 		minerStatsTable_active: true,
+		requestVisRedrawTimeout: null,
 		sampleEndTime: 0,
 		sampler_DOM_active: true,
 		sampler_running: false,
@@ -451,6 +455,7 @@
 		samplerLog: [],
 		sampleStartTime: 0,
 		selectMinerTimeout: null,
+		stopBlocksInFlightWhenStoppingMining: false,
 		timeout: null,
 		updateMinerListTimeout: null,
 		visLineLength: undefined,
@@ -551,13 +556,18 @@
 			for(let id in network.ID_Registry) {
 				this.peers[id].stopMining();
 			}
+			if(updateToolOptions.stopBlocksInFlightWhenStoppingMining) {
+				this.removeBlocksInFlight();
+				for(let id in network.ID_Registry) {
+					this.peers[id].setVisualizerColor(); // Fix all the colors
+				}
+			}
 		}
 
 		removeBlocksInFlight() {
 			for(let id in network.ID_Registry) {
 				this.peers[id].networkBuffer.clear();
 			}
-			clearAllTimeouts();
 		}
 
 		clearBlockchain() {
@@ -967,6 +977,25 @@
 			return header;
 		}
 
+		// Set the node's color in the network visualizer
+		setVisualizerColor(color) {
+			if(!updateToolOptions.visSimulationActive) return;
+			let visID = updateToolOptions.visNodeIDs[this.ID];
+			let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes[visID];
+			if(visRawNodeData === undefined) return;
+			if(color === undefined) color = this.color;
+			if(visRawNodeData.options.color.background == color) return;
+
+			visRawNodeData.options.color.background = color;
+			requestVisRedraw();
+		}
+
+		receivedBlockUpdateColor() {
+			this.setVisualizerColor('#000');
+			setTimeout(this.setVisualizerColor.bind(this), 200);
+			requestVisRedraw();
+		}
+
 		// Broadcast a header to all peers
 		submit(header) {
 			if(network.logging.logNetworkData) {
@@ -974,6 +1003,7 @@
 				if(header.numHops === undefined) header.numHops = 1;
 				else header.numHops++;
 			}
+			if(updateToolOptions.visSimulationActive) this.receivedBlockUpdateColor();
 			for(let id of this.outgoingPeers) {
 				this.networkBuffer.send(id, header.clone());
 			}
@@ -1018,6 +1048,7 @@
 					this.largestForkLength = forkLength;
 				}
 				this.purgeBlockCheck();
+				if(updateToolOptions.visSimulationActive) this.receivedBlockUpdateColor();
 				this.submit(this.getBlock(this.blockchain.length + this.blockchainOffset - 1));
 			}
 		}
@@ -1153,7 +1184,7 @@
 	function extractQuotes(code) {
 		code = code.replace(/\u04DC|\u04DD|\u04DE/g, ''); // Prevent intervention
 		let outputCode = '', extractedQuotes = [];
-		let split = code.split('"');
+		let split = code.split('\"');
 		for(let i in split) {
 			if(i % 2 == 0) {
 				outputCode += split[i];
@@ -1172,7 +1203,7 @@
 				extractedQuotes.push(split[i]);
 			}
 		}
-		split = outputCode.split('`');
+		split = outputCode.split('\`');
 		outputCode = ''
 		for(let i in split) {
 			if(i % 2 == 0) {
@@ -1274,6 +1305,17 @@
 		}
 	}
 
+	// When stopping all miners, also stop all blocks that are currently in flight
+	function DOM_toggleStoppingBlocksInFlight() {
+		if(updateToolOptions.stopBlocksInFlightWhenStoppingMining) {
+			updateToolOptions.stopBlocksInFlightWhenStoppingMining = false;
+			$('#stopBlocksInFlightBtn').html('Stop blocks in flight<br>after stopping all miners')
+		} else {
+			updateToolOptions.stopBlocksInFlightWhenStoppingMining = true;
+			$('#stopBlocksInFlightBtn').html('Continue transmitting blocks in<br>flight after stopping all miners')
+		}
+	}
+
 	$(document).ready(function() {
 		// First try loading the filename '', if it doesn't exist, then generate a random topology
 		if(loadLocalStorageQuiet('') == false) {
@@ -1293,9 +1335,8 @@
 				'Minimum latency': 10,
 				'Maximum latency': 100,
 				'Naming cycle': shuffleArray(
-					['Aaron', 'Adam', 'Alan', 'Albert', 'Alex', 'Alice', 'Andrew', 'Anthony', 'Arthur', 'Austin', 'Ben', 'Bill', 'Bob', 'Bobby', 'Brandon', 'Brian', 'Bruce', 'Carl', 'Charles', 'Chris', 'Dan', 'Daniel', 'David', 'Dennis', 'Donald', 'Douglas', 'Dylan', 'Edward', 'Eric', 'Ethan', 'Eugene', 'Frank', 'Gabriel', 'Gary', 'George', 'Gerald', 'Gregory', 'Harold', 'Harry', 'Henry', 'Jack', 'Jacob', 'James', 'Jason', 'Jeffrey', 'Jeremy', 'Jerry', 'Jesse', 'Joe', 'John', 'Johnny', 'Jonathan', 'Jordan', 'Jose', 'Joseph', 'Joshua', 'Juan', 'Justin', 'Keith', 'Kenneth', 'Kevin', 'Kyle', 'Larry', 'Lawrence', 'Logan', 'Louis', 'Mark', 'Matthew', 'Michael', 'Nathan', 'Nicholas', 'Noah', 'Patrick', 'Paul', 'Peter', 'Philip', 'Ralph', 'Randy', 'Raymond', 'Richard', 'Robert', 'Roger', 'Ronald', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Steven', 'Terry', 'Thomas', 'Timothy', 'Tyler', 'Vincent', 'Walter', 'Wayne', 'Will', 'Zachary']
+					['Node ']
 				),
-			  //['Alice', 'Andrew', 'Bob', 'Chris', 'George', 'James', 'Jack', 'Eve', 'Frank', 'Carl']
 			}, false);
 			network.logging.codeBetweenSamples = '// ' + Object.keys(network.ID_Registry)[0] + '.power += 10;\nif(numSamples >= 100000) toggleSampling(false);';
 			loadSamplerSettings();
@@ -1664,78 +1705,122 @@
 
 	function DOM_globalSetPower() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the computing power of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.', '10, 100');
+		const input = prompt('You are about to set the computing power of every miner in the network.\n\n• Enter one expression to set everyone\'s hashes per second the same.\n• Enter two expressions (separated by a space) to set the hashes per second randomly between a range.', '10 100');
 		if(input == null) return; // Cancel button pressed
-		let i = input.indexOf(','), num1, num2;
-		if(i == -1) {
-			num1 = parseInt(input.trim());
-			num2 = num1;
-		} else {
-			num1 = parseInt(input.substring(0, i).trim());
-			num2 = parseInt(input.substring(i+1, input.length).trim());
+		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
+		try {
+			if(i != -1) {
+				code1 = input.substring(0, i);
+				code2 = input.substring(i+1, input.length);
+			}
+			for(let id in network.ID_Registry) {
+				if(i == -1) {
+					num1 = eval(getDynamicSampleCode(input));
+					num2 = num1;
+				} else {
+					num1 = eval(getDynamicSampleCode(code1));
+					num2 = eval(getDynamicSampleCode(code2));
+				}
+				network.peers[id].power = Math.max(0, rnd(num1, num2))
+			}
+			updateMinerJsonEditor();
+			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
+		} catch(e) {
+			console.log('Setting power code:', code1, code2);
+			alert('Error: ' + e + '\n\nSee console for more information');
+			console.log('Setting power error:', e);
+			DOM_setOptionMsg('UNSUCCESSFUL', 'network', 'badge-error');
 		}
-		for(let id in network.ID_Registry) {
-			network.peers[id].power = Math.max(0, rnd(num1, num2))
-		}
-		updateMinerJsonEditor();
-		DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
 	}
 
 	function DOM_globalSetLatency() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the network latency (in milliseconds) of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.', '10, 100');
+		const input = prompt('You are about to set the network latency (in milliseconds) of every miner in the network.\n\n• Enter one expression to set everyone\'s latency the same.\n• Enter two expressions (separated by a space) to set the latency randomly between a range.', '10 100');
 		if(input == null) return; // Cancel button pressed
-		let i = input.indexOf(','), num1, num2;
-		if(i == -1) {
-			num1 = parseFloat(input.trim());
-			num2 = num1;
-		} else {
-			num1 = parseFloat(input.substring(0, i).trim());
-			num2 = parseFloat(input.substring(i+1, input.length).trim());
+		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
+		try {
+			if(i != -1) {
+				code1 = input.substring(0, i);
+				code2 = input.substring(i+1, input.length);
+			}
+			for(let id in network.ID_Registry) {
+				if(i == -1) {
+					num1 = eval(getDynamicSampleCode(input));
+					num2 = num1;
+				} else {
+					num1 = eval(getDynamicSampleCode(code1));
+					num2 = eval(getDynamicSampleCode(code2));
+				}
+				network.peers[id].latency = Math.max(0, rnd(num1, num2))
+			}
+			updateMinerJsonEditor();
+			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
+		} catch(e) {
+			console.log('Setting latency code:', code1, code2);
+			alert('Error: ' + e + '\n\nSee console for more information');
+			console.log('Setting latency error:', e);
+			DOM_setOptionMsg('UNSUCCESSFUL', 'network', 'badge-error');
 		}
-		for(let id in network.ID_Registry) {
-			network.peers[id].latency = Math.max(0, rnd(num1, num2))
-		}
-		updateMinerJsonEditor();
-		DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
 	}
 
 	function DOM_globalSetDownloadMBPS() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the network download megabytes per second of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.', '0.5, 10');
+		const input = prompt('You are about to set the network download megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s download rate the same.\n• Enter two expressions (separated by a space) to set the download rate randomly between a range.', '0.5 10');
 		if(input == null) return; // Cancel button pressed
-		let i = input.indexOf(','), num1, num2;
-		if(i == -1) {
-			num1 = parseFloat(input.trim());
-			num2 = num1;
-		} else {
-			num1 = parseFloat(input.substring(0, i).trim());
-			num2 = parseFloat(input.substring(i+1, input.length).trim());
+		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
+		try {
+			if(i != -1) {
+				code1 = input.substring(0, i);
+				code2 = input.substring(i+1, input.length);
+			}
+			for(let id in network.ID_Registry) {
+				if(i == -1) {
+					num1 = eval(getDynamicSampleCode(input));
+					num2 = num1;
+				} else {
+					num1 = eval(getDynamicSampleCode(code1));
+					num2 = eval(getDynamicSampleCode(code2));
+				}
+				network.peers[id].downloadMBPS = Math.max(0, rnd(num1, num2))
+			}
+			updateMinerJsonEditor();
+			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
+		} catch(e) {
+			console.log('Setting download rate code:', code1, code2);
+			alert('Error: ' + e + '\n\nSee console for more information');
+			console.log('Setting download rate error:', e);
+			DOM_setOptionMsg('UNSUCCESSFUL', 'network', 'badge-error');
 		}
-		for(let id in network.ID_Registry) {
-			network.peers[id].downloadMBPS = Math.max(0, rnd(num1, num2))
-		}
-		updateMinerJsonEditor();
-		DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
 	}
 
 	function DOM_globalSetUploadMBPS() {
 		DOM_clearOptionMsg();
-		const input = prompt('You are about to set the network upload megabytes per second of every miner in the network randomly between a range of numbers.\n\nEnter one value, or two values separated by a comma.', '0.5, 10');
+		const input = prompt('You are about to set the network upload megabytes per second of every miner in the network.\n\n• Enter one expression to set everyone\'s upload rate the same.\n• Enter two expressions (separated by a space) to set the upload rate randomly between a range.', '0.5 10');
 		if(input == null) return; // Cancel button pressed
-		let i = input.indexOf(','), num1, num2;
-		if(i == -1) {
-			num1 = parseFloat(input.trim());
-			num2 = num1;
-		} else {
-			num1 = parseFloat(input.substring(0, i).trim());
-			num2 = parseFloat(input.substring(i+1, input.length).trim());
+		let i = input.indexOf(' '), code1 = input, code2 = '', num1, num2;
+		try {
+			if(i != -1) {
+				code1 = input.substring(0, i);
+				code2 = input.substring(i+1, input.length);
+			}
+			for(let id in network.ID_Registry) {
+				if(i == -1) {
+					num1 = eval(getDynamicSampleCode(input));
+					num2 = num1;
+				} else {
+					num1 = eval(getDynamicSampleCode(code1));
+					num2 = eval(getDynamicSampleCode(code2));
+				}
+				network.peers[id].uploadMBPS = Math.max(0, rnd(num1, num2))
+			}
+			updateMinerJsonEditor();
+			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
+		} catch(e) {
+			console.log('Setting upload rate code:', code1, code2);
+			alert('Error: ' + e + '\n\nSee console for more information');
+			console.log('Setting upload rate error:', e);
+			DOM_setOptionMsg('UNSUCCESSFUL', 'network', 'badge-error');
 		}
-		for(let id in network.ID_Registry) {
-			network.peers[id].uploadMBPS = Math.max(0, rnd(num1, num2))
-		}
-		updateMinerJsonEditor();
-		DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
 	}
 
 	function DOM_addMiner() {
@@ -2960,6 +3045,17 @@
 		DOM_setOptionMsg('REFRESHED', 'display', 'badge-info');
 	}
 
+	function requestVisRedraw() {
+		if(!updateToolOptions.visSimulationActive) return;
+		if(updateToolOptions.requestVisRedrawTimeout != null) return;
+		updateToolOptions.requestVisRedrawTimeout = setTimeout(_requestVisRedraw, 1000 / 30);
+	}
+
+	function _requestVisRedraw() {
+		updateToolOptions.visNetwork.redraw();
+		updateToolOptions.requestVisRedrawTimeout = null;
+	}
+
 	function vis_setupNetworkSimulation() {
 		// Wait a minimum time before allowing the next simulation setup
 		if(updateToolOptions.visTimeout != null) return;
@@ -3023,11 +3119,11 @@
 		}, updateToolOptions.vis_network_options);
 
 		// Retrieve the node color from the vis.js datastructure
-		let vis_rawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes;
+		let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes;
 		let style = '';
 		for(let id in updateToolOptions.visNodeIDs) {
 			try {
-				let vis_rawNode = vis_rawNodeData[updateToolOptions.visNodeIDs[id]];
+				let vis_rawNode = visRawNodeData[updateToolOptions.visNodeIDs[id]];
 				let color = vis_rawNode.options.color.background;
 				network.peers[id].color = color;
 				style += `#minerList option:checked[value="${id}"]{border-right:22px solid ${color};padding-left:10px}`;
@@ -3209,13 +3305,32 @@
 
 	// Given a code with miner IDs referenced by the user, convert it into executable JavaScript by inserting the network.peers[] wrapper around code not surrounded by quotes
 	function getDynamicSampleCode(code) {
+		code = ' ' + code + ' ';
 		let temp = extractQuotes(code);
 		// Convert miner IDs into proper references
-		for(let id in network.ID_Registry) {
-			const r = new RegExp('([^A-z0-9_])' + id + '([^A-z0-9_])', 'gi');
-			temp[0] = temp[0].replace(r, '$1network.peers["' + id + '"]$2');
+		let IDs = Object.keys(network.peers);
+		IDs.sort(function(a, b){ // Process IDs from longest to shortest when replacing
+			return b.length - a.length;
+		});
+		let replace = []; // Keep a list of replacements
+		// The replacement is done in two phases
+		// Phase 1: Create an intermediate string to avoid ID collisions, fill an array of replacements for phase 2
+		for(let ID of IDs) {
+			let regex = new RegExp('(' + ID + ')'), match;
+			do {
+				match = temp[0].match(regex);
+				if(match != null) {
+					let from = match[0], to = '${' + Math.random() + '}';
+					temp[0] = temp[0].replace(from, to);
+					replace.push([from, to]);
+				}
+			} while(match != null);
 		}
-		return reinsertQuotes(temp);
+		// Phase 2: Take the intermediate replacement data, and fill it with the final network.peers[ID] data
+		for(let item of replace) {
+			temp[0] = temp[0].replace(item[1], 'network.peers["' + item[0] + '"]');
+		}
+		return reinsertQuotes(temp).trim();
 	}
 
 	function initSampler() {
