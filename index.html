@@ -204,19 +204,19 @@
 						<div class='form-group row'>
 							<label for='codeBeforeSampling' class='col-sm-3 col-form-label'>Run before sampling</label>
 							<div class='col-sm-9 p-0'>
-								<textarea id='codeBeforeSampling' onchange='saveSamplerSettings()' class='form-control text-white bg-dark border border-secondary' rows='1'></textarea>
+								<textarea id='codeBeforeSampling' class='form-control text-white bg-dark border border-secondary' rows='1'></textarea>
 							</div>
 						</div>
 						<div class='form-group row'>
 							<label for='codeBetweenSamples' class='col-sm-3 col-form-label'>Run between samples</label>
 							<div class='col-sm-9 p-0'>
-								<textarea id='codeBetweenSamples' onchange='saveSamplerSettings()' class='form-control text-white bg-dark border border-secondary' rows='2'></textarea>
+								<textarea id='codeBetweenSamples' class='form-control text-white bg-dark border border-secondary' rows='2'></textarea>
 							</div>
 						</div>
 						<div class='form-group row'>
 							<label for='codeAfterSampling' class='col-sm-3 col-form-label'>Run after sampling</label>
 							<div class='col-sm-9 p-0'>
-								<textarea id='codeAfterSampling' onchange='saveSamplerSettings()' class='form-control text-white bg-dark border border-secondary' rows='1'></textarea>
+								<textarea id='codeAfterSampling' class='form-control text-white bg-dark border border-secondary' rows='1'></textarea>
 							</div>
 						</div>
 						<div class='form-group row'>
@@ -454,6 +454,7 @@
 		samplerData: [],
 		samplerLog: [],
 		sampleStartTime: 0,
+		saveSamplerSettingsTimeout: null,
 		selectMinerTimeout: null,
 		stopBlocksInFlightWhenStoppingMining: false,
 		timeout: null,
@@ -1409,6 +1410,16 @@
 		const editor1 = CodeMirror.fromTextArea(document.getElementById('codeBeforeSampling'), options);
 		const editor2 = CodeMirror.fromTextArea(document.getElementById('codeBetweenSamples'), options);
 		const editor3 = CodeMirror.fromTextArea(document.getElementById('codeAfterSampling'), options);
+
+		editor1.on('change',function(cMirror){
+			saveSamplerSettings();
+		});
+		editor2.on('change',function(cMirror){
+			saveSamplerSettings();
+		});
+		editor3.on('change',function(cMirror){
+			saveSamplerSettings();
+		});
 
 		updateToolOptions.codeEditorBeforeSampling = editor1;
 		updateToolOptions.codeEditorBetweenSamples = editor2;
@@ -3199,7 +3210,12 @@
 
 	// Save the code from the DOM to the network data
 	function saveSamplerSettings() {
+		clearTimeout(updateToolOptions.saveSamplerSettingsTimeout);
+		updateToolOptions.saveSamplerSettingsTimeout = setTimeout(_saveSamplerSettings, 1000);
+	}
 
+	// Called at a maximum of once every second, responsible for taking in all the DOM data and saving the sampler values into the network object
+	function _saveSamplerSettings() {
 		network.logging.msPerSample = Math.floor(Number($('#timePerSample').val()) * 1000);
 
 		// Add the code wrapper
@@ -3333,7 +3349,8 @@
 		// The replacement is done in two phases
 		// Phase 1: Create an intermediate string to avoid ID collisions, fill an array of replacements for phase 2
 		for(let ID of IDs) {
-			let regex = new RegExp('(' + ID + ')'), match;
+			// Use a negative lookbehind and negative lookahead to ensure that the node ID is not part of a larger word
+			let regex = new RegExp('(?<![0-9A-Za-z_])(' + ID + ')(?![0-9A-Za-z_])'), match;
 			do {
 				match = temp[0].match(regex);
 				if(match != null) {
