@@ -2831,7 +2831,11 @@
 			html += '<th scope="col">' + (miner.currentHeader.balances[id] - 1) + ' BTC</th>';
 			html += '<th scope="col" class="text-warning">' + (Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000 || 0) + '</th>';
 			html += '<th scope="col">' + miner.power + '</th>';
-			html += '<th scope="col" class="text-warning">' + (Math.floor(miner.power / sum.power * 100000) / 1000) + '</th>';
+			if(sum.power == 0) {
+				html += '<th scope="col" class="text-warning">-</th>';
+			} else {
+				html += '<th scope="col" class="text-warning">' + (Math.floor(miner.power / sum.power * 100000) / 1000) + '</th>';
+			}
 
 			if(network.logging.logNetworkData) { // Keep track of networking data
 				try {
@@ -2841,8 +2845,8 @@
 					html += '<th scope="col">' + (Math.floor(numHopsAvg * 1000) / 1000) + '</th>';
 					html += '<th scope="col">' + (Math.floor(blockDelayAvg * 1000) / 1000) + '</th>';
 				} catch(e) {
-					html += '<th scope="col"></th>';
-					html += '<th scope="col"></th>';
+					html += '<th scope="col">-</th>';
+					html += '<th scope="col">-</th>';
 				}
 			}
 
