@@ -247,7 +247,7 @@
 
 					<div class='col-md-12 p-2'>
 						<small>
-							<table id='sampleTable' class='table table-dark table-responsive mb-2'>
+							<table id='sampleTable' class='table table-dark table-hover table-responsive mb-2'>
 							</table>
 						</small>
 					</div>
@@ -2826,7 +2826,7 @@
 		avg.largestForkLength = Math.floor(sum.largestForkLength / numPeers * 1000) / 1000;
 		for(let id in network.ID_Registry) {
 			let miner = network.peers[id];
-			html += '<tr onclick="selectMiner("' + miner.ID + '")">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + (miner.currentHeader.balances[id] - 1) + ' BTC</th>';
 			html += '<th scope="col" class="text-warning">' + (Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000 || 0) + '</th>';
@@ -3596,7 +3596,7 @@
 			avgTotalBlocks = Math.floor(updateToolOptions.samplerData[id].sumTotalBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgStaleBlocks = Math.floor(updateToolOptions.samplerData[id].sumStaleBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgMaxForkLength = Math.floor(updateToolOptions.samplerData[id].sumMaxForkLength / updateToolOptions.numSamples * 1000) / 1000;
-			html += '<tr onclick="selectMiner("' + miner.ID + '")">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + avgSumBalance + ' BTC</th>';
 			html += '<th scope="col" class="text-warning">' + percentAvgSumBalance + '</th>';
