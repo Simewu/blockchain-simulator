@@ -144,7 +144,6 @@
 					<div class='btn-group fillx' style='max-height:35px;cursor:pointer;padding:0 1px'>
 						<button id='toggleMiningBtn' onclick='DOM_toggleAllMining()' type='button' class='btn btn-dark rounded-0' style='width:100%'>Start All Miners</button>
 
-
 						<!-- Miner Options -->
 						<button type='button' class='btn btn-dark rounded-0 dropdown-toggle dropdown-toggle-split' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false' onclick='DOM_clearOptionMsg()'>
 							<span class='sr-only'>Toggle Dropdown</span>
@@ -183,7 +182,7 @@
 		<div id='minerStatsDiv' class='row'>
 			<div class='col-md-12'>
 				<small>
-					<table id='minerStatsTable' class='table table-dark table-hover table-responsive mb-0'>
+					<table id='minerStatsTable' class='table table-dark table-hover table-responsive table-sm mb-0'>
 					</table>
 				</small>
 			</div>
@@ -247,7 +246,7 @@
 
 					<div class='col-md-12 p-2'>
 						<small>
-							<table id='sampleTable' class='table table-dark table-hover table-responsive mb-2'>
+							<table id='sampleTable' class='table table-dark table-hover table-responsive table-sm mb-2'>
 							</table>
 						</small>
 					</div>
@@ -262,7 +261,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 class='modal-title'>Add or Edit a Miner</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<form>
 						<div class='modal-body'>
@@ -285,13 +284,13 @@
 								</div>
 							</div>
 							<div class='form-group row'>
-								<label for='addMinerDownloadMBPS' class='col-sm-4 col-form-label'>Network Downlink (mb per second)</label>
+								<label for='addMinerDownloadMBPS' class='col-sm-4 col-form-label'>Network Downlink (MB per second)</label>
 								<div class='col-sm-8'>
 									<input type='number' class='form-control' id='addMinerDownloadMBPS' min='0' value='10' required>
 								</div>
 							</div>
 							<div class='form-group row'>
-								<label for='addMinerUploadMBPS' class='col-sm-4 col-form-label'>Network Uplink (mb per second)</label>
+								<label for='addMinerUploadMBPS' class='col-sm-4 col-form-label'>Network Uplink (MB per second)</label>
 								<div class='col-sm-8'>
 									<input type='number' class='form-control' id='addMinerUploadMBPS' min='0' value='10' required>
 								</div>
@@ -317,7 +316,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 class='modal-title'>Pick a Topology</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
 						<img src='img/topologies.png' style='width:100%' usemap='#topologies'>
@@ -341,7 +340,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 id='topologyTitle' class='modal-title'>Topology</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<form>
 						<div class='modal-body'>
@@ -360,7 +359,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 id='topologyTitle' class='modal-title'>View Network</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
 						<div id='networkjsoneditor'></div>
@@ -375,7 +374,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 id='topologyTitle' class='modal-title'>Copy Compressed Network</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
 						<textarea id='copyToClipboardTextarea' style='width:100%;height:400px' readonly></textarea>
@@ -390,7 +389,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 id='topologyTitle' class='modal-title'>Paste Network</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
 						<p>Compressed and uncompressed (JSON) strings are supported.</p>
@@ -406,7 +405,7 @@
 				<div class='modal-content'>
 					<div class='modal-header'>
 						<h4 id='topologyTitle' class='modal-title'>Blockchain Simulator</h4>
-						<button id='closeAddMinerModal' type='button' class='close' data-dismiss='modal'>&times;</button>
+						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body' style='font-size:small'>
 						<p>
@@ -473,7 +472,7 @@
 	class Network {
 		constructor() {
 			this.name = '';
-			
+
 			this.peers = {};
 			this.difficulty = 0.01;
 
@@ -544,7 +543,7 @@
 				} else {
 					alert(`Invalid difficulty value: '${_difficulty}'.`);
 				}
-			} 
+			}
 		}
 
 		startAllMiners() {
@@ -654,7 +653,6 @@
 
 					delete network.peers[peer].networkBufferManager; // Clean up old version data
 
-
 					// Make the blocks in the blockchain an actual Header object
 					for(let block in network.peers[peer].blockchain) {
 						let header = new Header();
@@ -699,7 +697,7 @@
 			newHeader.solver = this.solver;
 			newHeader.height = this.height;
 			newHeader.timestamp = this.timestamp;
-			newHeader.hash = this.hash; // Hash doesn't need to be sent, since it can be computed on the receiver's end
+			newHeader.hash = this.hash;
 			newHeader.prevHash = this.prevHash;
 			newHeader.balances = Object.assign({}, this.balances);
 			if(network.logging.logNetworkData) {
@@ -782,7 +780,7 @@
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
 					networkBufferTo.buffer.push(packet);
 					networkBufferTo.activateBufferProcessor();
-				} // else their size is too full and the packet must be dropped
+				} // Else their size is too full and the packet must be dropped
 			}
 
 			// Schedule the next buffer process
@@ -933,11 +931,9 @@
 			this.currentHeader.guessNonce();
 
 			// If it's a malicious node, void the block by guessing another nonce until it is not a block
-			
 
 			if(this.currentHeader.isBlock()) {
 				//console.log(this.name + ' found a block!');
-
 				this.submit(this.currentHeader);
 				this.totalBlocksFound++;
 				// Set it as the new currentHeader, to mine off of
@@ -955,8 +951,6 @@
 		}
 
 		removeConnection(ID) {
-			//delete this.outgoingPeers[ID];
-
 			// Go through our connections, remove the ID
 			for(let i in this.outgoingPeers) {
 				if(this.outgoingPeers[i] == ID) {
@@ -1026,7 +1020,6 @@
 		// Called when a header is received
 		receive(from_ID, newHeader) {
 			//console.log('Block ' + newHeader.height + ': Received by ' + this.ID);
-
 			if(!newHeader.isBlock()) return; // Invalid block message
 
 			if(newHeader.height >= this.blockchain.length + this.blockchainOffset) {
@@ -1079,7 +1072,7 @@
 	do {
 		network.genesis.guessNonce();
 	} while(!network.genesis.isBlock());
-	
+
 	setupSampleCodeEditors();
 
 	const jsoneditorContainer = document.getElementById('jsoneditor');
@@ -1112,7 +1105,7 @@
 		}
 	}
 
-	// bob --> Bob
+	// foobar --> Foobar
 	function fixCase(str) {
 		return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 	}
@@ -1149,49 +1142,47 @@
 
 	// Convert a CSV-formatted string into a JavaScript array
 	function CSVToArray(strData, strDelimiter = ','){
-        strDelimiter = (strDelimiter || ',');
-        var objPattern = new RegExp(
-            (
-                // Delimiters.
-                '(\\' + strDelimiter + '|\\r?\\n|\\r|^)' +
+		strDelimiter = (strDelimiter || ',');
+		var objPattern = new RegExp(
+			(
+				// Delimiters.
+				'(\\' + strDelimiter + '|\\r?\\n|\\r|^)' +
 
-                // Quoted fields.
-                '(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|' +
+				// Quoted fields.
+				'(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|' +
 
-                // Standard fields.
-                '([^\"\\' + strDelimiter + '\\r\\n]*))'
-            ),
-            'gi'
-            );
-        var arrData = [[]];
-        var arrMatches = null;
-        while (arrMatches = objPattern.exec(strData)){
-            var strMatchedDelimiter = arrMatches[1];
-            if (
-                strMatchedDelimiter.length &&
-                strMatchedDelimiter !== strDelimiter
-                ){
-                arrData.push([]);
-            }
-            var strMatchedValue;
-            if (arrMatches[2]){
-                strMatchedValue = arrMatches[2].replace(
-                    new RegExp('""', 'g'),
-                    '"'
-                    );
-            } else {
-                strMatchedValue = arrMatches[3];
-            }
-            matchedValue = Number(strMatchedValue);
-            if(!isNaN(matchedValue)) {
-        	    arrData[arrData.length - 1].push(matchedValue);
-            } else {
-        	    arrData[arrData.length - 1].push(strMatchedValue);
-        	}
-        }
-        return arrData;
-    }
-
+				// Standard fields.
+				'([^\"\\' + strDelimiter + '\\r\\n]*))'
+			),
+			'gi'
+			);
+		var arrData = [[]];
+		var arrMatches = null;
+		while (arrMatches = objPattern.exec(strData)){
+			var strMatchedDelimiter = arrMatches[1];
+			if (
+				strMatchedDelimiter.length &&
+				strMatchedDelimiter !== strDelimiter
+				){
+				arrData.push([]);
+			}
+			var strMatchedValue;
+			if (arrMatches[2]){
+				strMatchedValue = arrMatches[2].replace(
+					new RegExp('""', 'g'),
+					'"');
+			} else {
+				strMatchedValue = arrMatches[3];
+			}
+			matchedValue = Number(strMatchedValue);
+			if(!isNaN(matchedValue)) {
+				arrData[arrData.length - 1].push(matchedValue);
+			} else {
+				arrData[arrData.length - 1].push(strMatchedValue);
+			}
+		}
+		return arrData;
+	}
 
 	// Extracts all strings/quotes from a block of code, replacing them by temporary characters, and returns the resulting string along with the array of quotes
 	// " --> \u04DC, ' --> \u04DD, ` --> \u04DE
@@ -1356,7 +1347,7 @@
 			loadSamplerSettings();
 			saveSamplerSettings();
 		}
-		
+
 		setTimeout(function() {
 			$('#minerList option:first').prop('selected', true);
 			$('#minerList option:first').change();
@@ -1393,7 +1384,7 @@
 			lint: true,
 			gutters: ["CodeMirror-lint-markers"],
 			lintOnChange: true,
-			
+
 			mode:  {
 				name: 'javascript',
 				globalVars: true
@@ -1462,6 +1453,7 @@
 	}
 
 	function saveLocalStorage() {
+		_saveSamplerSettings();
 		let files = [];
 		for (var key in localStorage) {
 			if(key.startsWith('NETWORK_FILE_')) {
@@ -1530,6 +1522,7 @@
 	}
 
 	function saveToFile(compress = true) {
+		_saveSamplerSettings();
 		let fileName = 'simulator_network.dat';
 		if(network.name != '') {
 			fileName = 'simulator_network_' + network.name.replace(/\s/g, '_') + '.dat';
@@ -1565,10 +1558,11 @@
 
 	function DOM_copyToClipboardButton() {
 		$('#copyToClipboardTextarea').select();
-    	document.execCommand('copy');
+		document.execCommand('copy');
 	}
 
 	function DOM_saveToClipboard() {
+		_saveSamplerSettings();
 		let data = Network.serialize(network);
 		$('#copyToClipboardTextarea').val(data);
 		$('#copyToClipboardTextarea').focus(function() {
@@ -1596,7 +1590,7 @@
 
 	function DOM_loadPastedNetwork() {
 		let data = $('#pasteNetworkTextarea').val()
-		
+
 		let status = loadNetwork(data);
 		if(status) DOM_setOptionMsg('LOADED', 'file', 'badge-success');
 		else DOM_setOptionMsg('ERROR LOADING', 'file', 'badge-warning');
@@ -1673,7 +1667,7 @@
 			for(let id of miner.outgoingPeers) {
 				$('#multiselectAddPeers option[value=' + id + ']').prop('selected', true);
 			}
-			
+
 		}
 	}
 
@@ -1686,7 +1680,7 @@
 		$('#removeMinerBtn').text('Remove ' + miner.name);
 		$('#toggleMinerMiningBtn').text('Toggle mining for ' + miner.name);
 		$('#clearMinerBlockchainBtn').text('Clear blockchain for  ' + miner.name);
-		
+
 		$('#editMinerBadge').text('');
 		if(updateToolOptions.visSimulationActive) try {
 			updateToolOptions.visNetwork.selectNodes([updateToolOptions.visNodeIDs[miner.ID]]);
@@ -2181,7 +2175,7 @@
 			case 'Bitcoin':
 				options = {
 					'Type': topology,
-					'Number of peers': 100,
+					'Number of peers': 1000,
 					'Number of outgoing connections': 10,
 					'Minimum power (hashes per second)': 1,
 					'Maximum power (hashes per second)': 1,
@@ -2250,6 +2244,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2291,6 +2286,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2320,7 +2316,6 @@
 						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 
-
 						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
 
 						miners[i].addConnection(miners[r].ID);
@@ -2346,6 +2341,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2391,6 +2387,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2429,6 +2426,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2463,9 +2461,22 @@
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				chosenNames = [];
 				let i = 0;
-				recursivelyGenerateTreeTopology(structure, null);
-				function recursivelyGenerateTreeTopology(structure, parent) {
+				nPeers = recursivelyCountTreeTopology(structure);
+				recursivelyGenerateTreeTopology(structure, nPeers, null);
+
+				// Count the number of items in a structure (including the base directories)
+				function recursivelyCountTreeTopology(structure) {
+					let count = 1;
+					for(let child of structure) {
+						count += recursivelyCountTreeTopology(child);
+					}
+					return count;
+				}
+
+				// Generate the tree topology
+				function recursivelyGenerateTreeTopology(structure, nPeers, parent) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2489,7 +2500,7 @@
 					}
 					for(let child of structure) {
 						i++;
-						recursivelyGenerateTreeTopology(child, miner, i);
+						recursivelyGenerateTreeTopology(child, nPeers, miner, i);
 					}
 				}
 				break;
@@ -2509,6 +2520,7 @@
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
 					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
 					if(chosenNames[name] !== undefined) {
 						let count = 2;
 						do {
@@ -2555,6 +2567,7 @@
 					chosenNames = [];
 					for(let i = 0; i < nPeers; i++) {
 						let name = names[i % names.length];
+						if(nPeers > names.length) name += '1';
 						if(chosenNames[name] !== undefined) {
 							let count = 2;
 							do {
@@ -2572,9 +2585,6 @@
 						miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 					}
 					for(let i = 0; i < miners.length; i++) {
-						// m=n-1 if n<10 and m=9 if n>=10 --> The number of connections per node
-						//let nConnections = miners.length < numConnections ? miners.length - 1 : numConnections;
-
 						for(let j = 0; j < numConnections; j++) {
 							let r = rnd(0, miners.length - 1);
 							// Attempt to connect to a unique connections at most 10 times
@@ -2587,7 +2597,6 @@
 							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
 							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-
 
 							if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
 
@@ -2619,14 +2628,14 @@
 				DOM_setOptionMsg('UNEXPECTED TOPOLOGY', 'network', 'badge-danger');
 		}
 		DOM_selectedMiner();
-		
+
 		// Create a blank promise that resolves instantly
 		if(promise == null) promise = Promise.resolve();
 		return promise;
 	}
 
 	// Check if an object is a promise
-	function isPromise(promise) {  
+	function isPromise(promise) {
 		return !!promise && typeof promise.then === 'function';
 	}
 
@@ -2750,13 +2759,13 @@
 		html += '<th scope="col">Blocks in flight</th>';
 
 		html += '<th scope="col">Latency (ms)</th>';
-		html += '<th scope="col">Download rate (mbps)</th>';
-		html += '<th scope="col">Upload rate (mbps)</th>';
+		html += '<th scope="col">Downlink (MBps)</th>';
+		html += '<th scope="col">Uplink (MBps)</th>';
 		html += '<th scope="col">In peers</th>';
 		html += '<th scope="col">Out peers</th>';
 		html += '<th scope="col">Block height</th>';
-		html += '<th scope="col">Total blocks found</th>';
-		html += '<th scope="col">Stale blocks found</th>';
+		html += '<th scope="col">Total blocks</th>';
+		html += '<th scope="col">Stale blocks</th>';
 		html += '<th scope="col">Max fork length</th>';
 		html += '</thead>';
 		html += '<tbody>';
@@ -2839,7 +2848,7 @@
 			let miner = network.peers[id];
 			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
 			html += '<th scope="col">' + miner.name + '</th>';
-			html += '<th scope="col">' + (miner.currentHeader.balances[id] - 1) + ' BTC</th>';
+			html += '<th scope="col">' + (miner.currentHeader.balances[id] - 1) + '</th>';
 			html += '<th scope="col" class="text-warning">' + (Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000 || 0) + '</th>';
 			html += '<th scope="col">' + miner.power + '</th>';
 			if(sum.power == 0) {
@@ -2928,6 +2937,7 @@
 		}
 	}
 
+	// Draw the circles to the right of the canvas visualizer DOM element
 	function drawCanvasVisualizerMinerCircles() {
 		const canvas = document.getElementById('canvasVisualizer');
 		const ctx = canvas.getContext('2d');
@@ -2942,18 +2952,19 @@
 			ctx.beginPath();
 			ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(2, barsize / 2 - 1), 0, 2 * Math.PI);
 			ctx.fill();
-			
+
 			if(id == updateToolOptions.selectedMiner) {
 				ctx.fillStyle = '#000';
 				ctx.beginPath();
 				ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(1, barsize / 2 - 4), 0, 2 * Math.PI);
 				ctx.fill();
 			}
-			//ctx.fillRect(canvas.width - barsize, y, barsize, barsize);
+			//ctx.fillRect(canvas.width - barsize, y, barsize, barsize); // Square instead of circle
 			i++;
 		}
 	}
 
+	// Initiate the canvas visualizer
 	function setupCanvasVisualizer() {
 		const canvas = document.getElementById('canvasVisualizer');
 		canvas.width = $('#canvasVisualizer').width();
@@ -2966,6 +2977,7 @@
 		}
 	}
 
+	// When clicked, select the miner at the corresponding row
 	function canvasVisualizerClicked(event) {
 		let canvas = document.getElementById('canvasVisualizer');
 		const rect = canvas.getBoundingClientRect();
@@ -2981,15 +2993,16 @@
 		selectMiner(miner);
 	}
 
-	// java String#hashCode
+	// Java's String#hashCode, used to select a color in the canvas visualizer
 	function hashCode(str) {
 		var hash = 0;
 		for (var i = 0; i < str.length; i++) {
 			hash = str.charCodeAt(i) + ((hash << 5) - hash);
 		}
 		return hash;
-	} 
+	}
 
+	// Convert an integer into a color
 	function intToRGB(i){
 		var c = (i & 0x00FFFFFF).toString(16).toUpperCase();
 		return '00000'.substring(0, 6 - c.length) + c;
@@ -3110,7 +3123,7 @@
 					from: updateToolOptions.visNodeIDs[id1],
 					to: updateToolOptions.visNodeIDs[id2],
 					length: updateToolOptions.visLineLength,
-					// Add dashes to lines that are not bi-directional connections
+					// Optionally add dashes to lines that are not bi-directional connections:
 					// dashes: network.peers[id2].outgoingPeers.includes(id1) ? false : [10, 10],
 				});
 			}
@@ -3189,7 +3202,7 @@
 			};
 			updateToolOptions.visNetwork.setOptions(option);
 		});
-		
+
 		updateToolOptions.visNetwork.on('zoom', function (e) {
 			pos = updateToolOptions.visNetwork.getViewPosition();
 			if(updateToolOptions.visNetwork.getScale() <= 0.11) {
@@ -3211,7 +3224,7 @@
 	// Save the code from the DOM to the network data
 	function saveSamplerSettings() {
 		clearTimeout(updateToolOptions.saveSamplerSettingsTimeout);
-		updateToolOptions.saveSamplerSettingsTimeout = setTimeout(_saveSamplerSettings, 1000);
+		updateToolOptions.saveSamplerSettingsTimeout = setTimeout(_saveSamplerSettings, 500);
 	}
 
 	// Called at a maximum of once every second, responsible for taking in all the DOM data and saving the sampler values into the network object
@@ -3345,9 +3358,9 @@
 		IDs.sort(function(a, b){ // Process IDs from longest to shortest when replacing
 			return b.length - a.length;
 		});
-		let replace = []; // Keep a list of replacements
 		// The replacement is done in two phases
 		// Phase 1: Create an intermediate string to avoid ID collisions, fill an array of replacements for phase 2
+		let replace = []; // Keep a list of replacements
 		for(let ID of IDs) {
 			// Use a negative lookbehind and negative lookahead to ensure that the node ID is not part of a larger word
 			let regex = new RegExp('(?<![0-9A-Za-z_])(' + ID + ')(?![0-9A-Za-z_])'), match;
@@ -3391,7 +3404,7 @@
 			$('#sampleTable').html(html);
 		}
 		// Move the DOM textareas into the network logging code
-		saveSamplerSettings();
+		_saveSamplerSettings();
 
 		network.logging.codeBeforeSampling = getDynamicSampleCode(network.logging.codeBeforeSampling);
 		let promise = null;
@@ -3424,11 +3437,10 @@
 						updateToolOptions.samplerLog[0] += column + ',';
 					}
 				}
-
 				registerSamplerForId(id);
 			}
 
-			saveSamplerSettings();
+			_saveSamplerSettings();
 			network.logging.codeBeforeSampling = getDynamicSampleCode(network.logging.codeBeforeSampling);
 			network.logging.codeBetweenSamples = getDynamicSampleCode(network.logging.codeBetweenSamples);
 			network.logging.codeAfterSampling = getDynamicSampleCode(network.logging.codeAfterSampling);
@@ -3441,7 +3453,6 @@
 		if(network.logging.resetBlockchainAfterEachSample) {
 			network.stopAllMiners();
 		}
-
 
 		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
 		updateToolOptions.numSamples++;
@@ -3488,7 +3499,7 @@
 			}
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
-				
+
 				if(network.logging.columns['Miner name']) line += '"' + miner.name + '",';
 				if(network.logging.columns['Balance']) line += '"' + miner.currentHeader.balances[id] + '",';
 				if(network.logging.columns['Balance %']) line += '"' + (miner.currentHeader.balances[id] / balanceTotal * 100) + '",';
@@ -3525,8 +3536,6 @@
 			promise = eval(network.logging.codeBetweenSamples);
 		} catch(e) {
 			console.warn(e, network.logging.codeBetweenSamples);
-			//stopSampling();
-			//return;
 		}
 
 		if(!isPromise(promise)) promise = Promise.resolve(); // Temp promise resolves immediately
@@ -3568,7 +3577,8 @@
 		if(updateToolOptions.sampleTag.length > 0) html += ' (' + updateToolOptions.sampleTag + ')';
 		html += '</span>';
 		html += '</thead><thead>';
-		html += '<th scope="col"></th>';
+
+		html += '<th scope="col" style="width:10%"></th>';
 		html += '<th scope="col">Average<br>account balance</th>';
 		html += '<th scope="col" class="text-warning">%</th>';
 		html += '<th scope="col">Average<br>power (H/s)</th>';
@@ -3589,7 +3599,6 @@
 		html += '</thead>';
 		html += '<tbody>';
 		let miner, avgSumBalance, percentAvgSumBalance, miners = 0, sumAvgSumBalance = 0, avgPower, avgNumHops, avgBlockDelay, avgBlocksInFlight, avgLatency, avgDownloadMBPS, avgUploadMBPS, avgBlockHeight, avgTotalBlocks, avgStaleBlocks, avgMaxForkLength;
-		
 
 		for(let id in network.ID_Registry) {
 			miners++;
@@ -3615,23 +3624,23 @@
 			avgMaxForkLength = Math.floor(updateToolOptions.samplerData[id].sumMaxForkLength / updateToolOptions.numSamples * 1000) / 1000;
 			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
 			html += '<th scope="col">' + miner.name + '</th>';
-			html += '<th scope="col">' + avgSumBalance + ' BTC</th>';
-			html += '<th scope="col" class="text-warning">' + percentAvgSumBalance + '</th>';
-			html += '<th scope="col">' + avgPower + '</th>';
+			html += '<th scope="col">' + (avgSumBalance || '-') + '</th>';
+			html += '<th scope="col" class="text-warning">' + (percentAvgSumBalance || '-') + '</th>';
+			html += '<th scope="col">' + (avgPower || '') + '</th>';
 
 			if(network.logging.logNetworkData) { // Keep track of networking data
-				html += '<th scope="col">' + avgNumHops + '</th>';
-				html += '<th scope="col">' + avgBlockDelay + '</th>';
+				html += '<th scope="col">' + (avgNumHops || '-') + '</th>';
+				html += '<th scope="col">' + (avgBlockDelay || '-') + '</th>';
 			}
-			html += '<th scope="col">' + avgBlocksInFlight + '</th>';
+			html += '<th scope="col">' + (avgBlocksInFlight || '-') + '</th>';
 
-			html += '<th scope="col">' + avgLatency + '</th>';
-			html += '<th scope="col">' + avgDownloadMBPS + '</th>';
-			html += '<th scope="col">' + avgUploadMBPS + '</th>';
-			html += '<th scope="col">' + avgBlockHeight + '</th>';
-			html += '<th scope="col">' + avgTotalBlocks + '</th>';
-			html += '<th scope="col">' + avgStaleBlocks + '</th>';
-			html += '<th scope="col">' + avgMaxForkLength + '</th>';
+			html += '<th scope="col">' + (avgLatency || '-') + '</th>';
+			html += '<th scope="col">' + (avgDownloadMBPS || '-') + '</th>';
+			html += '<th scope="col">' + (avgUploadMBPS || '-') + '</th>';
+			html += '<th scope="col">' + (avgBlockHeight || '-') + '</th>';
+			html += '<th scope="col">' + (avgTotalBlocks || '-') + '</th>';
+			html += '<th scope="col">' + (avgStaleBlocks || '-') + '</th>';
+			html += '<th scope="col">' + (avgMaxForkLength || '-') + '</th>';
 			html += '</tr>';
 		}
 		html += '</tbody>';
@@ -3639,13 +3648,12 @@
 		if(updateToolOptions.minerStatsTable_active) updateMinerStatsTable();
 	}
 
+	// Download the list of CSV rows from updateToolOptions.samplerLog
 	function downloadSampleLog(name) {
 		if(name === undefined) {
 			if(network.name == '') name = 'PoW_log.csv';
 			else name = 'PoW_log_' + network.name.replace(/\s/g, '_') + '.csv';
 		}
-		// Confidence interval
-		// =CONFIDENCE(0.05, STDEV(A2:A21), COUNT(A2:A21))
 		let log = updateToolOptions.samplerLog.join('\r\n');
 		let a=document.createElement('a');
 		a.setAttribute('href','data:text/plain;charset=utf-8,'+encodeURIComponent(log));
