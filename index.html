@@ -124,9 +124,9 @@
 								<div class='dropdown-divider' id='vis_btn_delimeter' ></div>
 								<a class='dropdown-item' id='vis_refresh_btn' onclick='DOM_refreshVisualizer()'>Refresh visualizer</a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineLengths()'>Set line lengths</a>
-								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineLengths()'>Set line lengths</a>
+								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setBarWidths()'>Set bar widths</a>
 								<div class='dropdown-divider'></div>
-								<a class='dropdown-item' onclick='formatSamplerCode()'>Format sampler code</a>
+								<a class='dropdown-item' onclick='formatSamplerCode()'>Format all sampler code</a>
 							</div>
 						</div>
 
@@ -1096,6 +1096,10 @@
 			DOM_editNetwork();
 		}
 	});
+
+	function scrollToBottomOfPage() {
+		window.scrollTo(0,document.body.scrollHeight);
+	}
 
 	// Clear all currently running timeouts
 	function clearAllTimeouts() {
@@ -3072,13 +3076,25 @@
 	}
 
 	function DOM_setLineLengths() {
-		let length_s = prompt('How long should lines be?')
+		let length_s = prompt('How long should lines be?', updateToolOptions.visLineLength);
 		if(length_s == null) return;
 		let length = parseInt(length_s) || undefined;
 
 		updateToolOptions.visLineLength = length;
 		vis_setupNetworkSimulation();
 		DOM_setOptionMsg('SUCCESS', 'display', 'badge-success');
+	}
+
+	function DOM_setBarWidths() {
+		let width_s = prompt('How long should lines be?', updateToolOptions.canvasVisualizerBarWidth);
+		if(width_s == null) return;
+		let width = parseInt(width_s) || undefined;
+
+		updateToolOptions.canvasVisualizerBarWidth = width;
+		setupCanvasVisualizer();
+		DOM_setOptionMsg('SUCCESS', 'display', 'badge-success');
+
+		
 	}
 
 	function DOM_refreshVisualizer() {
@@ -3224,7 +3240,7 @@
 	// Save the code from the DOM to the network data
 	function saveSamplerSettings() {
 		clearTimeout(updateToolOptions.saveSamplerSettingsTimeout);
-		updateToolOptions.saveSamplerSettingsTimeout = setTimeout(_saveSamplerSettings, 500);
+		updateToolOptions.saveSamplerSettingsTimeout = setTimeout(_saveSamplerSettings, 300);
 	}
 
 	// Called at a maximum of once every second, responsible for taking in all the DOM data and saving the sampler values into the network object
@@ -3251,8 +3267,12 @@
 			network.logging.columns[column] = true;
 		}
 
-		if(network.logging.logSamples) $('#logColumns').show();
-		else $('#logColumns').hide();
+		if(network.logging.logSamples) {
+			if($('#logColumns').is(':hidden')) {
+				$('#logColumns').show();
+				scrollToBottomOfPage();
+			} else $('#logColumns').show();
+		} else $('#logColumns').hide();
 
 		network.logging.canvasVisualizerCode = '{' + $('#canvasVisualizerCode').val() + '}';
 	}
@@ -3662,4 +3682,3 @@
 	}
 </script>
 </html>
-
