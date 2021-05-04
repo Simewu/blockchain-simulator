@@ -123,6 +123,7 @@
 								<a class='dropdown-item' onclick='DOM_toggleSamplerForm()'>Toggle sampler</a>
 								<div class='dropdown-divider' id='vis_btn_delimeter' ></div>
 								<a class='dropdown-item' id='vis_refresh_btn' onclick='DOM_refreshVisualizer()'>Refresh visualizer</a>
+								<a class='dropdown-item' id='vis_physics_btn' onclick='DOM_togglePhysics()'>Disable visualizer physics</a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineLengths()'>Set line lengths</a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setBarWidths()'>Set bar widths</a>
 								<div class='dropdown-divider'></div>
@@ -462,6 +463,7 @@
 		visNetwork: null,
 		visNodeIDs: [],
 		visSimulationActive: true,
+		visBorderSize: 'default', // Changes according to zoom: ['none', 'small', 'default', 'large']
 		visTimeout: null,
 	}
 
@@ -482,7 +484,7 @@
 			this.genesis.height = 0;
 			this.genesis.timestamp = Date.now();
 
-			this.useSHA256 = false; // Specify whether or not to actually use genuine hashing (real security, but slow), or to use random numbers and a difficulty threshhold to determine a block (no security, but fast)
+			this.useSHA256 = false; // Specify whether or not to actually use genuine hashing (real security, but slow), or to use random numbers and a difficulty threshold to determine a block (no security, but fast)
 
 			this.ID_Registry = {};
 			this.miningThreads = {};
@@ -2644,7 +2646,7 @@
 	}
 
 	function DOM_setNetworkDifficulty() {
-		const difficulty = prompt('Enter a network difficulty threshhold in hex, or in decimal (as the probability of finding a block).\n\nEasiest difficulty = 1.0 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', network.difficulty);
+		const difficulty = prompt('Enter a network difficulty threshold in hex, or in decimal (as the probability of finding a block).\n\nEasiest difficulty = 1.0 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', network.difficulty);
 		if(difficulty == null) return;
 		network.setDifficulty(difficulty);
 		alert('Difficulty has been set to ' + network.difficulty * 100 + '% chance of a nonce being a block.');
@@ -3075,6 +3077,13 @@
 		vis_container.style.opacity = '0';
 	}
 
+	function DOM_togglePhysics() {
+		let physics = !updateToolOptions.visNetwork.physics.options.enabled;
+		if(physics) $('#vis_physics_btn').text('Disable visualizer physics');
+		else $('#vis_physics_btn').text('Enable visualizer physics');
+		updateToolOptions.visNetwork.physics.setOptions({'enabled': physics});
+	}
+
 	function DOM_setLineLengths() {
 		let length_s = prompt('How long should lines be?', updateToolOptions.visLineLength);
 		if(length_s == null) return;
@@ -3162,12 +3171,15 @@
 			layout: {
 				improvedLayout: true
 			},
-			interaction:{
+			interaction: {
 				dragView: false,
 				selectConnectedEdges: false,
 				zoomView: false,
 				dragNodes: false
 			},
+			physics: {
+				enabled: true
+			}
 		};
 
 		updateToolOptions.visNetwork = new vis.Network(vis_container, {
@@ -3220,21 +3232,50 @@
 		});
 
 		updateToolOptions.visNetwork.on('zoom', function (e) {
-			pos = updateToolOptions.visNetwork.getViewPosition();
-			if(updateToolOptions.visNetwork.getScale() <= 0.11) {
-				updateToolOptions.visNetwork.moveTo({
-					position: { x: 0, y: 0},
-					scale: 0.11,
-				});
+			let pos = updateToolOptions.visNetwork.getViewPosition();
+			let scale = Math.max(0.1, Math.min(10, updateToolOptions.visNetwork.getScale()));
+			updateToolOptions.visNetwork.moveTo({
+				position: { x: 0, y: 0},
+				scale: scale,
+			});
+			// Adjust the border according to scale
+			if(scale <= 0.15) {
+				if(updateToolOptions.visBorderSize != 'none') {
+					vis_setBorders(0);
+					updateToolOptions.visBorderSize = 'none';
+				}
+			}else if(scale < 0.4) {
+				if(updateToolOptions.visBorderSize != 'small') {
+					vis_setBorders(1);
+					updateToolOptions.visBorderSize = 'small';
+				}
+			} else if(scale > 1.5) {
+				if(updateToolOptions.visBorderSize != 'large') {
+					vis_setBorders(13);
+					updateToolOptions.visBorderSize = 'large';
+				}
 			} else {
-				updateToolOptions.visNetwork.moveTo({
-					position: { x: 0, y: 0},
-				});
+				if(updateToolOptions.visBorderSize) {
+					vis_setBorders(4);
+					updateToolOptions.visBorderSize = 'default';
+				}
 			}
 		});
 		updateToolOptions.visTimeout = null;
 
 		setupCanvasVisualizer();
+	}
+
+	function vis_setBorders(width = 4) {
+		if(!updateToolOptions.visSimulationActive) return;
+		for(let ID in network.peers) {
+			let visID = updateToolOptions.visNodeIDs[ID];
+			let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes[visID];
+			if(visRawNodeData === undefined) continue;
+			if(visRawNodeData.globalOptions.borderWidth == width) return;
+
+			visRawNodeData.globalOptions.borderWidth = width;
+		}
 	}
 
 	// Save the code from the DOM to the network data
