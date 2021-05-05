@@ -590,9 +590,17 @@
 		static serialize(network, compress = true) {
 			network.stopAllMiners();
 			network.removeBlocksInFlight();
-			let json = JSON.stringify(network);
-			// Now clone it, remove the temporary properties such as blockchain, then re-convert to JSON
-			let newNetwork = JSON.parse(json);
+			let newNetwork = null, destructive = false;
+			try {
+				let json = JSON.stringify(network);
+				// Now clone it, remove the temporary properties such as blockchain, then re-convert to JSON
+				newNetwork = JSON.parse(json);
+			} catch(e) {
+				let proceed = confirm('There was an out-of-memory error cloning the network for serialization.\n\nWould you like to proceed with successful serialization at the cost of potentially corrupting the current network instance?');
+				if(!proceed) return;
+				destructive = true;
+				newNetwork = network; // Don't clone it
+			}
 			delete newNetwork.genesis;
 			for(let ID in newNetwork.peers) {
 				let peer = newNetwork.peers[ID];
@@ -607,12 +615,20 @@
 				delete peer.blockchain_blockDelay;
 				delete peer.networkBuffer;
 			}
+			let restoreNetwork = (json) => {
+				// If we removed the network's critical data, rebuild it here
+				let fixedNetwork = Network.deserialize(json);
+				if(fixedNetwork != null) network = fixedNetwork;
+				else console.error('Unable to restore the network, please refresh the page.');
+			}
 			if(compress) {
 				let fixedJSON = JSON.stringify(newNetwork);
+				if(destructive) setTimeout(restoreNetwork, 1000, fixedJSON);
 				let compressed = LZString.compressToUTF16('\n' + fixedJSON);
 				return compressed;
 			} else {
 				let fixedJSONFormatted = JSON.stringify(newNetwork, null, '\t');
+				if(destructive) setTimeout(restoreNetwork, 1000, fixedJSONFormatted);
 				return fixedJSONFormatted;
 			}
 		}
@@ -975,15 +991,18 @@
 		newHeader(prevHeader) { //* Consider sending prevHash instead
 			const header = new Header();
 			header.solver = this.ID;
-			header.height = prevHeader.height + 1;
 			header.hash = Number.MAX_SAFE_INTEGER;
-			header.prevHash = prevHeader.hash;
-			header.balances = Object.assign({}, prevHeader.balances);
 			if(header.balances[this.ID] === undefined) {
 				header.balances[this.ID] = 1;
 			} else {
 				header.balances[this.ID]++;
 			}
+			if(prevHeader === undefined) return header;
+
+			header.height = prevHeader.height + 1;
+			header.prevHash = prevHeader.hash;
+			header.balances = Object.assign({}, prevHeader.balances);
+			
 			return header;
 		}
 
@@ -1473,6 +1492,10 @@
 		fileName = 'NETWORK_FILE_' + fileName;
 
 		let data = Network.serialize(network);
+		if(data == null) {
+			alert('Unable to serialize the network.');
+			return;
+		}
 		localStorage.setItem(fileName, data);
 	}
 
@@ -1534,6 +1557,10 @@
 			fileName = 'simulator_network_' + network.name.replace(/\s/g, '_') + '.dat';
 		}
 		let data = Network.serialize(network, compress);
+		if(data == null) {
+			alert('Unable to serialize the network.');
+			return;
+		}
 		var a = document.createElement('a');
 		if (compress) {
 			// ref: https://stackoverflow.com/q/6226189
@@ -1570,6 +1597,10 @@
 	function DOM_saveToClipboard() {
 		_saveSamplerSettings();
 		let data = Network.serialize(network);
+		if(data == null) {
+			alert('Unable to serialize the network.');
+			return;
+		}
 		$('#copyToClipboardTextarea').val(data);
 		$('#copyToClipboardTextarea').focus(function() {
 			$(this).select();
@@ -3717,7 +3748,30 @@
 		}
 		let log = updateToolOptions.samplerLog.join('\r\n');
 		let a=document.createElement('a');
-		a.setAttribute('href','data:text/plain;charset=utf-8,'+encodeURIComponent(log));
+		
+		try {
+			a.setAttribute('href','data:text/plain;charset=utf-8,' + encodeURIComponent(log));
+		} catch (e) { // Plan B: If encodeURIComponent gives a RangeError, simply don't use it:
+			console.log('\n\n\n\n\n\n\n\n\n\n');
+			console.warn('The sample log filled up the browser\'s memory capacity. Now attempting to download it without encodeURIComponent...');
+			
+			try {
+				a.setAttribute('href','data:text/plain;charset=utf-8,' + log);
+			} catch(e) { // Uh oh... Plan C: Allow the user to copy the data
+
+				console.error('Downloading the log without encodeURIComponent failed due to limited memory. The data will now be printed to the console. Please manually save it as a .csv file to ensure no data is lost.');
+
+
+				console.warn('Compressed version (JavaScript):');
+				console.log('LZString.decompressFromUTF16(\'' + LZString.compressToUTF16(log) + '\');');
+
+				console.warn('Uncompressed version (Copy, then save it as a CSV file manually):');
+				console.log(log);
+
+				alert('Uh oh! The download ran out of memory, please see the console for the backup sample log data, which can be manually saved as a CSV file, so that no data is lost.');
+			}
+		}
+		
 		a.setAttribute('download', name);
 		a.click();
 	}
