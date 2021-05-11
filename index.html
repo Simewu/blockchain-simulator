@@ -502,8 +502,9 @@
 					'Balance %': false,
 					'Power (hash/s)': true,
 					'Power %': false,
-					'Block num hops': true,
-					'Block travel time (s)': true,
+					'Blockchain IDs': true,
+					'Blockchain num hops': true,
+					'Blockchain travel time (s)': true,
 					'Network buffer size limit': true,
 					'Blocks in flight': true,
 					'Latency (ms)': true,
@@ -611,6 +612,7 @@
 				delete peer.totalBlocksFound;
 				delete peer.staleBlocksFound;
 				delete peer.largestForkLength;
+				delete peer.blockchain_blockID;
 				delete peer.blockchain_numHops;
 				delete peer.blockchain_blockDelay;
 				delete peer.networkBuffer;
@@ -866,6 +868,7 @@
 			this.networkBuffer = new NetworkBuffer(this.ID);
 
 			if(network.logging.logNetworkData) {
+				this.blockchain_blockID = [];
 				this.blockchain_numHops = [];
 				this.blockchain_blockDelay = [];
 			}
@@ -895,8 +898,9 @@
 
 		setBlock(height, block) {
 			if(block == undefined) return;
-			if(network.logging.logNetworkData && this.blockchain_numHops !== undefined && this.blockchain_blockDelay !== undefined) { // Keep track of networking data
+			if(network.logging.logNetworkData && this.blockchain_blockID !== undefined && this.blockchain_numHops !== undefined && this.blockchain_blockDelay !== undefined) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
+				this.blockchain_blockID[height] = block.hash;
 				this.blockchain_numHops[height] = block.numHops;
 				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
 			}
@@ -2025,18 +2029,22 @@
 			network.logging.logNetworkData = false;
 			$('#DOM_item_toggleLoggingNetworkData').html('Enable logging network<br>data within each miner');
 			if(network) for(peerID in network.peers) { // Clean up
+				delete network.peers[peerID]['blockchain_blockID'];
 				delete network.peers[peerID]['blockchain_numHops'];
 				delete network.peers[peerID]['blockchain_blockDelay'];
 			}
 		} else {
 			$('#DOM_item_toggleLoggingNetworkData').html('Disable logging network<br>data within each miner');
 			if(network) for(peerID in network.peers) { // Initialization
+				network.peers[peerID]['blockchain_blockID'] = [];
 				network.peers[peerID]['blockchain_numHops'] = [];
 				network.peers[peerID]['blockchain_blockDelay'] = []
 			}
 			network.logging.logNetworkData = true;
 		}
 		updateMinerJsonEditor();
+		saveSamplerSettings();
+		loadSamplerSettings(); // To show/hide the parameters from the log columns list
 		DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
 	}
 
@@ -3382,7 +3390,16 @@
 
 		$('#logColumnsList').empty();
 		for(let column in network.logging.columns) {
-			$('#logColumnsList').append('<option value="' + column + '">' + column + '</option>');
+
+			let hideIfNetworkLoggingNotEnabled = '';
+			// If the network logging parameters are disabled, hide it from the list as well
+			if(!network.logging.logNetworkData) {
+				if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (s)') {
+					hideIfNetworkLoggingNotEnabled = ' hidden';
+				}
+			}
+
+			$('#logColumnsList').append('<option value="' + column + '"' + hideIfNetworkLoggingNotEnabled + '>' + column + '</option>');
 			$('#logColumnsList option[value="' + column + '"]').prop('selected', network.logging.columns[column]);
 		}
 		if(network.logging.logSamples) $('#logColumns').show();
@@ -3521,8 +3538,10 @@
 					if(column == 'Sample time') continue;
 					if(column == 'Sample tag') continue;
 
-					if(column == 'Block num hops' || column == 'Block travel time (s)') {
-						if(!network.logging.logNetworkData) continue;
+					if(!network.logging.logNetworkData) {
+						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (s)') {
+							continue;
+						}
 					}
 
 					if(network.logging.columns[column]) {
@@ -3599,8 +3618,9 @@
 				if(network.logging.columns['Power %']) line += '"' + (miner.power / powerTotal * 100) + '",';
 
 				if(network.logging.logNetworkData) { // Keep track of networking data
-					if(network.logging.columns['Block num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
-					if(network.logging.columns['Block travel time (s)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
+					if(network.logging.columns['Blockchain IDs']) line += '"' + miner.blockchain_blockID?.join(' ') + '",';
+					if(network.logging.columns['Blockchain num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
+					if(network.logging.columns['Blockchain travel time (s)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
 				}
 
 				if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
