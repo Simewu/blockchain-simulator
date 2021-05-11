@@ -504,7 +504,7 @@
 					'Power %': false,
 					'Blockchain IDs': true,
 					'Blockchain num hops': true,
-					'Blockchain travel time (s)': true,
+					'Blockchain travel time (ms)': true,
 					'Network buffer size limit': true,
 					'Blocks in flight': true,
 					'Latency (ms)': true,
@@ -902,7 +902,7 @@
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_blockID[height] = block.hash;
 				this.blockchain_numHops[height] = block.numHops;
-				this.blockchain_blockDelay[height] = Date.now() / 1000 - block.timestamp;
+				this.blockchain_blockDelay[height] = Date.now() - block.timestamp;
 			}
 			this.blockchain[height - this.blockchainOffset] = block;
 			this.lastAcceptedBlock = block.clone();
@@ -2864,10 +2864,10 @@
 			sum.latency += miner.latency;
 			sum.downlinkMBPS += miner.bandwidth.downlink;
 			sum.uplinkMBPS += miner.bandwidth.uplink;
-			sum.balance += (miner.currentHeader.balances[id] - 1);
+			sum.balance += (miner.currentHeader.balances[id] - 1); // "- 1" because the most recent header contains a coinbase transaction not yet confirmed, since the currentHeader is not a valid block yet
 			sum.incomingPeers += miner.incomingPeers.length;
 			sum.outgoingPeers += miner.outgoingPeers.length;
-			sum.height += (miner.currentHeader.height - 1);
+			sum.height += (miner.currentHeader.height - 1); // Same reason as above
 			sum.totalBlocksFound += miner.totalBlocksFound;
 			sum.staleBlocksFound += miner.staleBlocksFound;
 			sum.largestForkLength += miner.largestForkLength;
@@ -2893,8 +2893,8 @@
 			let miner = network.peers[id];
 			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
 			html += '<th scope="col">' + miner.name + '</th>';
-			html += '<th scope="col">' + (miner.currentHeader.balances[id] - 1) + '</th>';
-			html += '<th scope="col" class="text-warning">' + (Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000 || 0) + '</th>';
+			html += '<th scope="col">' + ((miner.currentHeader.balances[id] - 1) || 0) + '</th>';
+			html += '<th scope="col" class="text-warning">' + ((Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000) || 0) + '</th>';
 			html += '<th scope="col">' + miner.power + '</th>';
 			if(sum.power == 0) {
 				html += '<th scope="col" class="text-warning">-</th>';
@@ -3394,7 +3394,7 @@
 			let hideIfNetworkLoggingNotEnabled = '';
 			// If the network logging parameters are disabled, hide it from the list as well
 			if(!network.logging.logNetworkData) {
-				if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (s)') {
+				if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)') {
 					hideIfNetworkLoggingNotEnabled = ' hidden';
 				}
 			}
@@ -3539,7 +3539,7 @@
 					if(column == 'Sample tag') continue;
 
 					if(!network.logging.logNetworkData) {
-						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (s)') {
+						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)') {
 							continue;
 						}
 					}
@@ -3612,26 +3612,26 @@
 				let miner = network.peers[id];
 
 				if(network.logging.columns['Miner name']) line += '"' + miner.name + '",';
-				if(network.logging.columns['Balance']) line += '"' + miner.currentHeader.balances[id] + '",';
-				if(network.logging.columns['Balance %']) line += '"' + (miner.currentHeader.balances[id] / balanceTotal * 100) + '",';
+				if(network.logging.columns['Balance']) line += '"' + (miner.currentHeader.balances[id] || 0) + '",';
+				if(network.logging.columns['Balance %']) line += '"' + ((miner.currentHeader.balances[id] / balanceTotal * 100) || 0) + '",';
 				if(network.logging.columns['Power (hash/s)']) line += '"' + miner.power + '",';
 				if(network.logging.columns['Power %']) line += '"' + (miner.power / powerTotal * 100) + '",';
 
 				if(network.logging.logNetworkData) { // Keep track of networking data
 					if(network.logging.columns['Blockchain IDs']) line += '"' + miner.blockchain_blockID?.join(' ') + '",';
 					if(network.logging.columns['Blockchain num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
-					if(network.logging.columns['Blockchain travel time (s)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
+					if(network.logging.columns['Blockchain travel time (ms)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
 				}
 
 				if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
 				if(network.logging.columns['Blocks in flight']) line += '"' + miner.networkBuffer.buffer.length + '",';
 				if(network.logging.columns['Latency (ms)']) line += '"' + miner.latency + '",';
-				if(network.logging.columns['Downlink (MBPS)']) line += '"' + miner.bandwidth.downlink + '",';
-				if(network.logging.columns['Uplink (MBPS)']) line += '"' + miner.bandwidth.uplink + '",';
+				if(network.logging.columns['Downlink (MBps)']) line += '"' + miner.bandwidth.downlink + '",';
+				if(network.logging.columns['Uplink (MBps)']) line += '"' + miner.bandwidth.uplink + '",';
 				if(network.logging.columns['Block height']) line += '"' + (miner.currentHeader.height - 1) + '",';
 				if(network.logging.columns['Total blocks found']) line += '"' + miner.totalBlocksFound + '",';
 				if(network.logging.columns['Stale blocks found']) line += '"' + miner.staleBlocksFound + '",';
-				if(network.logging.columns['Max fork length']) line += '"' + miner.largestForkLength + '",';
+				if(network.logging.columns['Max fork length']) line += '"' + (miner.largestForkLength || 0) + '",';
 			}
 			updateToolOptions.samplerLog.push(line);
 		}
