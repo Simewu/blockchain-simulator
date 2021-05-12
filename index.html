@@ -647,7 +647,18 @@
 				// Add logging if it doesn't exist
 				if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
 				if(newNetworkObj.logging.columns === undefined) newNetworkObj.logging.columns = network.logging.columns;
+
+				// Merge the columns together
+				for(let column in network.logging.columns) {
+					if(newNetworkObj.logging.columns[column] !== undefined) {
+						network.logging.columns[column] = newNetworkObj.logging.columns[column];
+					}
+				}
+				newNetworkObj.logging.columns = network.logging.columns;
+
 				network = Object.assign(network, newNetworkObj);
+
+				
 
 				for(let peer in network.peers) { // Make all miners Miner objects
 
