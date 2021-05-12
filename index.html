@@ -953,7 +953,7 @@
 		}
 
 		mine() {
-			this.currentHeader.timestamp = Date.now() / 1000;
+			this.currentHeader.timestamp = Date.now();
 			if(this.sendInvalidMaliciousBlocks) {
 				while(!this.currentHeader.isBlock()) { // No blocks
 					this.currentHeader.guessNonce();
