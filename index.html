@@ -24,6 +24,7 @@
 		<script src="lib/codemirror/jshint.js"></script>
 		<script src="lib/codemirror/lint.js"></script>
 		<script src="lib/codemirror/javascript-lint.js"></script>
+		<script src="lib/NoSleep.min.js"></script>
 		<style id='miner-colors-selector'></style>
 	</head>
 
@@ -1108,6 +1109,8 @@
 	do {
 		network.genesis.guessNonce();
 	} while(!network.genesis.isBlock());
+
+	const noSleep = new NoSleep();
 
 	setupSampleCodeEditors();
 
@@ -3437,12 +3440,14 @@
 		if(override !== undefined) updateToolOptions.sampler_running = !override;
 		if(updateToolOptions.sampler_running) {
 			stopSampling();
+			noSleep.disable();
 			$('#toggleSamplingBtn').text('Begin Sampling');
 			$('#toggleSamplingBtn').attr('class', 'btn btn-primary fillx border border-dark');
 			updateToolOptions.sampler_running = false;
 			updateSamplerTable();
 		} else {
 			initSampler();
+			noSleep.enable(); // Prevent the browser from falling asleep
 			$('#toggleSamplingBtn').text('Stop Sampling');
 			$('#toggleSamplingBtn').attr('class', 'btn btn-warning fillx border border-dark');
 			updateToolOptions.sampler_running = true;
