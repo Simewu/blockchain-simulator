@@ -506,6 +506,7 @@
 					'Blockchain IDs': true,
 					'Blockchain num hops': true,
 					'Blockchain travel time (ms)': true,
+					'Artificial travel time (ms)': false,
 					'Network buffer size limit': true,
 					'Blocks in flight': true,
 					'Latency (ms)': true,
@@ -594,9 +595,9 @@
 			network.removeBlocksInFlight();
 			let newNetwork = null, destructive = false;
 			try {
-				let json = JSON.stringify(network);
+				let json = JSON_stringify(network);
 				// Now clone it, remove the temporary properties such as blockchain, then re-convert to JSON
-				newNetwork = JSON.parse(json);
+				newNetwork = JSON_parse(json);
 			} catch(e) {
 				let proceed = confirm('There was an out-of-memory error cloning the network for serialization.\n\nWould you like to proceed with successful serialization at the cost of potentially corrupting the current network instance?');
 				if(!proceed) return;
@@ -616,6 +617,7 @@
 				delete peer.blockchain_blockID;
 				delete peer.blockchain_numHops;
 				delete peer.blockchain_blockDelay;
+				delete peer.blockchain_artificialBlockDelay;
 				delete peer.networkBuffer;
 			}
 			let restoreNetwork = (json) => {
@@ -625,12 +627,12 @@
 				else console.error('Unable to restore the network, please refresh the page.');
 			}
 			if(compress) {
-				let fixedJSON = JSON.stringify(newNetwork);
+				let fixedJSON = JSON_stringify(newNetwork);
 				if(destructive) setTimeout(restoreNetwork, 1000, fixedJSON);
 				let compressed = LZString.compressToUTF16('\n' + fixedJSON);
 				return compressed;
 			} else {
-				let fixedJSONFormatted = JSON.stringify(newNetwork, null, '\t');
+				let fixedJSONFormatted = JSON_stringify(newNetwork, null, '\t');
 				if(destructive) setTimeout(restoreNetwork, 1000, fixedJSONFormatted);
 				return fixedJSONFormatted;
 			}
@@ -643,7 +645,7 @@
 			if(decompressed != null && decompressed.startsWith('\n')) data = decompressed.substring(1);
 
 			try {
-				let newNetworkObj = JSON.parse(data);
+				let newNetworkObj = JSON_parse(data);
 				let network = new Network();
 				// Add logging if it doesn't exist
 				if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
@@ -783,17 +785,18 @@
 			if(this.thread == null) {
 				let packet = this.buffer[0], delay;
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].bandwidth.downlink / 1000000 * 1000;
-				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].bandwidth.uplink / 1000000 * 1000;
+					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.downlink * 1000;
+				} else { // Uploading data6
+					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.uplink * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
-				this.thread = setTimeout(this.processBuffer.bind(this), delay);
+				this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
 				this.nextInterval = delay;
 			}
 		}
 
-		processBuffer() {
+		// Note: prevDelayArtificial is the milliseconds that it took to wait for this function to be called, its only use is within the artificialBlockDelay parameter if network logging is enabled
+		processBuffer(prevDelayArtificial = 0) {
 			if(this.buffer.length == 0) {
 				clearTimeout(this.thread);
 				this.thread = null;
@@ -804,12 +807,33 @@
 			let packet = this.buffer.shift();
 			if(packet.to == this.parentID) { // Downloading data
 				let parent = network.peers[this.parentID];
+
+				// Log the artificial block delay
+				if(network.logging.logNetworkData) {
+					if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
+						parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial;
+					} else {
+						parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial;
+					}
+				}
+
 				setTimeout(parent.receive.bind(parent), 0, packet.from, packet.payload);
 
 			} else { // Uploading data
-				let networkBufferTo = network.peers[packet.to].networkBuffer;
+				let parent = network.peers[packet.to];
+				let networkBufferTo = parent.networkBuffer;
 
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
+
+					// Log the artificial block delay
+					if(network.logging.logNetworkData) {
+						if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
+							parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial;
+						} else {
+							parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial;
+						}
+					}
+
 					networkBufferTo.buffer.push(packet);
 					networkBufferTo.activateBufferProcessor();
 				} // Else their size is too full and the packet must be dropped
@@ -820,13 +844,14 @@
 			if(this.buffer.length > 0) {
 				let packet = this.buffer[0];
 				if(packet.to == this.parentID) { // Downloading data
-					delay = packet.size / network.peers[this.parentID].bandwidth.downlink / 1000000 * 1000;
+					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.downlink * 1000;
 				} else { // Uploading data
-					delay = packet.size / network.peers[this.parentID].bandwidth.uplink / 1000000 * 1000;
+					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.uplink * 1000;
 				}
 				delay += network.peers[this.parentID].latency;
 			}
-			this.thread = setTimeout(this.processBuffer.bind(this), delay);
+
+			this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
 			this.nextInterval = delay;
 		}
 
@@ -883,6 +908,7 @@
 				this.blockchain_blockID = [];
 				this.blockchain_numHops = [];
 				this.blockchain_blockDelay = [];
+				this.blockchain_artificialBlockDelay = [];
 			}
 			updateTools();
 		}
@@ -910,11 +936,13 @@
 
 		setBlock(height, block) {
 			if(block == undefined) return;
-			if(network.logging.logNetworkData && this.blockchain_blockID !== undefined && this.blockchain_numHops !== undefined && this.blockchain_blockDelay !== undefined) { // Keep track of networking data
+			if(network.logging.logNetworkData && this.blockchain_blockID !== undefined && this.blockchain_numHops !== undefined && this.blockchain_blockDelay !== undefined && this.blockchain_artificialBlockDelay !== undefined) { // Keep track of networking data
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_blockID[height] = block.hash;
 				this.blockchain_numHops[height] = block.numHops;
 				this.blockchain_blockDelay[height] = Date.now() - block.timestamp;
+				if(this.blockchain_artificialBlockDelay[height] === undefined)
+					this.blockchain_artificialBlockDelay[height] = 0;
 			}
 			this.blockchain[height - this.blockchainOffset] = block;
 			this.lastAcceptedBlock = block.clone();
@@ -929,6 +957,12 @@
 			this.totalBlocksFound = 0;
 			this.staleBlocksFound = 0;
 			this.largestForkLength = 0;
+			if(network.logging.logNetworkData) {
+				this.blockchain_blockID = [];
+				this.blockchain_numHops = [];
+				this.blockchain_blockDelay = [];
+				this.blockchain_artificialBlockDelay = [];
+			}
 		}
 
 		// Memory optimization with no impact on network, nodes become pruned nodes
@@ -1169,6 +1203,25 @@
 			array[j] = temp;
 		}
 		return array
+	}
+
+	// Added support for Infinity and NaN values
+	function JSON_stringify(obj, replacer = null, space = null) {
+		return JSON.stringify(obj, function(name, val) {
+			if(typeof(val) === 'number' && (isNaN(val) || !isFinite(val))) return val.toString();
+			return val;
+		}, space);
+	}
+
+	// Added support for Infinity and NaN values
+	function JSON_parse(obj) {
+		return JSON.parse(obj, function(name, val) {
+			if(typeof(val) === 'string') {
+				if(!isNaN(Number(val))) return Number(val);
+				else if(val == 'NaN') return NaN;
+			}
+			return val;
+		});
 	}
 
 	// Open and return the contents of a file url
@@ -2046,6 +2099,7 @@
 				delete network.peers[peerID]['blockchain_blockID'];
 				delete network.peers[peerID]['blockchain_numHops'];
 				delete network.peers[peerID]['blockchain_blockDelay'];
+				delete network.peers[peerID]['blockchain_artificialBlockDelay'];
 			}
 		} else {
 			$('#DOM_item_toggleLoggingNetworkData').html('Disable logging network<br>data within each miner');
@@ -2053,6 +2107,7 @@
 				network.peers[peerID]['blockchain_blockID'] = [];
 				network.peers[peerID]['blockchain_numHops'] = [];
 				network.peers[peerID]['blockchain_blockDelay'] = []
+				network.peers[peerID]['blockchain_artificialBlockDelay'] = []
 			}
 			network.logging.logNetworkData = true;
 		}
@@ -2282,7 +2337,7 @@
 	}
 
 	function generateTopology(options, verbose = true) {
-		if(verbose) console.log('Generate topology called:\n\ngenerateTopology(' + JSON.stringify(options) + ')');
+		if(verbose) console.log('Generate topology called:\n\ngenerateTopology(' + JSON_stringify(options) + ')');
 		removeAllMiners();
 		let promise = null;
 		let miners, chosenNames, bidirectional, nPeers, minPower, maxPower, minLatency, maxLatency, names, minNumConnections, maxNumConnections, structure;
@@ -2832,6 +2887,7 @@
 			power: 0,
 			numHops: 0,
 			blockDelay: 0,
+			artificialBlockDelay: 0,
 			blocksInFlight: 0,
 			latency: 0,
 			downlinkMBPS: 0,
@@ -2848,6 +2904,7 @@
 			power: 0,
 			numHops: 0,
 			blockDelay: 0,
+			artificialBlockDelay: 0,
 			blocksInFlight: 0,
 			latency: 0,
 			downlinkMBPS: 0,
@@ -2869,8 +2926,10 @@
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					let artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
 					sum.numHops += numHopsAvg;
 					sum.blockDelay += blockDelayAvg;
+					sum.artificialBlockDelay += artificialBlockDelayAvg;
 				} catch(e) {}
 			}
 
@@ -2920,6 +2979,7 @@
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					let artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
 
 					html += '<th scope="col">' + (Math.floor(numHopsAvg * 1000) / 1000) + '</th>';
 					html += '<th scope="col">' + (Math.floor(blockDelayAvg * 1000) / 1000) + '</th>';
@@ -3109,7 +3169,7 @@
 			try {
 				let miner = network.peers[id];
 				obj = eval(network.logging.canvasVisualizerCode) ?? '';
-				str = JSON.stringify(obj);
+				str = JSON_stringify(obj);
 			} catch(e) {}
 
 			let color = intToRGB(hashCode(str));
@@ -3408,7 +3468,7 @@
 			let hideIfNetworkLoggingNotEnabled = '';
 			// If the network logging parameters are disabled, hide it from the list as well
 			if(!network.logging.logNetworkData) {
-				if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)') {
+				if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)' || column == 'Artificial travel time (ms)') {
 					hideIfNetworkLoggingNotEnabled = ' hidden';
 				}
 			}
@@ -3463,6 +3523,7 @@
 			sumPower: 0,
 			sumNumHops: 0,
 			sumBlockDelay: 0,
+			sumArtificialBlockDelay: 0,
 			sumBlocksInFlight: 0,
 			sumLatency: 0,
 			sumDownloadMBPS: 0,
@@ -3555,7 +3616,7 @@
 					if(column == 'Sample tag') continue;
 
 					if(!network.logging.logNetworkData) {
-						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)') {
+						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)' || column == 'Artificial travel time (ms)') {
 							continue;
 						}
 					}
@@ -3596,8 +3657,10 @@
 				try {
 					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
 					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					let artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
 					updateToolOptions.samplerData[id].sumNumHops += numHopsAvg;
 					updateToolOptions.samplerData[id].sumBlockDelay += blockDelayAvg;
+					updateToolOptions.samplerData[id].sumArtificialBlockDelay += artificialBlockDelayAvg;
 				} catch(e) {}
 			}
 
@@ -3637,6 +3700,7 @@
 					if(network.logging.columns['Blockchain IDs']) line += '"' + miner.blockchain_blockID?.join(' ') + '",';
 					if(network.logging.columns['Blockchain num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
 					if(network.logging.columns['Blockchain travel time (ms)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
+					if(network.logging.columns['Artificial travel time (ms)']) line += '"' + miner.blockchain_artificialBlockDelay?.join(' ') + '",';
 				}
 
 				if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
@@ -3715,6 +3779,7 @@
 		if(network.logging.logNetworkData) { // Keep track of networking data
 			html += '<th scope="col">Average<br>block num hops</th>';
 			html += '<th scope="col">Average<br>block travel time</th>';
+			html += '<th scope="col">Average<br>artificial travel time</th>';
 		}
 		html += '<th scope="col">Average<br>blocks in flight</th>';
 
@@ -3727,7 +3792,7 @@
 		html += '<th scope="col">Average<br>max fork length</th>';
 		html += '</thead>';
 		html += '<tbody>';
-		let miner, avgSumBalance, percentAvgSumBalance, miners = 0, sumAvgSumBalance = 0, avgPower, avgNumHops, avgBlockDelay, avgBlocksInFlight, avgLatency, avgDownloadMBPS, avgUploadMBPS, avgBlockHeight, avgTotalBlocks, avgStaleBlocks, avgMaxForkLength;
+		let miner, avgSumBalance, percentAvgSumBalance, miners = 0, sumAvgSumBalance = 0, avgPower, avgNumHops, avgBlockDelay, avgArtificialBlockDelay, avgBlocksInFlight, avgLatency, avgDownloadMBPS, avgUploadMBPS, avgBlockHeight, avgTotalBlocks, avgStaleBlocks, avgMaxForkLength;
 
 		for(let id in network.ID_Registry) {
 			miners++;
@@ -3742,6 +3807,7 @@
 			if(network.logging.logNetworkData) { // Keep track of networking data
 				avgNumHops = Math.floor(updateToolOptions.samplerData[id].sumNumHops / updateToolOptions.numSamples * 1000) / 1000;
 				avgBlockDelay = Math.floor(updateToolOptions.samplerData[id].sumBlockDelay / updateToolOptions.numSamples * 1000) / 1000;
+				avgArtificialBlockDelay = Math.floor(updateToolOptions.samplerData[id].sumArtificialBlockDelay / updateToolOptions.numSamples * 1000) / 1000;
 			}
 			avgBlocksInFlight = Math.floor(updateToolOptions.samplerData[id].sumBlocksInFlight / updateToolOptions.numSamples * 1000) / 1000;
 			avgLatency = Math.floor(updateToolOptions.samplerData[id].sumLatency / updateToolOptions.numSamples * 1000) / 1000;
@@ -3760,6 +3826,7 @@
 			if(network.logging.logNetworkData) { // Keep track of networking data
 				html += '<th scope="col">' + (avgNumHops || '-') + '</th>';
 				html += '<th scope="col">' + (avgBlockDelay || '-') + '</th>';
+				html += '<th scope="col">' + (avgArtificialBlockDelay || '-') + '</th>';
 			}
 			html += '<th scope="col">' + (avgBlocksInFlight || '-') + '</th>';
 
