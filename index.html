@@ -789,8 +789,13 @@
 				} else { // Uploading data6
 					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.uplink * 1000;
 				}
-				delay += network.peers[this.parentID].latency;
-				this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+				if(delay == 0) {
+					this.thread = setTimeout(() => {}, delay);
+					this.processBuffer(delay);
+				} else {
+					this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+				}
+				
 				this.nextInterval = delay;
 			}
 		}
@@ -807,20 +812,22 @@
 			let packet = this.buffer.shift();
 			if(packet.to == this.parentID) { // Downloading data
 				let parent = network.peers[this.parentID];
+				let latency = parent.latency;
 
 				// Log the artificial block delay
 				if(network.logging.logNetworkData) {
 					if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial;
+						parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial + latency;
 					} else {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial;
+						parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial + latency;
 					}
 				}
 
-				setTimeout(parent.receive.bind(parent), 0, packet.from, packet.payload);
+				setTimeout(parent.receive.bind(parent), latency, packet.from, packet.payload);
 
 			} else { // Uploading data
 				let parent = network.peers[packet.to];
+				let latency = parent.latency;
 				let networkBufferTo = parent.networkBuffer;
 
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
@@ -828,14 +835,16 @@
 					// Log the artificial block delay
 					if(network.logging.logNetworkData) {
 						if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
-							parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial;
+							parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial + latency;
 						} else {
-							parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial;
+							parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial + latency;
 						}
 					}
-
-					networkBufferTo.buffer.push(packet);
-					networkBufferTo.activateBufferProcessor();
+					setTimeout(function(networkBufferTo, packet) {
+						networkBufferTo.buffer.push(packet);
+						networkBufferTo.activateBufferProcessor();
+					}, latency, networkBufferTo, packet);
+					
 				} // Else their size is too full and the packet must be dropped
 			}
 
@@ -848,10 +857,15 @@
 				} else { // Uploading data
 					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.uplink * 1000;
 				}
-				delay += network.peers[this.parentID].latency;
 			}
 
-			this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+
+			if(delay == 0) {
+				this.thread = setTimeout(() => {}, delay);
+				this.processBuffer(delay);
+			} else {
+				this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+			}
 			this.nextInterval = delay;
 		}
 
