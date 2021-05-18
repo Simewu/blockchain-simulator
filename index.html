@@ -675,7 +675,9 @@
 					network.peers[peer].currentHeader = currentHeader;
 
 					let lastAcceptedBlock = currentHeader.clone();
-					delete lastAcceptedBlock.numHops; // So that it doesn't affect the color
+					// And so that it doesn't affect the color:
+					delete lastAcceptedBlock.numHops;
+					delete lastAcceptedBlock.propagationTime;
 
 					// Copy over the bandwidth
 					let bandwidth = {uplink: Infinity, downlink: Infinity};
@@ -724,6 +726,7 @@
 			this.balances = [];
 			if(network && network.logging.logNetworkData) {
 				this.numHops = 0;
+				this.propagationTime = 0;
 			}
 		}
 
@@ -737,6 +740,7 @@
 			newHeader.balances = Object.assign({}, this.balances);
 			if(network.logging.logNetworkData) {
 				newHeader.numHops = this.numHops;
+				newHeader.propagationTime = this.propagationTime;
 			}
 			return newHeader;
 		}
@@ -790,19 +794,24 @@
 				} else { // Uploading data6
 					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.uplink * 1000;
 				}
+
+				if(network.logging.logNetworkData) {
+					packet.payload.propagationTime += delay;
+				}
+
 				if(delay == 0) {
 					this.thread = setTimeout(() => {}, delay);
-					this.processBuffer(delay);
+					this.processBuffer();
 				} else {
-					this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+					this.thread = setTimeout(this.processBuffer.bind(this), delay);
 				}
 				
 				this.nextInterval = delay;
 			}
 		}
 
-		// Note: prevDelayArtificial is the milliseconds that it took to wait for this function to be called, its only use is within the artificialBlockDelay parameter if network logging is enabled
-		processBuffer(prevDelayArtificial = 0) {
+		// Process the next item in the network buffer queue
+		processBuffer() {
 			if(this.buffer.length == 0) {
 				clearTimeout(this.thread);
 				this.thread = null;
@@ -816,15 +825,9 @@
 				let parent = network.peers[this.parentID];
 				let latency = parent.latency;
 
-				// Log the artificial block delay
-				packet.artificialDelay += prevDelayArtificial + latency;
-				// Apply the artificial delay
+				// Log the artificial block delay/propagation time
 				if(network.logging.logNetworkData) {
-					if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] = packet.artificialDelay;
-					} else {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] += packet.artificialDelay;
-					}
+					packet.payload.propagationTime += latency;
 				}
 
 				setTimeout(parent.receive.bind(parent), latency, packet.from, packet.payload);
@@ -836,8 +839,10 @@
 
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
 
-					// Log the artificial block delay
-					packet.artificialDelay += prevDelayArtificial + latency;
+					// Log the artificial block delay/propagation time
+					if(network.logging.logNetworkData) {
+						packet.payload.propagationTime += latency;
+					}
 
 					setTimeout(function(networkBufferTo, packet) {
 						networkBufferTo.buffer.push(packet);
@@ -858,12 +863,16 @@
 				}
 			}
 
+			// Log the artificial block delay/propagation time
+			if(network.logging.logNetworkData) {
+				packet.payload.propagationTime += delay;
+			}
 
 			if(delay == 0) {
 				this.thread = setTimeout(() => {}, 0);
-				this.processBuffer(delay);
+				this.processBuffer();
 			} else {
-				this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
+				this.thread = setTimeout(this.processBuffer.bind(this), delay);
 			}
 			this.nextInterval = delay;
 		}
@@ -873,12 +882,10 @@
 				from: this.parentID,
 				to: to_ID,
 				payload: data,
-				size: data.numBytes,
-				// Transfer the propagation time from the previous packet to the next, to maintain the transmission time data
-				artificialDelay: 0,
+				size: data.numBytes
 			}
 			if(network.logging.logNetworkData) {
-				packet.artificialDelay = network.peers[this.parentID].blockchain_artificialBlockDelay[data.height] || 0;
+				if(packet.payload.propagationTime === undefined) packet.payload.propagationTime = 0;
 			}
 			this.buffer.push(packet);
 			this.activateBufferProcessor();
@@ -958,13 +965,16 @@
 				// If there is a fork, it will always stay up to date by replacing the old stale block data
 				this.blockchain_blockID[height] = block.hash;
 				this.blockchain_numHops[height] = block.numHops;
+				this.blockchain_artificialBlockDelay[height] = block.propagationTime;
 				this.blockchain_blockDelay[height] = Date.now() - block.timestamp;
 				if(this.blockchain_artificialBlockDelay[height] === undefined)
 					this.blockchain_artificialBlockDelay[height] = 0;
 			}
 			this.blockchain[height - this.blockchainOffset] = block;
 			this.lastAcceptedBlock = block.clone();
-			delete this.lastAcceptedBlock.numHops; // So that it doesn't affect the color
+			// And so that it doesn't affect the color:
+			delete this.lastAcceptedBlock.numHops;
+			delete this.lastAcceptedBlock.propagationTime;
 		}
 
 		// Clear all blockchain data
@@ -1090,7 +1100,7 @@
 
 		receivedBlockUpdateColor() {
 			this.setVisualizerColor('#000');
-			setTimeout(this.setVisualizerColor.bind(this), 200 + this.latency * 2);
+			setTimeout(this.setVisualizerColor.bind(this), 200 + this.latency * 2); // Show the node dot as black for a small amount of time to represent the node receiving a block
 			requestVisRedraw();
 		}
 
@@ -1146,6 +1156,7 @@
 				}
 				this.purgeBlockCheck();
 				if(updateToolOptions.visSimulationActive) this.receivedBlockUpdateColor();
+
 				this.submit(this.getBlock(this.blockchain.length + this.blockchainOffset - 1));
 			}
 		}
