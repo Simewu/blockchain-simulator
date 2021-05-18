@@ -84,7 +84,7 @@
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='DOM_toggleLoggingNetworkData()' id='DOM_item_toggleLoggingNetworkData'>Enable logging network<br>data within each miner</a>
 								<div class='dropdown-divider'></div>
-								<a class='dropdown-item' onclick='if(confirm("You are about to clear the blockchain data of every node.")) DOM_clearBlockchain()'>Clear all blockchains</a>
+								<a class='dropdown-item' onclick='DOM_clearBlockchain()'>Clear all blockchains</a>
 								<a class='dropdown-item' onclick='DOM_setNetworkDifficulty()'>Set network difficulty</a>
 								<a class='dropdown-item' onclick='DOM_setBlockSizes()'>Set block sizes</a>
 								<a class='dropdown-item' onclick='toggleSha256()' id='useSHA256Btn'>Use secure SHA-256 (slower)</a>
@@ -675,6 +675,7 @@
 					network.peers[peer].currentHeader = currentHeader;
 
 					let lastAcceptedBlock = currentHeader.clone();
+					delete lastAcceptedBlock.numHops; // So that it doesn't affect the color
 
 					// Copy over the bandwidth
 					let bandwidth = {uplink: Infinity, downlink: Infinity};
@@ -810,6 +811,7 @@
 
 			// Process the packet
 			let packet = this.buffer.shift();
+
 			if(packet.to == this.parentID) { // Downloading data
 				let parent = network.peers[this.parentID];
 				let latency = parent.latency;
@@ -861,7 +863,7 @@
 
 
 			if(delay == 0) {
-				this.thread = setTimeout(() => {}, delay);
+				this.thread = setTimeout(() => {}, 0);
 				this.processBuffer(delay);
 			} else {
 				this.thread = setTimeout(this.processBuffer.bind(this), delay, delay);
@@ -960,6 +962,7 @@
 			}
 			this.blockchain[height - this.blockchainOffset] = block;
 			this.lastAcceptedBlock = block.clone();
+			delete this.lastAcceptedBlock.numHops; // So that it doesn't affect the color
 		}
 
 		// Clear all blockchain data
