@@ -3756,7 +3756,6 @@
 				network.startAllMiners();
 			}
 			if(updateToolOptions.sampler_running) {
-				console.log('Running',updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime);
 				updateToolOptions.sampleStartTime = new Date().getTime();
 				setTimeout(sample, network.logging.msPerSample);
 			}
