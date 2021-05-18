@@ -817,11 +817,13 @@
 				let latency = parent.latency;
 
 				// Log the artificial block delay
+				packet.artificialDelay += prevDelayArtificial + latency;
+				// Apply the artificial delay
 				if(network.logging.logNetworkData) {
 					if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial + latency;
+						parent.blockchain_artificialBlockDelay[packet.payload.height] = packet.artificialDelay;
 					} else {
-						parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial + latency;
+						parent.blockchain_artificialBlockDelay[packet.payload.height] += packet.artificialDelay;
 					}
 				}
 
@@ -835,13 +837,8 @@
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
 
 					// Log the artificial block delay
-					if(network.logging.logNetworkData) {
-						if(parent.blockchain_artificialBlockDelay[packet.payload.height] === undefined) {
-							parent.blockchain_artificialBlockDelay[packet.payload.height] = prevDelayArtificial + latency;
-						} else {
-							parent.blockchain_artificialBlockDelay[packet.payload.height] += prevDelayArtificial + latency;
-						}
-					}
+					packet.artificialDelay += prevDelayArtificial + latency;
+
 					setTimeout(function(networkBufferTo, packet) {
 						networkBufferTo.buffer.push(packet);
 						networkBufferTo.activateBufferProcessor();
@@ -877,6 +874,11 @@
 				to: to_ID,
 				payload: data,
 				size: data.numBytes,
+				// Transfer the propagation time from the previous packet to the next, to maintain the transmission time data
+				artificialDelay: 0,
+			}
+			if(network.logging.logNetworkData) {
+				packet.artificialDelay = network.peers[this.parentID].blockchain_artificialBlockDelay[data.height] || 0;
 			}
 			this.buffer.push(packet);
 			this.activateBufferProcessor();
@@ -1096,7 +1098,7 @@
 		submit(header) {
 			if(network.logging.logNetworkData) {
 				// Keep track of number of hops
-				if(header.numHops === undefined) header.numHops = 1;
+				if(header.numHops === undefined) header.numHops = 0;
 				else header.numHops++;
 			}
 			if(updateToolOptions.visSimulationActive) this.receivedBlockUpdateColor();
