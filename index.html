@@ -2724,6 +2724,9 @@
 						// Pick a random latency from the real-world Bitcoin distribution data
 						let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
 
+						// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N1 with latencies L1 and L2, respectively, require four times the latency: L1 --> L2 --> L2 --> L1
+						latency = latency / 4;
+
 						let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
 						let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
 						miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
