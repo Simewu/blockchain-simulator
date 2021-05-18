@@ -1,5 +1,5 @@
-#! This file should be ran once all node data is inside the latencies directory (via download_latencies.py).
-#! This file converts the dataset into a simple CSV file names "bitcoin_latencies.csv".
+# Given the bitcoin_latencies.csv file, this file will strip off the top 1 percentile and bottom 1 percentile of the data
+# The data will be outputted to bitcoin_latencies_removed_1_percentile.csv
 
 import csv
 import numpy
