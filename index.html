@@ -2784,7 +2784,7 @@
 
 	// Reset every node's current latency, replacing it from the Bitcoin distribution dataset provided by Bitnodes
 	function randomizeLatenciesFromBitnodes(latencyUrl = 'data/bitcoin_latencies/bitcoin_latencies_removed_1_percentile.csv') {
-		let gen = () => {
+		let promise, gen = () => {
 			for(let id in network.ID_Registry) {
 				// Pick a random latency from the real-world Bitcoin distribution data
 				let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
@@ -2814,6 +2814,7 @@
 				gen();
 			});
 		} else gen();
+		return promise;
 	}
 
 	// Check if an object is a promise
