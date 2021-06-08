@@ -2759,7 +2759,8 @@
 						let latencyArray = CSVToArray(latencies);
 						if(latencyArray.length < 2) {
 							console.warn('Unable to find the URL CSV latency data. Using global average latency as backup.');
-							updateToolOptions.bitcoinLatencyData.url = latencyUrl;							updateToolOptions.bitcoinLatencyData.data = [['Global average', 409.91]]; // Average hardcoded latency of the network
+							updateToolOptions.bitcoinLatencyData.url = latencyUrl;
+							updateToolOptions.bitcoinLatencyData.data = [['Global average', 409.91]]; // Average hardcoded latency of the network
 						} else {
 							// Remove the CSV headers
 							latencyArray.shift();
@@ -2779,6 +2780,40 @@
 		// Create a blank promise that resolves instantly
 		if(promise == null) promise = Promise.resolve();
 		return promise;
+	}
+
+	// Reset every node's current latency, replacing it from the Bitcoin distribution dataset provided by Bitnodes
+	function randomizeLatenciesFromBitnodes(latencyUrl = 'data/bitcoin_latencies/bitcoin_latencies_removed_1_percentile.csv') {
+		let gen = () => {
+			for(let id in network.ID_Registry) {
+				// Pick a random latency from the real-world Bitcoin distribution data
+				let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
+
+				// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N1 with latencies L1 and L2, respectively, require four times the latency: L1 --> L2 --> L2 --> L1
+				latency = latency / 4;
+
+				network.peers[id].latency = latency;
+			}
+			console.log('Latencies have been set using the Bitnodes dataset.');
+		}
+
+		// Dynamically fetch the URL files, and cache them in updateToolOptions for later use
+		if(latencyUrl != updateToolOptions.bitcoinLatencyData.url) {
+			promise = openAndReadFile(latencyUrl).then(latencies => {
+				let latencyArray = CSVToArray(latencies);
+				if(latencyArray.length < 2) {
+					console.warn('Unable to find the URL CSV latency data. Using global average latency as backup.');
+					updateToolOptions.bitcoinLatencyData.url = latencyUrl;
+					updateToolOptions.bitcoinLatencyData.data = [['Global average', 409.91]]; // Average hardcoded latency of the network
+				} else {
+					// Remove the CSV headers
+					latencyArray.shift();
+					updateToolOptions.bitcoinLatencyData.url = latencyUrl;
+					updateToolOptions.bitcoinLatencyData.data = latencyArray;
+				}
+				gen();
+			});
+		} else gen();
 	}
 
 	// Check if an object is a promise
