@@ -723,7 +723,7 @@
 			this.nonce = null;
 			this.hash = null;
 			this.prevHash = null;
-			this.balances = [];
+			this.balances = {};
 			if(network && network.logging.logNetworkData) {
 				this.numHops = 0;
 				this.propagationTime = 0;
@@ -926,6 +926,7 @@
 			this.staleBlocksFound = 0;
 			this.largestForkLength = 0;
 			this.currentHeader = this.newHeader(network.genesis);
+			this.addCoinbaseTransaction();
 			this.color = 'default';
 			this.networkBuffer = new NetworkBuffer(this.ID);
 
@@ -982,6 +983,7 @@
 			this.blockchainOffset = 0;
 			this.blockchain = [network.genesis];
 			this.currentHeader = this.newHeader(network.genesis);
+			this.addCoinbaseTransaction();
 			this.lastAcceptedBlock = this.currentHeader.clone();
 			this.totalBlocksFound = 0;
 			this.staleBlocksFound = 0;
@@ -1036,6 +1038,7 @@
 				// Set it as the new currentHeader, to mine off of
 				this.setBlock(this.currentHeader.height, this.currentHeader);
 				this.currentHeader = this.newHeader(this.currentHeader);
+				this.addCoinbaseTransaction();
 				this.purgeBlockCheck();
 			}
 		}
@@ -1067,22 +1070,25 @@
 			updateTools();
 		}
 
-		newHeader(prevHeader) { //* Consider sending prevHash instead
+		newHeader(prevHeader) {
 			const header = new Header();
 			header.solver = this.ID;
 			header.hash = Number.MAX_SAFE_INTEGER;
-			if(header.balances[this.ID] === undefined) {
-				header.balances[this.ID] = 1;
-			} else {
-				header.balances[this.ID]++;
-			}
-			if(prevHeader === undefined) return header;
 
-			header.height = prevHeader.height + 1;
-			header.prevHash = prevHeader.hash;
-			header.balances = Object.assign({}, prevHeader.balances);
-			
+			if(prevHeader !== undefined) {
+				header.height = prevHeader.height + 1;
+				header.prevHash = prevHeader.hash;
+				header.balances = Object.assign({}, prevHeader.balances);
+			}
 			return header;
+		}
+
+		addCoinbaseTransaction() {
+			if(this.currentHeader.balances[this.ID] === undefined) {
+				this.currentHeader.balances[this.ID] = 1;
+			} else {
+				this.currentHeader.balances[this.ID]++;
+			}
 		}
 
 		// Set the node's color in the network visualizer
@@ -1128,6 +1134,7 @@
 				backupHeaders.push(this.getBlock(newHeader.height));
 				this.setBlock(newHeader.height, newHeader);
 				this.currentHeader = this.newHeader(newHeader);
+				this.addCoinbaseTransaction();
 				let solver = network.peers[newHeader.solver];
 				//let newHeader = newHeader; // Go back through the blockchain until we reach the block that both miners share
 				let forkLength = 1;
