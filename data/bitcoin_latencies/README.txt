@@ -1,0 +1,1 @@
+Latency data last updated: 07/21/2021
