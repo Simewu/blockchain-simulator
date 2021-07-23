@@ -756,6 +756,21 @@
 			return newHeader;
 		}
 
+		static fromObj(obj) {
+			let block = new Header();
+			if(obj.solver !== undefined) block.solver = obj.solver;
+			if(obj.height !== undefined) block.height = obj.height;
+			if(obj.timestamp !== undefined) block.timestamp = obj.timestamp;
+			if(obj.numBytes !== undefined) block.numBytes = obj.numBytes;
+			if(obj.nonce !== undefined) block.nonce = obj.nonce;
+			if(obj.hash !== undefined) block.hash = obj.hash;
+			if(obj.prevHash !== undefined) block.prevHash = obj.prevHash;
+			if(obj.balances !== undefined) block.balances = obj.balances;
+			if(obj.numHops !== undefined) block.numHops = obj.numHops;
+			if(obj.propagationTime !== undefined) block.propagationTime = obj.propagationTime;
+			return block;
+		}
+
 		guessNonce() {
 			this.nonce = Math.random();
 			if(network.useSHA256) {
@@ -967,7 +982,17 @@
 		}
 
 		getBlock(height) {
-			return this.blockchain[height - this.blockchainOffset];
+			let block = this.blockchain[height - this.blockchainOffset];
+			
+			if(block === undefined) return null;
+
+			if(block instanceof Header) {
+				return block;
+			} else {
+				let fixedBlock = Header.fromObj(block);
+				this.blockchain[height - this.blockchainOffset] = fixedBlock;
+				return fixedBlock;
+			}
 		}
 
 		setBlock(height, block) {
@@ -1143,9 +1168,9 @@
 				let solver = network.peers[newHeader.solver];
 				//let newHeader = newHeader; // Go back through the blockchain until we reach the block that both miners share
 				let forkLength = 1;
-				while(this.getBlock(newHeader.height - 1) === undefined || newHeader.prevHash != this.getBlock(newHeader.height - 1).hash) {
+				while(this.getBlock(newHeader.height - 1) == null || newHeader.prevHash != this.getBlock(newHeader.height - 1).hash) {
 					 // Stale block detector
-					if(this.getBlock(newHeader.height - 1) !== undefined && this.ID == this.getBlock(newHeader.height - 1).solver) {
+					if(this.getBlock(newHeader.height - 1) != null && this.ID == this.getBlock(newHeader.height - 1).solver) {
 						this.staleBlocksFound++;
 						//console.log(this.getBlock(newHeader.height - 1).solver + ''s block became stale');
 					}
@@ -1174,7 +1199,7 @@
 		}
 
 		queryBlockAtHeight(height) {
-			if(this.getBlock(height) === undefined) return;
+			if(this.getBlock(height) == null) return;
 			return this.getBlock(height).clone();
 		}
 	}
