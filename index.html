@@ -448,6 +448,7 @@
 		codeEditorBeforeSampling: null,
 		codeEditorBetweenSamples: null,
 		minerStatsTable_active: true,
+		nodeLatencyBackup: {},
 		requestVisRedrawTimeout: null,
 		sampleEndTime: 0,
 		sampler_DOM_active: true,
@@ -460,11 +461,11 @@
 		stopBlocksInFlightWhenStoppingMining: false,
 		timeout: null,
 		updateMinerListTimeout: null,
+		visBorderSize: 'default', // Changes according to zoom: ['none', 'small', 'default', 'large']
 		visLineLength: undefined,
 		visNetwork: null,
 		visNodeIDs: [],
 		visSimulationActive: true,
-		visBorderSize: 'default', // Changes according to zoom: ['none', 'small', 'default', 'large']
 		visTimeout: null,
 	}
 
@@ -679,6 +680,16 @@
 					delete lastAcceptedBlock.numHops;
 					delete lastAcceptedBlock.propagationTime;
 
+					// Backward compatibility to support outgoingPeers arrays; convert them to latency objects
+					miner.latency = miner.latency || 0;
+					if(Array.isArray(miner.outgoingPeers)) {
+						let updatedOutgoingPeers = {};
+						for(let id of miner.outgoingPeers) {
+							updatedOutgoingPeers[id] = miner.latency;
+						}
+						miner.outgoingPeers = updatedOutgoingPeers;
+					}
+
 					// Copy over the bandwidth
 					let bandwidth = {uplink: Infinity, downlink: Infinity};
 					bandwidth = Object.assign(bandwidth, network.peers[peer].bandwidth);
@@ -760,7 +771,7 @@
 		isBlock() {
 			if(network.useSHA256) {
 				// Secure but slower
-				const targetDifficulty = 1152921504606847000; // 0XFFFFFFFFFFFFFFF
+				const targetDifficulty = 1152921504606847000; // 0xFFFFFFFFFFFFFFF
 				const currentDifficulty = parseInt(this.hash.substring(0, 15), 16);
 				return (currentDifficulty / targetDifficulty) <= network.difficulty;
 			} else {
@@ -773,7 +784,7 @@
 	class NetworkBuffer {
 		constructor(parentID) {
 			this.parentID = parentID;
-			this.bufferSizeLimit = 1000;
+			this.bufferSizeLimit = Infinity;
 			this.clear();
 		}
 
@@ -823,7 +834,7 @@
 
 			if(packet.to == this.parentID) { // Downloading data
 				let parent = network.peers[this.parentID];
-				let latency = parent.latency;
+				let latency = 0; // Optionally also have a latency for download latency (alongside upload latency), disabled by default
 
 				// Log the artificial block delay/propagation time
 				if(network.logging.logNetworkData) {
@@ -833,9 +844,8 @@
 				setTimeout(parent.receive.bind(parent), latency, packet.from, packet.payload);
 
 			} else { // Uploading data
-				let parent = network.peers[packet.to];
-				let latency = parent.latency;
-				let networkBufferTo = parent.networkBuffer;
+				let latency = network.peers[this.parentID].outgoingPeers[packet.to] ?? network.peers[this.parentID].latency;
+				let networkBufferTo = network.peers[packet.to].networkBuffer;
 
 				if(networkBufferTo.bufferSizeLimit === Infinity || networkBufferTo.buffer.length < networkBufferTo.bufferSizeLimit) {
 
@@ -910,12 +920,12 @@
 			network.peers[this.ID] = this;
 			this.power = power;
 			this.latency = latency; // Additional latency from the network (milliseconds)
+			this.outgoingPeers = {};
+			this.incomingPeers = [];
 			this.bandwidth = {
 				downlink: downlinkMBPS, // Used by the download buffer to receive data
 				uplink: uplinkMBPS // Used by the upload buffer to send data
 			}
-			this.incomingPeers = [];
-			this.outgoingPeers = [];
 
 			this.sendInvalidMaliciousBlocks = false; // When enabled, this miner will mine like other miners, however when a 'block' is found, it is actually an invalid block, so adjacent nodes will decline it, but it will have already used up part of the neighboring node's bandwidths
 
@@ -942,9 +952,9 @@
 		destructor() {
 			this.stopMining();
 			let incomingPeersBackup = this.incomingPeers.slice();
-			let outgoingPeersBackup = this.outgoingPeers.slice();
+			let outgoingPeersBackup = Object.assign({}, this.outgoingPeers);
 
-			for(let id of outgoingPeersBackup) {
+			for(let id in outgoingPeersBackup) {
 				this.removeConnection(id);
 			}
 			for(let id of incomingPeersBackup) {
@@ -1045,18 +1055,13 @@
 
 		addConnection(ID) {
 			if(this.ID == ID) return;
-			this.outgoingPeers.push(ID);
+			this.outgoingPeers[ID] = this.latency;
 			network.peers[ID].incomingPeers.push(this.ID);
 			updateTools();
 		}
 
 		removeConnection(ID) {
-			// Go through our connections, remove the ID
-			for(let i in this.outgoingPeers) {
-				if(this.outgoingPeers[i] == ID) {
-					this.outgoingPeers.splice(i, 1);
-				}
-			}
+			delete this.outgoingPeers[ID];
 
 			// Remove us from that peer's incoming peer list
 			if(network.peers[ID] !== undefined) {
@@ -1118,7 +1123,7 @@
 				else header.numHops++;
 			}
 			if(updateToolOptions.visSimulationActive) this.receivedBlockUpdateColor();
-			for(let id of this.outgoingPeers) {
+			for(let id in this.outgoingPeers) {
 				this.networkBuffer.send(id, header.clone());
 			}
 		}
@@ -1191,7 +1196,7 @@
 		modes: ['code', 'form', 'tree'],
 		onChangeText: function (jsonString) {
 			DOM_editMiner();
-		}
+		},
 	});
 	const topologyjsoneditorContainer = document.getElementById('topologyjsoneditor');
 	const topologyjsoneditor = new JSONEditor(topologyjsoneditorContainer, {
@@ -1403,7 +1408,7 @@
 	// Make all peer connections bidirectional
 	function bidirectionallyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
-			for(let id2 of network.peers[id1].outgoingPeers) {
+			for(let id2 in network.peers[id1].outgoingPeers) {
 				network.peers[id2].addConnection(id1);
 			}
 		}
@@ -1465,13 +1470,13 @@
 				'Minimum number of outgoing connections': 1,
 				'Maximum number of outgoing connections': 1,
 				'Minimum power (hashes per second)': 1,
-				'Maximum power (hashes per second)': 5,
-				'Minimum downlink (megabytes per second)': 10,
-				'Maximum downlink (megabytes per second)': 50,
-				'Minimum uplink (megabytes per second)': 10,
-				'Maximum uplink (megabytes per second)': 50,
-				'Minimum latency (milliseconds)': 10,
-				'Maximum latency (milliseconds)': 10,
+				'Maximum power (hashes per second)': 4,
+				'Minimum downlink (megabytes per second)': Infinity,
+				'Maximum downlink (megabytes per second)': Infinity,
+				'Minimum uplink (megabytes per second)': Infinity,
+				'Maximum uplink (megabytes per second)': Infinity,
+				'Minimum latency (milliseconds)': 100,
+				'Maximum latency (milliseconds)': 100,
 				'Naming cycle': shuffleArray(
 					['Node ']
 				),
@@ -1809,7 +1814,7 @@
 			$('#addMinerLatency').val(miner.latency);
 			$('#addMinerDownloadMBPS').val(miner.bandwidth.downlink);
 			$('#addMinerUploadMBPS').val(miner.bandwidth.uplink);
-			for(let id of miner.outgoingPeers) {
+			for(let id in miner.outgoingPeers) {
 				$('#multiselectAddPeers option[value=' + id + ']').prop('selected', true);
 			}
 
@@ -1837,7 +1842,7 @@
 		if(id === undefined) id = network.peers[$('#minerList').val()];
 
 		if(id === undefined) jsoneditor.set({});
-		else jsoneditor.set(id);
+		else jsoneditor.update(id);
 	}
 
 	// Prevent computational overhead of repeated selectMiner calls
@@ -1915,6 +1920,13 @@
 					num2 = eval(getDynamicSampleCode(code2));
 				}
 				network.peers[id].latency = Math.max(0, rnd(num1, num2))
+				for(let id2 in network.peers[id].outgoingPeers) {
+					network.peers[id].outgoingPeers[id2] = Math.max(0, rnd(num1, num2));
+				}
+				try {
+					// Set the first outgoing peer connection latency to the global latency
+					network.peers[id].outgoingPeers[Object.keys(network.peers[id].outgoingPeers)[0]] = network.peers[id].latency;
+				} catch(e) {}
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -2007,7 +2019,7 @@
 						break;
 					}
 				}
-				for(let id of miner.outgoingPeers) {
+				for(let id in miner.outgoingPeers) {
 					if(miner.ID == id) continue;
 					if(!peers.includes(id)) {
 						noChanges = false;
@@ -2023,18 +2035,18 @@
 			miner.latency = latency;
 			miner.bandwidth.downlink = downlinkMBPS;
 			miner.bandwidth.uplink = uplinkMBPS;
-			for(let id of miner.outgoingPeers) {
+			for(let id in miner.outgoingPeers) {
 				miner.removeConnection(id);
 			}
 			for(let id of peers) {
-				if(!miner.outgoingPeers.includes(id)) {
+				if(miner.outgoingPeers[id] === undefined) {
 					miner.addConnection(id);
 				}
 			}
 			DOM_setOptionMsg('EDITED ' + miner.name.toUpperCase(), 'network', 'badge-success');
 		} else {
 			for(let id of peers) {
-				if(!miner.outgoingPeers.includes(id)) {
+				if(miner.outgoingPeers[id] === undefined) {
 					miner.addConnection(id);
 				}
 			}
@@ -2117,7 +2129,7 @@
 		for(let peerID in translation) {
 			let peer = network.peers[peerID];
 			let newPeer = network.peers[translation[peerID]];
-			for(let outgoingPeer of peer.outgoingPeers) {
+			for(let outgoingPeer in peer.outgoingPeers) {
 				outgoingPeersTranslation = translation[outgoingPeer];
 
 				if(outgoingPeersTranslation === undefined) continue;
@@ -2181,9 +2193,21 @@
 			miner.lastAcceptedBlock = network.peers[miner.ID].lastAcceptedBlock;
 			miner.networkBuffer = network.peers[miner.ID].networkBuffer;
 			Object.assign(network.peers[miner.ID], miner);
+			
 			$('#minerList  option[value="' + miner.ID + '"]').text(miner.name);
 			$('#editMinerBadge').attr('class', 'ml-auto badge badge-primary');
 			$('#editMinerBadge').text('SUCCESSFULLY SAVED');
+
+			// Check for a latency update, if this happens we can update each link's latency
+			let oldLatency = updateToolOptions.nodeLatencyBackup[miner.ID];
+			if(oldLatency !== miner.latency) {
+				for(let id in miner.outgoingPeers) {
+					miner.outgoingPeers[id] = miner.latency;
+				}
+				updateToolOptions.nodeLatencyBackup[miner.ID] = miner.latency;
+				updateMinerJsonEditor(miner.id);
+				$('#editMinerBadge').text('UPDATED LATENCY');
+			}
 		}
 	}
 
@@ -2212,15 +2236,15 @@
 				options = {
 					'Type': topology,
 					'Bidirectional': false,
-					'Number of peers': 6,
+					'Number of peers': 10,
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2234,11 +2258,11 @@
 					'Maximum number of outgoing connections': 1,
 					'Minimum power (hashes per second)': 1,
 					'Maximum power (hashes per second)': 5,
-					'Minimum downlink (megabytes per second)': 10,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 10,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
 					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['Aaron', 'Adam', 'Alan', 'Albert', 'Alex', 'Alice', 'Andrew', 'Anthony', 'Arthur', 'Austin', 'Ben', 'Bill', 'Bob', 'Bobby', 'Brandon', 'Brian', 'Bruce', 'Carl', 'Charles', 'Chris', 'Dan', 'Daniel', 'David', 'Dennis', 'Donald', 'Douglas', 'Dylan', 'Edward', 'Eric', 'Ethan', 'Eugene', 'Frank', 'Gabriel', 'Gary', 'George', 'Gerald', 'Gregory', 'Harold', 'Harry', 'Henry', 'Jack', 'Jacob', 'James', 'Jason', 'Jeffrey', 'Jeremy', 'Jerry', 'Jesse', 'Joe', 'John', 'Johnny', 'Jonathan', 'Jordan', 'Jose', 'Joseph', 'Joshua', 'Juan', 'Justin', 'Keith', 'Kenneth', 'Kevin', 'Kyle', 'Larry', 'Lawrence', 'Logan', 'Louis', 'Mark', 'Matthew', 'Michael', 'Nathan', 'Nicholas', 'Noah', 'Patrick', 'Paul', 'Peter', 'Philip', 'Ralph', 'Randy', 'Raymond', 'Richard', 'Robert', 'Roger', 'Ronald', 'Roy', 'Russell', 'Ryan', 'Samuel', 'Scott', 'Sean', 'Stephen', 'Steven', 'Terry', 'Thomas', 'Timothy', 'Tyler', 'Vincent', 'Walter', 'Wayne', 'Will', 'Zachary']
 				};
@@ -2251,12 +2275,12 @@
 					'Number of peers': 6,
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2266,12 +2290,12 @@
 					'Number of peers': 4,
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2282,12 +2306,12 @@
 					'Number of peers': 6,
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2298,12 +2322,12 @@
 					'Structure': [[[],[],[]],[[],[],[]],[[],[],[]]],
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2313,12 +2337,12 @@
 					'Number of peers': 4,
 					'Minimum power (hashes per second)': 5,
 					'Maximum power (hashes per second)': 10,
-					'Minimum downlink (megabytes per second)': 1,
-					'Maximum downlink (megabytes per second)': 50,
-					'Minimum uplink (megabytes per second)': 1,
-					'Maximum uplink (megabytes per second)': 50,
-					'Minimum latency (milliseconds)': 10,
-					'Maximum latency (milliseconds)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
 					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 				};
 				break;
@@ -2368,7 +2392,8 @@
 			updateTools();
 			DOM_setOptionMsg('GENERATED', 'topology', 'badge-info');
 		} catch(e) {
-			alert(e);
+			console.error(e);
+			alert(e + '\nSee console for more information.');
 			return;
 		}
 	}
@@ -2382,13 +2407,13 @@
 			case 'Ring':
 				bidirectional = !!options['Bidirectional'];
 				nPeers = options['Number of peers'] ?? 6;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2424,13 +2449,13 @@
 				bidirectional = !!options['Bidirectional'];
 				preventDuplicateConnections = !!options['Prevent duplicate connections'];
 				nPeers = options['Number of peers'] ?? 6;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2457,17 +2482,17 @@
 					for(let j = 0; j < nConnections; j++) {
 						let r = rnd(0, miners.length - 1);
 						// Attempt to connect to a unique connections at most 10 times
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
 
-						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
+						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined)) continue;
 
 						miners[i].addConnection(miners[r].ID);
 						if(bidirectional) miners[r].addConnection(miners[i].ID);
@@ -2479,13 +2504,13 @@
 				towardsCenter = !!options['Towards center (if bidirectional=false)'];
 				bidirectional = !!options['Bidirectional'];
 				nPeers = options['Number of peers'] ?? 6;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2525,13 +2550,13 @@
 
 			case 'Fully Connected':
 				nPeers = options['Number of peers'] ?? 4;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2564,13 +2589,13 @@
 			case 'Line':
 				bidirectional = !!options['Bidirectional'];
 				nPeers = options['Number of peers'] ?? 6;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2601,13 +2626,13 @@
 			case 'Tree':
 				bidirectional = !!options['Bidirectional'];
 				structure = options['Structure'];
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				chosenNames = [];
@@ -2658,13 +2683,13 @@
 
 			case 'Bus':
 				nPeers = options['Number of peers'] ?? 4;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
-				minLatency = options['Minimum latency (milliseconds)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 				miners = [];
@@ -2699,12 +2724,12 @@
 				numConnections = options['Number of outgoing connections'] ?? 10;
 				bidirectional = true;
 				preventDuplicateConnections = true;
-				minPower = options['Minimum power (hashes per second)'] ?? 10;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
 				maxPower = options['Maximum power (hashes per second)'] ?? 10;
-				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? 10;
-				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? 10;
-				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? 10;
-				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
 				latencyUrl = options['Latency distribution URL'] ?? 'data/bitcoin_latencies/bitcoin_latencies.csv';
 				names = options['Naming cycle'] ?? ['Node '];
 
@@ -2731,8 +2756,8 @@
 						// Pick a random latency from the real-world Bitcoin distribution data
 						let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
 
-						// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N2 with latencies L1 and L2, respectively, require four times the latency: L1 --> L2 --> L2 --> L1
-						latency = latency / 4;
+						// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N2 with latencies L1 and L2, respectively, require two times the latency: L1 --> L2 --> L1
+						latency = latency / 2;
 
 						let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
 						let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
@@ -2742,17 +2767,17 @@
 						for(let j = 0; j < numConnections; j++) {
 							let r = rnd(0, miners.length - 1);
 							// Attempt to connect to a unique connections at most 10 times
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
-							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID)) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+							if(miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
 
-							if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers.includes(miners[r].ID))) continue;
+							if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined)) continue;
 
 							miners[i].addConnection(miners[r].ID);
 							if(bidirectional) miners[r].addConnection(miners[i].ID);
@@ -2767,7 +2792,7 @@
 						if(latencyArray.length < 2) {
 							console.warn('Unable to find the URL CSV latency data. Using global average latency as backup.');
 							updateToolOptions.bitcoinLatencyData.url = latencyUrl;
-							updateToolOptions.bitcoinLatencyData.data = [['Global average', 409.91]]; // Average hardcoded latency of the network
+							updateToolOptions.bitcoinLatencyData.data = [['Global average', 259.1934515]]; // If issue fetching file, use the hardcoded average latency of the network (as of 07/20/21)
 						} else {
 							// Remove the CSV headers
 							latencyArray.shift();
@@ -2796,10 +2821,23 @@
 				// Pick a random latency from the real-world Bitcoin distribution data
 				let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
 
-				// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N1 with latencies L1 and L2, respectively, require four times the latency: L1 --> L2 --> L2 --> L1
-				latency = latency / 4 * 3;
+				// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N2 with latencies L1 and L2, respectively, require two times the latency: L1 --> L2 --> L1
+				latency = latency / 2;
 
 				network.peers[id].latency = latency;
+				for(let id2 in network.peers[id].outgoingPeers) {
+					// Pick a random latency from the real-world Bitcoin distribution data
+					let latency = updateToolOptions.bitcoinLatencyData.data[Math.floor(Math.random() * updateToolOptions.bitcoinLatencyData.data.length)][1]; // Second column in the CSV file
+
+					// The following line accomodates for the round-trip nature of the real-world data, since ping and pong from nodes N1 and N2 with latencies L1 and L2, respectively, require two times the latency: L1 --> L2 --> L1
+					latency = latency / 2;
+
+					network.peers[id].outgoingPeers[id2] = latency;
+				}
+				try {
+					// Attempt to set the node's latency to be the same as the first outgoing connection's latency
+					network.peers[id].latency = network.peers[id].outgoingPeers[Object.keys(network.peers[id].outgoingPeers)[0]];
+				} catch(e) {}
 			}
 			console.log('Latencies have been set using the Bitnodes dataset.');
 		}
@@ -3015,7 +3053,7 @@
 			sum.uplinkMBPS += miner.bandwidth.uplink;
 			sum.balance += (miner.currentHeader.balances[id] - 1); // "- 1" because the most recent header contains a coinbase transaction not yet confirmed, since the currentHeader is not a valid block yet
 			sum.incomingPeers += miner.incomingPeers.length;
-			sum.outgoingPeers += miner.outgoingPeers.length;
+			sum.outgoingPeers += Object.keys(miner.outgoingPeers).length;
 			sum.height += (miner.currentHeader.height - 1); // Same reason as above
 			sum.totalBlocksFound += miner.totalBlocksFound;
 			sum.staleBlocksFound += miner.staleBlocksFound;
@@ -3071,7 +3109,7 @@
 			html += '<th scope="col">' + miner.bandwidth.uplink + '</th>';
 
 			html += '<th scope="col">' + miner.incomingPeers.length + '</th>';
-			html += '<th scope="col">' + miner.outgoingPeers.length + '</th>';
+			html += '<th scope="col">' + Object.keys(miner.outgoingPeers).length + '</th>';
 			html += '<th scope="col">' + (miner.currentHeader.height - 1) + '</th>';
 			html += '<th scope="col">' + miner.totalBlocksFound + '</th>';
 			html += '<th scope="col">' + miner.staleBlocksFound + '</th>';
@@ -3332,13 +3370,13 @@
 		}
 
 		for(let id1 in network.ID_Registry) {
-			for(let id2 of network.peers[id1].outgoingPeers) {
+			for(let id2 in network.peers[id1].outgoingPeers) {
 				vis_edges.push({
 					from: updateToolOptions.visNodeIDs[id1],
 					to: updateToolOptions.visNodeIDs[id2],
 					length: updateToolOptions.visLineLength,
 					// Optionally add dashes to lines that are not bi-directional connections:
-					// dashes: network.peers[id2].outgoingPeers.includes(id1) ? false : [10, 10],
+					// dashes: network.peers[id2].outgoingPeers[id1] !== undefined ? false : [10, 10],
 				});
 			}
 		}
