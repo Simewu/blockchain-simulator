@@ -1237,8 +1237,29 @@
 		}
 	});
 
+	// Scroll to the bottom of the page
 	function scrollToBottomOfPage() {
 		window.scrollTo(0,document.body.scrollHeight);
+	}
+
+	// Check if an element is within view
+	function elementInViewport(element) {
+		if(element == null || element === undefined) return;
+		var top = element.offsetTop;
+		var left = element.offsetLeft;
+		var width = element.offsetWidth;
+		var height = element.offsetHeight;
+		while(element.offsetParent) {
+			element = element.offsetParent;
+			top += element.offsetTop;
+			left += element.offsetLeft;
+		}
+		return (
+			top >= window.pageYOffset &&
+			left >= window.pageXOffset &&
+			(top + height) <= (window.pageYOffset + window.innerHeight) &&
+			(left + width) <= (window.pageXOffset + window.innerWidth)
+		);
 	}
 
 	// Clear all currently running timeouts
@@ -1871,14 +1892,14 @@
 	}
 
 	// Prevent computational overhead of repeated selectMiner calls
-	function selectMiner(id) {
+	function selectMiner(id, scrollTo = true) {
 		if(id == null) return;
 		clearTimeout(updateToolOptions.selectMinerTimeout);
-		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id);
+		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id, scrollTo);
 	}
 
 	// Select a miner from the mining list
-	function _selectMiner(id) {
+	function _selectMiner(id, scrollTo) {
 		updateToolOptions.selectedMiner = id;
 		$('#minerList option:selected').prop('selected', false);
 		if(id === undefined) return;
@@ -1886,6 +1907,17 @@
 		$('#minerList option:selected').change();
 		drawCanvasVisualizerMinerCircles();
 		updateToolOptions.selectMinerTimeout = null;
+
+		if(scrollTo) {
+			setTimeout(function(){
+				let element = document.querySelector('#minerList option:checked')
+				if(!elementInViewport(element)) {
+					element.scrollIntoView({
+						behavior: 'smooth'
+					});
+				}
+			}, 100);
+		}
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -3457,7 +3489,7 @@
 					minerID = id;
 				}
 			}
-			selectMiner(minerID);
+			selectMiner(minerID, false);
 		});
 
 		updateToolOptions.visNetwork.view.canvas.frame.addEventListener('focus', function() {

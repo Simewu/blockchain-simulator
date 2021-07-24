@@ -1,3 +1,7 @@
+html {
+	scroll-behavior: smooth;
+}
+
 body {
 	background-color: #2D3338;
 }
@@ -94,6 +98,23 @@ select option {
 #canvasVisualizer, #networkVisualizer, #minerStatsTable {
 	background-color: #343A40;
 	transition: opacity 0.5s, height 0.5s, max-height 0.5s;
+}
+
+#canvasVisualizerContainer {
+	max-height: 500px;
+	overflow-y: auto;
+}
+
+#minerStatsTable {
+	max-height: 500px;
+	overflow-y: scroll;
+}
+
+#minerStatsTable thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background-color: #343A40;
 }
 
 .jsoneditor-search, .jsoneditor-frame, .jsoneditor-menu, .jsoneditor-frame table tbody tr td input, option:checked {
