@@ -1908,16 +1908,18 @@
 		drawCanvasVisualizerMinerCircles();
 		updateToolOptions.selectMinerTimeout = null;
 
-		if(scrollTo) {
-			setTimeout(function(){
-				let element = document.querySelector('#minerList option:checked')
-				if(!elementInViewport(element)) {
-					element.scrollIntoView({
-						behavior: 'smooth'
-					});
-				}
-			}, 100);
-		}
+		try {
+			if(scrollTo && !network.logging.logNetworkData) {
+				setTimeout(function(){
+					let element = document.querySelector('#minerList option:checked')
+					if(!elementInViewport(element)) {
+						element.scrollIntoView({
+							behavior: 'smooth'
+						});
+					}
+				}, 100);
+			}
+		} catch(e) {}
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
