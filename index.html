@@ -1244,7 +1244,7 @@
 
 	// Check if an element is within view
 	function elementInViewport(element) {
-		if(element == null || element === undefined) return;
+		if(element == null || element === undefined) return true;
 		var top = element.offsetTop;
 		var left = element.offsetLeft;
 		var width = element.offsetWidth;
