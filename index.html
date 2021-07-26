@@ -1911,8 +1911,8 @@
 		try {
 			if(scrollTo && !network.logging.logNetworkData) {
 				setTimeout(function(){
-					let element = document.querySelector('#minerList option:checked')
-					if(!elementInViewport(element)) {
+					let element = document.querySelector('#minerList option:checked');
+					if(element && !elementInViewport(element)) {
 						element.scrollIntoView({
 							behavior: 'smooth'
 						});
