@@ -856,6 +856,7 @@
 					packet.payload.propagationTime += latency;
 				}
 
+				// After latency (default=0) milliseconds, call the miner's receive(packet.from, packet.payload) function
 				setTimeout(parent.receive.bind(parent), latency, packet.from, packet.payload);
 
 			} else { // Uploading data
@@ -1565,7 +1566,9 @@
 			lineWrapping: true,
 			lineWiseCopyCut: true,
 
-			lint: true,
+			lint: {
+				esversion: 6
+			},
 			gutters: ["CodeMirror-lint-markers"],
 			lintOnChange: true,
 
