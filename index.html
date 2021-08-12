@@ -1567,7 +1567,7 @@
 			lineWiseCopyCut: true,
 
 			lint: {
-				esversion: 10
+				esversion: 11
 			},
 			gutters: ["CodeMirror-lint-markers"],
 			lintOnChange: true,
@@ -1582,7 +1582,7 @@
 
 			matchBrackets: true,
 			highlightSelectionMatches: true,
-			autoCloseBrackets: true,
+			autoCloseBrackets: true
 		};
 
 		const editor1 = CodeMirror.fromTextArea(document.getElementById('codeBeforeSampling'), options);
@@ -1716,7 +1716,7 @@
 		_saveSamplerSettings();
 		let fileName = 'simulator_network.dat';
 		if(network.name != '') {
-			fileName = 'simulator_network_' + network.name.replace(/\s/g, '_') + '.dat';
+			fileName = 'simulator_network_' + network.name.toString().replace(/\s/g, '_') + '.dat';
 		}
 		let data = Network.serialize(network, compress);
 		if(data == null) {
