@@ -4022,7 +4022,7 @@
 			else name = 'PoW_log_' + network.name.replace(/\s/g, '_') + '.csv';
 		}
 		let log = updateToolOptions.samplerLog.join('\r\n');
-		let a=document.createElement('a');
+		let a = document.createElement('a');
 		
 		try {
 			a.setAttribute('href','data:text/plain;charset=utf-8,' + encodeURIComponent(log));
