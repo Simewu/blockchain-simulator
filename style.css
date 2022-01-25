@@ -77,6 +77,8 @@ select option {
 	margin-left: 10px;
 	top: -32px;
 	transition: opacity 0.5s, height 0.5s, max-height 0.5s;
+	width: calc(100% - 30px);
+	overflow-x: hidden;
 }
 
 #canvasVisualizerCodeLabel {
@@ -102,7 +104,6 @@ select option {
 
 #canvasVisualizerContainer {
 	max-height: 500px;
-	overflow-y: auto;
 }
 
 #minerStatsTable {

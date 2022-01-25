@@ -176,7 +176,15 @@
 			<div id='canvasVisualizerContainer' class='col-md-12'>
 				<div id='canvasVisualizerCodeContainer' class='col-md-12 m-0'>
 					<label id='canvasVisualizerCodeLabel' for='canvasVisualizerCode'>Time Plot:</label>
-					<input id='canvasVisualizerCode' type='text' onchange='saveSamplerSettings()'/>
+					<input id='canvasVisualizerCode' list='canvasVisualizerCodeList' type='text' onchange='saveSamplerSettings()' class='col-sm-6 custom-select custom-select-sm'>
+					<datalist id='canvasVisualizerCodeList'>
+					    <option value='miner.lastAcceptedBlock'>Visualize most recent block</option>
+					    <option value='miner.lastAcceptedBlock.balances[miner.ID] * 700'>Visualize account balance</option>
+					    <option value='miner.lastAcceptedBlock.height * 700'>Visualize block height</option>
+					    <option value='miner.networkBuffer.buffer'>Visualize network buffers</option>
+					    <option value='miner.blockchain_blockDelay[miner.blockchain_blockDelay.length - 1] * 10'>Visualize block propagation time (requires toggling network logging)</option>
+					    <option value='Math.random()'>Random noise</option>
+					</datalist>
 				</div>
 				<canvas id='canvasVisualizer' onclick='canvasVisualizerClicked(event)' class='w-100' height='9'></canvas>
 			</div>
