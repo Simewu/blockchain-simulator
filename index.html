@@ -338,7 +338,8 @@
 							<area shape='rect' coords='10, 527, 740, 931' alt='Line' onclick='DOM_selectTopology("Line")'>
 							<area shape='rect' coords='761, 527, 1367, 931' alt='Tree' onclick='DOM_selectTopology("Tree")'>
 							<area shape='rect' coords='1388, 527, 1910, 931' alt='Bus' onclick='DOM_selectTopology("Bus")'>
-							<area shape='rect' coords='10, 958, 1910, 1412' alt='Line' onclick='DOM_selectTopology("Bitcoin")'>
+							<area shape='rect' coords='10, 958, 955, 1412' alt='Barabási-Albert' onclick='DOM_selectTopology("Barabási-Albert")'>
+							<area shape='rect' coords='965, 958, 1910, 1412' alt='Bitcoin' onclick='DOM_selectTopology("Bitcoin")'>
 						</map>
 					</div>
 				</div>
@@ -2417,6 +2418,26 @@
 				};
 				break;
 
+			case 'Barabási-Albert':
+				alert('Please be aware that this feature is still under development.')
+				options = {
+					'Type': topology,
+					'Number of peers': 10,
+					'Initial edges, m0': 1,
+					'Edges, m': 1,
+					'Minimum power (hashes per second)': 5,
+					'Maximum power (hashes per second)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
+					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+				};
+				break;
+
+
 			case 'Bitcoin':
 				options = {
 					'Type': topology,
@@ -2788,6 +2809,88 @@
 					}
 				}
 				break;
+
+			case 'Barabási-Albert':
+
+				nPeers = options['Number of peers'] ?? 20;
+				m0 = options['Initial edges, m0'] ?? 1;
+				m = options['Edges, m'] ?? 1;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
+				maxPower = options['Maximum power (hashes per second)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
+				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
+				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+				
+				miners = [];
+				chosenNames = [];
+				for(let i = 0; i < nPeers; i++) {
+					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
+					if(chosenNames[name] !== undefined) {
+						let count = 2;
+						do {
+							name = names[i % names.length] + count.toString();
+							count++;
+						} while(chosenNames[name] !== undefined);
+					}
+					chosenNames[name] = true;
+					let power = rnd(minPower, maxPower);
+					let latency = rnd(minLatency, maxLatency);
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
+				}
+
+				// Add the initial m0 connections
+				if(miners.length > 0) {
+					for(let i = 0; i < m0; i++) {
+						let r = rnd(0, miners.length - 1);
+						// Attempt to connect to a unique connections at most 10 times
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+
+						if(preventDuplicateConnections && (miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined)) continue;
+
+						miners[0].addConnection(miners[r].ID);
+					}
+				}
+
+				// Todo:
+				for(let i = 0; i < miners.length; i++) {
+					sumEdges = 0
+					connCount = 0
+					for(let j = 0; j < i; j++) {
+						let numEdges = network.peers[miners[j].ID].incomingPeers.length;
+						sumEdges += numEdges;
+
+						let p = numEdges / sumEdges;
+
+						if(Math.random() < p) {
+							miners[i].addConnection(miners[j].ID);
+							connCount++;
+							if(connCount >= m) break;
+						}
+					}
+					if(i > 0 && miners[i].outgoingPeers[miners[i - 1].ID] === undefined) {
+						miners[i].addConnection(miners[i - 1].ID);
+					}
+				}
+				miners[miners.length - 1].addConnection(miners[0].ID);
+				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
+				break;
+
+
 
 			case 'Bitcoin':
 				nPeers = options['Number of peers'] ?? 100;
