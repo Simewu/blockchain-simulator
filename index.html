@@ -264,6 +264,35 @@
 			</div>
 		</div>
 
+		<div class='row'>
+			<div class='col-md-12'>
+				<div class='card text-white bg-dark rounded-0 px-2'>
+					<div class='card-header'>
+						<h3 class='display-5 d-inline'>Blockchain Explorer</h3>
+						<hr>
+						<div class='form-group row'>
+							<textarea id='explorerOutput' class='bg-dark text-white' readonly></textarea>
+						</div>
+						<div class='form-group row'>
+							<div class='input-group'>
+								<label for='explorerMinerName' class='col-sm-3 w-25'>Miner Name</label>
+								<input  id='explorerMinerName' type='text' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-2 w-25 rounded' value='' required>
+								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number</label>
+								<input  id='explorerMinerBlock' type='number' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-4 w-25 rounded' min='-1' value='0' required>
+							</div>
+						</div>
+					</div>
+
+					<div class='col-md-12 p-2'>
+						<small>
+							<table id='sampleTable' class='table table-dark table-hover table-responsive table-sm mb-2'>
+							</table>
+						</small>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Modals -->
 		<div class='modal fade' id='addMinerModal' role='dialog'>
 			<div class='modal-dialog'>
@@ -1840,6 +1869,7 @@
 		if(updateToolOptions.visSimulationActive) {
 			vis_setupNetworkSimulation();
 		}
+		changeExplorerMiner();
 		updateToolOptions.timeout = null;
 	}
 
@@ -1932,6 +1962,8 @@
 				}, 100);
 			}
 		} catch(e) {}
+
+		document.getElementById('explorerMinerName').value = network.peers[id].name;
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -3247,7 +3279,7 @@
 		avg.largestForkLength = Math.floor(sum.largestForkLength / numPeers * 1000) / 1000;
 		for(let id in network.ID_Registry) {
 			let miner = network.peers[id];
-			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\', false)">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + ((miner.currentHeader.balances[id] - 1) || 0) + '</th>';
 			html += '<th scope="col" class="text-warning">' + ((Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000) || 0) + '</th>';
@@ -3392,7 +3424,7 @@
 		let minerIndex = Math.floor(y / barsize);
 		if(minerIndex < 0 || minerIndex >= numPeers) return;
 		let miner = minerIDs[minerIndex];
-		selectMiner(miner);
+		selectMiner(miner, false);
 	}
 
 	// Java's String#hashCode, used to select a color in the canvas visualizer
@@ -4099,7 +4131,7 @@
 			avgTotalBlocks = Math.floor(updateToolOptions.samplerData[id].sumTotalBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgStaleBlocks = Math.floor(updateToolOptions.samplerData[id].sumStaleBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgMaxForkLength = Math.floor(updateToolOptions.samplerData[id].sumMaxForkLength / updateToolOptions.numSamples * 1000) / 1000;
-			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\', false)">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + (avgSumBalance || '-') + '</th>';
 			html += '<th scope="col" class="text-warning">' + (percentAvgSumBalance || '-') + '</th>';
@@ -4160,6 +4192,26 @@
 		
 		a.setAttribute('download', name);
 		a.click();
+	}
+
+	// Update the blockchain explorer
+	function changeExplorerMiner() {
+		let output = document.getElementById('explorerOutput');
+		let name = document.getElementById('explorerMinerName').value;
+		let index = parseInt(document.getElementById('explorerMinerBlock').value);
+		miner = network.findPeerByName(name);
+		if(miner == null) {
+			output.value = '';
+		} else {
+			let block = index >= 0 ? miner.blockchain[index] : miner.blockchain;
+			if(block === undefined) {
+				output.value = '';
+			} else {
+				output.value = JSON.stringify(block, null, '\t');
+			}
+		}
+		output.style.height = 'auto';
+		output.style.height = (output.scrollHeight) + 'px';
 	}
 </script>
 </html>

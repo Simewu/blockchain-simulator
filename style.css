@@ -67,7 +67,7 @@ select option {
 	height: 500px;
 }
 
-#jsoneditor, #topologyjsoneditor, #networkjsoneditor {
+#jsoneditor, #topologyjsoneditor, #networkjsoneditor, #explorerOutput {
 	background-color: #FFF;
 	width: 100%;
 }
@@ -148,4 +148,12 @@ div .jsoneditor, div .jsoneditor-mode-form, #minerList {
 	border: 1px solid #6C757D !important;
 	border-radius: 0.25rem;
 	height: auto;
+}
+
+#explorerOutput {
+	scroll: none;
+	overflow-y: hidden;
+	resize: none;
+	border: none;
+	padding: 10px 60px;
 }
