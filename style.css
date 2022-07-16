@@ -157,3 +157,10 @@ div .jsoneditor, div .jsoneditor-mode-form, #minerList {
 	border: none;
 	padding: 10px 60px;
 }
+
+#explorerMinerMinerColor, #explorerMinerBlockColor {
+	margin-left: 10px;
+	width: 32px;
+	height: 8px;
+	background-color: #FFF;
+}

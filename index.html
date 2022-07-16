@@ -275,10 +275,9 @@
 						</div>
 						<div class='form-group row'>
 							<div class='input-group'>
-								<label for='explorerMinerName' class='col-sm-3 w-25'>Miner Name</label>
-								<!--<input id='explorerMinerName' type='text' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-2 w-25 rounded' value='' required>-->
+								<label for='explorerMinerName' class='col-sm-3 w-25'>Miner Name<span id='explorerMinerMinerColor' class='badge badge-pill'> </span></label>
 								<select id='explorerMinerName' class='col-sm-3 w-25 form-select bg-secondary text-white rounded' onchange='changeExplorerMiner()'></select>
-								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number</label>
+								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number<span id='explorerMinerBlockColor' class='badge badge-pill'> </span></label>
 								<input  id='explorerMinerBlock' type='number' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-4 w-25 rounded' min='-1' value='0' required>
 
 
@@ -1929,6 +1928,15 @@
 		if(updateToolOptions.visSimulationActive) try {
 			updateToolOptions.visNetwork.selectNodes([updateToolOptions.visNodeIDs[miner.ID]]);
 		} catch(e) {}
+
+
+		$('#explorerMinerName option:selected').prop('selected', false);
+		$('#explorerMinerName option[value="' + miner.ID + '"]').prop('selected', true);
+		$('#explorerMinerName option:selected').change();
+		$('#explorerMinerBlock').attr({
+			'min': miner.blockchainOffset - 1,
+			'max': miner.blockchainOffset + miner.blockchain.length
+		});
 	}
 
 	// Update the data in the json editor, if id is not provided, just use the selected one from the table
@@ -1974,6 +1982,13 @@
 		$('#explorerMinerName option:selected').prop('selected', false);
 		$('#explorerMinerName option[value="' + id + '"]').prop('selected', true);
 		$('#explorerMinerName option:selected').change();
+		const miner = network.peers[id];
+		if(miner !== undefined) {
+			$('#explorerMinerBlock').attr({
+				'min': miner.blockchainOffset - 1,
+				'max': miner.blockchainOffset + miner.blockchain.length
+			});
+		}
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -3423,7 +3438,8 @@
 
 	// When clicked, select the miner at the corresponding row
 	function canvasVisualizerClicked(event) {
-		let canvas = document.getElementById('canvasVisualizer');
+		const canvas = document.getElementById('canvasVisualizer');
+		const ctx = canvas.getContext('2d');
 		const rect = canvas.getBoundingClientRect();
 		const x = event.clientX - rect.left;
 		const y = event.clientY - rect.top;
@@ -3435,6 +3451,16 @@
 		if(minerIndex < 0 || minerIndex >= numPeers) return;
 		let miner = minerIDs[minerIndex];
 		selectMiner(miner, false);
+
+		if($('#canvasVisualizerCode').val().trim() == 'miner.lastAcceptedBlock') {
+			try {
+				var pixel = ctx.getImageData(x, y, 1, 1).data; 
+				var hexColor = "#" + ("000000" + rgbToHex(pixel[0], pixel[1], pixel[2])).slice(-6);
+				explorerSelectBlockFromColor(miner, hexColor);
+			} catch(e) {
+				console.log(e)
+			}
+		}
 	}
 
 	// Java's String#hashCode, used to select a color in the canvas visualizer
@@ -3448,8 +3474,16 @@
 
 	// Convert an integer into a color
 	function intToRGB(i){
-		var c = (i & 0x00FFFFFF).toString(16).toUpperCase();
-		return '00000'.substring(0, 6 - c.length) + c;
+		let c = (i & 0x00FFFFFF).toString(16);
+		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
+	}
+
+	// Convert (r,b,g) into a hex color
+	function rgbToHex(r, g, b) {
+		if (r > 255 || g > 255 || b > 255)
+			throw "Invalid color component";
+		let c = ((r << 16) | (g << 8) | b).toString(16);
+		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
 	}
 
 	function startCanvasVisualizerThread() {
@@ -4221,21 +4255,57 @@
 		}
 	});
 
+	// Search for the block index containing the specific color
+	function explorerSelectBlockFromColor(id, color) {
+		const miner = network.peers[id];
+		if(miner === undefined) return;
+		let foundBlockHeight = -1;
+		for(let i in miner.blockchain) {
+			let block = miner.blockchain[i];
+			let _color = '#' + intToRGB(hashCode(JSON_stringify(block)));
+			if(color == _color) {
+				foundBlockHeight = block.height;
+			}
+		}
+		if(foundBlockHeight >= 0) {
+			$('#explorerMinerBlock').val(foundBlockHeight);
+			let str = 'Clicked ' + id +  '\'s block at height ' + foundBlockHeight.toString();
+			console.log(str);
+			$("#canvasVisualizer").attr('title', str);
+		} else {
+			$("#canvasVisualizer").attr('title', '');
+		}
+	}
+
 	// Update the blockchain explorer
 	function changeExplorerMiner() {
 		let id = $('#explorerMinerName').val();
 		let output = document.getElementById('explorerOutput');
-		let index = parseInt(document.getElementById('explorerMinerBlock').value);
+		let index = parseInt($('#explorerMinerBlock').val());
 		const miner = network.peers[id];
 
 		if(miner === undefined) {
 			output.value = '';
+			$('#explorerMinerMinerColor').css('background-color', 'transparent');
+			$("#explorerMinerMinerColor").attr('title', '');
+			$('#explorerMinerBlockColor').css('background-color', 'transparent');
+			$("#explorerMinerBlockColor").attr('title', '');
 		} else {
-			let block = index >= 0 ? miner.blockchain[index] : miner.blockchain;
-			if(block === undefined) {
+
+			$('#explorerMinerMinerColor').css('background-color', miner.color);
+			$("#explorerMinerMinerColor").attr('title', miner.color);
+
+			let block = index >= 0 ? miner.getBlock(index) : miner.blockchain;
+			if(block == null) {
 				output.value = miner.name + ':\nNO BLOCK FOUND';
+				$('#explorerMinerBlockColor').css('background-color', 'transparent');
+				$("#explorerMinerBlockColor").attr('title', '');
 			} else {
 				output.value = miner.name + ':\n' + JSON.stringify(block, null, '\t');
+
+				let blockColor = '#' + intToRGB(hashCode(JSON_stringify(block)));
+				$('#explorerMinerBlockColor').css('background-color', blockColor);
+				$("#explorerMinerBlockColor").attr('title', blockColor);
 			}
 		}
 		output.style.height = 'auto';
