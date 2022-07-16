@@ -1685,7 +1685,7 @@
 				files.push(key.substring(13));
 			}
 		}
-		let fileName = prompt('Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n["' + files.join('", "') + '"]\n\nEnter a file name to create/replace:', network.name);
+		let fileName = prompt('Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n["' + files.join('", "') + '"]\n\nPlease enter a file name to create/replace:', network.name);
 		if(fileName == null) return;
 
 		network.name = fileName;
@@ -1736,7 +1736,7 @@
 				files.push(key.substring(13));
 			}
 		}
-		let fileName = prompt('Files:\n[' + files.join(', ') + ']\n\nPlease enter a file name to delete:');
+		let fileName = prompt('Files:\n["' + files.join('", "') + '"]\n\nPlease enter a file name to delete:', network.name);
 		if(fileName == null) return;
 		fileName = 'NETWORK_FILE_' + fileName;
 
