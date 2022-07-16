@@ -4300,7 +4300,7 @@
 				$('#explorerMinerBlockColor').css('background-color', 'transparent');
 				$("#explorerMinerBlockColor").attr('title', '');
 			} else {
-				output.value = miner.name + ':\n' + JSON.stringify(block, null, '\t');
+				output.value = miner.name + ':\n' + JSON_stringify(block, null, '\t');
 
 				let blockColor = '#' + intToRGB(hashCode(JSON_stringify(block)));
 				$('#explorerMinerBlockColor').css('background-color', blockColor);
