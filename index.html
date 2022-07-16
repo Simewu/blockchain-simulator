@@ -276,9 +276,12 @@
 						<div class='form-group row'>
 							<div class='input-group'>
 								<label for='explorerMinerName' class='col-sm-3 w-25'>Miner Name</label>
-								<input  id='explorerMinerName' type='text' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-2 w-25 rounded' value='' required>
+								<!--<input id='explorerMinerName' type='text' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-2 w-25 rounded' value='' required>-->
+								<select id='explorerMinerName' class='col-sm-3 w-25 form-select bg-secondary text-white rounded' onchange='changeExplorerMiner()'></select>
 								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number</label>
 								<input  id='explorerMinerBlock' type='number' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-4 w-25 rounded' min='-1' value='0' required>
+
+
 							</div>
 						</div>
 					</div>
@@ -1885,6 +1888,9 @@
 		for(let peer in network.peers) {
 			$('#minerList').append('<option value="' + peer + '">' + network.peers[peer].name + '</option>');
 		}
+
+		$('#explorerMinerName').html($('#minerList').html());
+
 		if(updateToolOptions.selectedMiner == null) updateToolOptions.selectedMiner = Object.keys(network.peers)[0];
 		selectMiner(updateToolOptions.selectedMiner);
 	}
@@ -1936,7 +1942,8 @@
 	// Prevent computational overhead of repeated selectMiner calls
 	function selectMiner(id, scrollTo = true) {
 		if(id == null) return;
-		clearTimeout(updateToolOptions.selectMinerTimeout);
+		//clearTimeout(updateToolOptions.selectMinerTimeout);
+		if(updateToolOptions.selectMinerTimeout != null) return;
 		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id, scrollTo);
 	}
 
@@ -1947,6 +1954,7 @@
 		if(id === undefined) return;
 		$('#minerList option[value="' + id + '"]').prop('selected', true);
 		$('#minerList option:selected').change();
+
 		drawCanvasVisualizerMinerCircles();
 		updateToolOptions.selectMinerTimeout = null;
 
@@ -1963,7 +1971,9 @@
 			}
 		} catch(e) {}
 
-		document.getElementById('explorerMinerName').value = network.peers[id].name;
+		$('#explorerMinerName option:selected').prop('selected', false);
+		$('#explorerMinerName option[value="' + id + '"]').prop('selected', true);
+		$('#explorerMinerName option:selected').change();
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -4194,20 +4204,38 @@
 		a.click();
 	}
 
+	// Use arrow keys to explore the different blocks
+	document.getElementById('explorerOutput').addEventListener("keydown", function(event) {
+		event.preventDefault();
+		let e = document.getElementById('explorerMinerBlock');
+		// On up or right arrow key press
+		if (event.keyCode === 38 || event.keyCode == 39) {
+			e.value++;
+			changeExplorerMiner();
+		}
+		// On down or left arrow key press
+		if (event.keyCode === 40 || event.keyCode == 37) {
+			e.value--;
+			if(e.value < 0) e.value = 0;
+			changeExplorerMiner();
+		}
+	});
+
 	// Update the blockchain explorer
 	function changeExplorerMiner() {
+		let id = $('#explorerMinerName').val();
 		let output = document.getElementById('explorerOutput');
-		let name = document.getElementById('explorerMinerName').value;
 		let index = parseInt(document.getElementById('explorerMinerBlock').value);
-		miner = network.findPeerByName(name);
-		if(miner == null) {
+		const miner = network.peers[id];
+
+		if(miner === undefined) {
 			output.value = '';
 		} else {
 			let block = index >= 0 ? miner.blockchain[index] : miner.blockchain;
 			if(block === undefined) {
-				output.value = '';
+				output.value = miner.name + ':\nNO BLOCK FOUND';
 			} else {
-				output.value = JSON.stringify(block, null, '\t');
+				output.value = miner.name + ':\n' + JSON.stringify(block, null, '\t');
 			}
 		}
 		output.style.height = 'auto';
