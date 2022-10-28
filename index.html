@@ -2497,7 +2497,7 @@
 				options = {
 					'Type': topology,
 					'Number of peers': 1000,
-					'Number of connections': 10,
+					'Number of connections': [10],
 					'Minimum power (hashes per second)': 1,
 					'Maximum power (hashes per second)': 1,
 					// https://www.statista.com/statistics/896779/average-mobile-fixed-broadband-download-upload-speeds
@@ -2966,8 +2966,14 @@
 					toggleVisualizations();
 				}
 
+				// Force numConnections to be in array format
+				if(!Array.isArray(numConnections)) {
+					numConnections = [numConnections];
+				}
+
 				const gen = () => {
 					miners = [];
+					minersNumConnections = []
 					minerMapOpenForConnections = []
 					minerNumberOfConnections = []
 					chosenNames = [];
@@ -2988,6 +2994,7 @@
 						let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
 						let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true);
 						miners.push(miner);
+						minersNumConnections.push(numConnections[rnd(0, numConnections.length - 1)]);
 						minerMapOpenForConnections.push(miners.length - 1);
 						minerNumberOfConnections.push(0);
 					}
@@ -3017,13 +3024,17 @@
 							miner2.addConnection(miner1.ID);
 							minerNumberOfConnections[r2]++;
 						}
-						if(minerNumberOfConnections[r2] >= numConnections) {
+
+						if(minerNumberOfConnections[r2] >= minersNumConnections[r2]) {
 							minerNumberOfConnections.splice(r2, 1);
 							minerMapOpenForConnections.splice(r2, 1);
+							minersNumConnections.splice(r2, 1);
 						}
-						if(minerNumberOfConnections[r1] >= numConnections) {
+
+						if(minerNumberOfConnections[r1] >= minersNumConnections[r1]) {
 							minerNumberOfConnections.splice(r1, 1);
 							minerMapOpenForConnections.splice(r1, 1);
+							minersNumConnections.splice(r1, 1);
 						}
 						loopBreaker = 1000;
 					}
