@@ -264,6 +264,37 @@
 			</div>
 		</div>
 
+		<div class='row'>
+			<div class='col-md-12'>
+				<div class='card text-white bg-dark rounded-0 px-2'>
+					<div class='card-header'>
+						<h3 class='display-5 d-inline'>Blockchain Explorer</h3>
+						<hr>
+						<div class='form-group row'>
+							<textarea id='explorerOutput' class='bg-dark text-white' readonly></textarea>
+						</div>
+						<div class='form-group row'>
+							<div class='input-group'>
+								<label for='explorerMinerName' class='col-sm-3 w-25'>Miner Name<span id='explorerMinerMinerColor' class='badge badge-pill'> </span></label>
+								<select id='explorerMinerName' class='col-sm-3 w-25 form-select bg-secondary text-white rounded' onchange='changeExplorerMiner()'></select>
+								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number<span id='explorerMinerBlockColor' class='badge badge-pill'> </span></label>
+								<input  id='explorerMinerBlock' type='number' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-4 w-25 rounded' min='-1' value='0' required>
+
+
+							</div>
+						</div>
+					</div>
+
+					<div class='col-md-12 p-2'>
+						<small>
+							<table id='sampleTable' class='table table-dark table-hover table-responsive table-sm mb-2'>
+							</table>
+						</small>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Modals -->
 		<div class='modal fade' id='addMinerModal' role='dialog'>
 			<div class='modal-dialog'>
@@ -338,7 +369,8 @@
 							<area shape='rect' coords='10, 527, 740, 931' alt='Line' onclick='DOM_selectTopology("Line")'>
 							<area shape='rect' coords='761, 527, 1367, 931' alt='Tree' onclick='DOM_selectTopology("Tree")'>
 							<area shape='rect' coords='1388, 527, 1910, 931' alt='Bus' onclick='DOM_selectTopology("Bus")'>
-							<area shape='rect' coords='10, 958, 1910, 1412' alt='Line' onclick='DOM_selectTopology("Bitcoin")'>
+							<area shape='rect' coords='10, 958, 955, 1412' alt='Barabási-Albert' onclick='DOM_selectTopology("Barabási-Albert")'>
+							<area shape='rect' coords='965, 958, 1910, 1412' alt='Bitcoin' onclick='DOM_selectTopology("Bitcoin")'>
 						</map>
 					</div>
 				</div>
@@ -1655,7 +1687,7 @@
 				files.push(key.substring(13));
 			}
 		}
-		let fileName = prompt('Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n["' + files.join('", "') + '"]\n\nEnter a file name to create/replace:', network.name);
+		let fileName = prompt('Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n["' + files.join('", "') + '"]\n\nPlease enter a file name to create/replace:', network.name);
 		if(fileName == null) return;
 
 		network.name = fileName;
@@ -1706,7 +1738,7 @@
 				files.push(key.substring(13));
 			}
 		}
-		let fileName = prompt('Files:\n[' + files.join(', ') + ']\n\nPlease enter a file name to delete:');
+		let fileName = prompt('Files:\n["' + files.join('", "') + '"]\n\nPlease enter a file name to delete:', network.name);
 		if(fileName == null) return;
 		fileName = 'NETWORK_FILE_' + fileName;
 
@@ -1839,6 +1871,7 @@
 		if(updateToolOptions.visSimulationActive) {
 			vis_setupNetworkSimulation();
 		}
+		changeExplorerMiner();
 		updateToolOptions.timeout = null;
 	}
 
@@ -1854,6 +1887,9 @@
 		for(let peer in network.peers) {
 			$('#minerList').append('<option value="' + peer + '">' + network.peers[peer].name + '</option>');
 		}
+
+		$('#explorerMinerName').html($('#minerList').html());
+
 		if(updateToolOptions.selectedMiner == null) updateToolOptions.selectedMiner = Object.keys(network.peers)[0];
 		selectMiner(updateToolOptions.selectedMiner);
 	}
@@ -1892,6 +1928,14 @@
 		if(updateToolOptions.visSimulationActive) try {
 			updateToolOptions.visNetwork.selectNodes([updateToolOptions.visNodeIDs[miner.ID]]);
 		} catch(e) {}
+
+
+		$('#explorerMinerName option:selected').prop('selected', false);
+		$('#explorerMinerName option[value="' + miner.ID + '"]').prop('selected', true);
+		$('#explorerMinerName option:selected').change();
+		$('#explorerMinerBlock').attr({
+			'min': miner.blockchainOffset - 1,
+		});
 	}
 
 	// Update the data in the json editor, if id is not provided, just use the selected one from the table
@@ -1905,7 +1949,8 @@
 	// Prevent computational overhead of repeated selectMiner calls
 	function selectMiner(id, scrollTo = true) {
 		if(id == null) return;
-		clearTimeout(updateToolOptions.selectMinerTimeout);
+		//clearTimeout(updateToolOptions.selectMinerTimeout);
+		if(updateToolOptions.selectMinerTimeout != null) return;
 		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id, scrollTo);
 	}
 
@@ -1916,6 +1961,7 @@
 		if(id === undefined) return;
 		$('#minerList option[value="' + id + '"]').prop('selected', true);
 		$('#minerList option:selected').change();
+
 		drawCanvasVisualizerMinerCircles();
 		updateToolOptions.selectMinerTimeout = null;
 
@@ -1931,6 +1977,17 @@
 				}, 100);
 			}
 		} catch(e) {}
+
+		$('#explorerMinerName option:selected').prop('selected', false);
+		$('#explorerMinerName option[value="' + id + '"]').prop('selected', true);
+		$('#explorerMinerName option:selected').change();
+		const miner = network.peers[id];
+		if(miner !== undefined) {
+			$('#explorerMinerBlock').attr({
+				'min': miner.blockchainOffset - 1,
+				'max': miner.blockchainOffset + miner.blockchain.length
+			});
+		}
 	}
 
 	$('#addMinerModal').on('shown.bs.modal', function (e) {
@@ -2417,6 +2474,25 @@
 				};
 				break;
 
+			case 'Barabási-Albert':
+				options = {
+					'Type': topology,
+					'Number of peers': 10,
+					'Initial edges, m0': 2,
+					'Edges, m': 3,
+					'Minimum power (hashes per second)': 5,
+					'Maximum power (hashes per second)': 10,
+					'Minimum downlink (megabytes per second)': Infinity,
+					'Maximum downlink (megabytes per second)': Infinity,
+					'Minimum uplink (megabytes per second)': Infinity,
+					'Maximum uplink (megabytes per second)': Infinity,
+					'Minimum latency (milliseconds)': 100,
+					'Maximum latency (milliseconds)': 100,
+					'Naming cycle': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+				};
+				break;
+
+
 			case 'Bitcoin':
 				options = {
 					'Type': topology,
@@ -2788,6 +2864,88 @@
 					}
 				}
 				break;
+
+			case 'Barabási-Albert':
+
+				nPeers = options['Number of peers'] ?? 20;
+				m0 = options['Initial edges, m0'] ?? 1;
+				m = options['Edges, m'] ?? 1;
+				minPower = options['Minimum power (hashes per second)'] ?? 5;
+				maxPower = options['Maximum power (hashes per second)'] ?? 10;
+				minDownlinkMBPS = options['Minimum downlink (megabytes per second)'] ?? Infinity;
+				maxDownlinkMBPS = options['Maximum downlink (megabytes per second)'] ?? Infinity;
+				minUplinkMBPS = options['Minimum uplink (megabytes per second)'] ?? Infinity;
+				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
+				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
+				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
+				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+				
+				miners = [];
+				chosenNames = [];
+				for(let i = 0; i < nPeers; i++) {
+					let name = names[i % names.length];
+					if(nPeers > names.length) name += '1';
+					if(chosenNames[name] !== undefined) {
+						let count = 2;
+						do {
+							name = names[i % names.length] + count.toString();
+							count++;
+						} while(chosenNames[name] !== undefined);
+					}
+					chosenNames[name] = true;
+					let power = rnd(minPower, maxPower);
+					let latency = rnd(minLatency, maxLatency);
+					let downlinkMBPS = rnd(minDownlinkMBPS, maxDownlinkMBPS);
+					let uplinkMBPS = rnd(minUplinkMBPS, maxUplinkMBPS);
+					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
+				}
+
+				// Add the initial m0 connections
+				if(miners.length > 0) {
+					for(let i = 0; i < m0; i++) {
+						let r = rnd(0, miners.length - 1);
+						// Attempt to connect to a unique connections at most 10 times
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+						if(miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined) r = rnd(0, miners.length - 1);
+
+						if(preventDuplicateConnections && (miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined)) continue;
+
+						miners[0].addConnection(miners[r].ID);
+					}
+				}
+
+				// Todo:
+				for(let i = 0; i < miners.length; i++) {
+					sumEdges = 0
+					connCount = 0
+					for(let j = 0; j < i; j++) {
+						let numEdges = network.peers[miners[j].ID].incomingPeers.length;
+						sumEdges += numEdges;
+
+						let p = numEdges / sumEdges;
+
+						if(Math.random() < p) {
+							miners[i].addConnection(miners[j].ID);
+							connCount++;
+							if(connCount >= m) break;
+						}
+					}
+					if(i > 0 && miners[i].outgoingPeers[miners[i - 1].ID] === undefined) {
+						miners[i].addConnection(miners[i - 1].ID);
+					}
+				}
+				miners[miners.length - 1].addConnection(miners[0].ID);
+				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
+				break;
+
+
 
 			case 'Bitcoin':
 				nPeers = options['Number of peers'] ?? 100;
@@ -3165,7 +3323,7 @@
 		avg.largestForkLength = Math.floor(sum.largestForkLength / numPeers * 1000) / 1000;
 		for(let id in network.ID_Registry) {
 			let miner = network.peers[id];
-			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\', false)">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + ((miner.currentHeader.balances[id] - 1) || 0) + '</th>';
 			html += '<th scope="col" class="text-warning">' + ((Math.floor((miner.currentHeader.balances[id] - 1) / sum.balance * 100000) / 1000) || 0) + '</th>';
@@ -3299,7 +3457,8 @@
 
 	// When clicked, select the miner at the corresponding row
 	function canvasVisualizerClicked(event) {
-		let canvas = document.getElementById('canvasVisualizer');
+		const canvas = document.getElementById('canvasVisualizer');
+		const ctx = canvas.getContext('2d');
 		const rect = canvas.getBoundingClientRect();
 		const x = event.clientX - rect.left;
 		const y = event.clientY - rect.top;
@@ -3310,7 +3469,17 @@
 		let minerIndex = Math.floor(y / barsize);
 		if(minerIndex < 0 || minerIndex >= numPeers) return;
 		let miner = minerIDs[minerIndex];
-		selectMiner(miner);
+		selectMiner(miner, false);
+
+		if($('#canvasVisualizerCode').val().trim() == 'miner.lastAcceptedBlock') {
+			try {
+				var pixel = ctx.getImageData(x, y, 1, 1).data; 
+				var hexColor = "#" + ("000000" + rgbToHex(pixel[0], pixel[1], pixel[2])).slice(-6);
+				explorerSelectBlockFromColor(miner, hexColor);
+			} catch(e) {
+				console.log(e)
+			}
+		}
 	}
 
 	// Java's String#hashCode, used to select a color in the canvas visualizer
@@ -3324,8 +3493,16 @@
 
 	// Convert an integer into a color
 	function intToRGB(i){
-		var c = (i & 0x00FFFFFF).toString(16).toUpperCase();
-		return '00000'.substring(0, 6 - c.length) + c;
+		let c = (i & 0x00FFFFFF).toString(16);
+		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
+	}
+
+	// Convert (r,b,g) into a hex color
+	function rgbToHex(r, g, b) {
+		if (r > 255 || g > 255 || b > 255)
+			throw "Invalid color component";
+		let c = ((r << 16) | (g << 8) | b).toString(16);
+		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
 	}
 
 	function startCanvasVisualizerThread() {
@@ -4017,7 +4194,7 @@
 			avgTotalBlocks = Math.floor(updateToolOptions.samplerData[id].sumTotalBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgStaleBlocks = Math.floor(updateToolOptions.samplerData[id].sumStaleBlocks / updateToolOptions.numSamples * 1000) / 1000;
 			avgMaxForkLength = Math.floor(updateToolOptions.samplerData[id].sumMaxForkLength / updateToolOptions.numSamples * 1000) / 1000;
-			html += '<tr onclick="selectMiner(\'' + miner.ID + '\')">';
+			html += '<tr onclick="selectMiner(\'' + miner.ID + '\', false)">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + (avgSumBalance || '-') + '</th>';
 			html += '<th scope="col" class="text-warning">' + (percentAvgSumBalance || '-') + '</th>';
@@ -4078,6 +4255,80 @@
 		
 		a.setAttribute('download', name);
 		a.click();
+	}
+
+	// Use arrow keys to explore the different blocks
+	document.getElementById('explorerOutput').addEventListener("keydown", function(event) {
+		event.preventDefault();
+		let e = document.getElementById('explorerMinerBlock');
+		// On up or right arrow key press
+		if (event.keyCode === 38 || event.keyCode == 39) {
+			e.value++;
+			changeExplorerMiner();
+		}
+		// On down or left arrow key press
+		if (event.keyCode === 40 || event.keyCode == 37) {
+			e.value--;
+			if(e.value < 0) e.value = 0;
+			changeExplorerMiner();
+		}
+	});
+
+	// Search for the block index containing the specific color
+	function explorerSelectBlockFromColor(id, color) {
+		const miner = network.peers[id];
+		if(miner === undefined) return;
+		let foundBlockHeight = -1;
+		for(let i in miner.blockchain) {
+			let block = miner.blockchain[i];
+			let _color = '#' + intToRGB(hashCode(JSON_stringify(block)));
+			if(color == _color) {
+				foundBlockHeight = block.height;
+			}
+		}
+		if(foundBlockHeight >= 0) {
+			$('#explorerMinerBlock').val(foundBlockHeight);
+			let str = 'Clicked ' + id +  '\'s block at height ' + foundBlockHeight.toString();
+			console.log(str);
+			$("#canvasVisualizer").attr('title', str);
+		} else {
+			$("#canvasVisualizer").attr('title', '');
+		}
+	}
+
+	// Update the blockchain explorer
+	function changeExplorerMiner() {
+		let id = $('#explorerMinerName').val();
+		let output = document.getElementById('explorerOutput');
+		let index = parseInt($('#explorerMinerBlock').val());
+		const miner = network.peers[id];
+
+		if(miner === undefined) {
+			output.value = '';
+			$('#explorerMinerMinerColor').css('background-color', 'transparent');
+			$("#explorerMinerMinerColor").attr('title', '');
+			$('#explorerMinerBlockColor').css('background-color', 'transparent');
+			$("#explorerMinerBlockColor").attr('title', '');
+		} else {
+
+			$('#explorerMinerMinerColor').css('background-color', miner.color);
+			$("#explorerMinerMinerColor").attr('title', miner.color);
+
+			let block = index >= 0 ? miner.getBlock(index) : miner.blockchain;
+			if(block == null) {
+				output.value = miner.name + ':\nNO BLOCK FOUND';
+				$('#explorerMinerBlockColor').css('background-color', 'transparent');
+				$("#explorerMinerBlockColor").attr('title', '');
+			} else {
+				output.value = miner.name + ':\n' + JSON_stringify(block, null, '\t');
+
+				let blockColor = '#' + intToRGB(hashCode(JSON_stringify(block)));
+				$('#explorerMinerBlockColor').css('background-color', blockColor);
+				$("#explorerMinerBlockColor").attr('title', blockColor);
+			}
+		}
+		output.style.height = 'auto';
+		output.style.height = (output.scrollHeight) + 'px';
 	}
 </script>
 </html>
