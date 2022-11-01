@@ -247,6 +247,9 @@
 							<div class='col-sm-9 p-0'>
 								<select id='logColumnsList' multiple='multiple' onchange='saveSamplerSettings()' class='form-control' size='8'>
 								</select>
+								<label class='btn btn-dark'>
+									<input id='logAveragesOnlyCheckbox' type='checkbox' onchange='saveSamplerSettings()'> Log averages only, rather than per-node
+								</label>
 							</div>
 						</div>
 						<div class='form-group row mb-0'>
@@ -566,6 +569,7 @@
 				logSamples: false,
 				resetBlockchainAfterEachSample: true,
 				updateTableAfterEachSample: true,
+				logAveragesOnlyCheckbox: true,
 				canvasVisualizerCode: 'miner.lastAcceptedBlock',
 			}
 		}
@@ -3800,6 +3804,7 @@
 		network.logging.logSamples = $('#logSamplesCheckbox').prop('checked');
 		network.logging.resetBlockchainAfterEachSample = $('#resetBlockchainAfterEachSampleCheckbox').prop('checked');
 		network.logging.updateTableAfterEachSample = $('#updateTableAfterEachSampleCheckbox').prop('checked');
+		network.logging.logAveragesOnlyCheckbox = $('#logAveragesOnlyCheckbox').prop('checked');
 
 		// Update the list of log columns
 		let columns = $('#logColumnsList').val();
@@ -3850,6 +3855,7 @@
 		$('#logSamplesCheckbox').prop('checked', network.logging.logSamples);
 		$('#resetBlockchainAfterEachSampleCheckbox').prop('checked', network.logging.resetBlockchainAfterEachSample);
 		$('#updateTableAfterEachSampleCheckbox').prop('checked', network.logging.updateTableAfterEachSample);
+		$('#logAveragesOnlyCheckbox').prop('checked', network.logging.logAveragesOnlyCheckbox);
 
 		$('#logColumnsList').empty();
 		for(let column in network.logging.columns) {
@@ -3922,6 +3928,28 @@
 			sumStaleBlocks: 0,
 			sumMaxForkLength: 0,
 		}
+
+		// Also update the logging header, if there is a missing header field in the log data
+		if((network.logging.logAveragesOnlyCheckbox && updateToolOptions.headersGenerated == 0) || (!network.logging.logAveragesOnlyCheckbox && updateToolOptions.headersGenerated < Object.keys(network.peers).length)) {
+			if(updateToolOptions.samplerLog[0].endsWith('\n')) updateToolOptions.samplerLog[0] = updateToolOptions.samplerLog[0].substring(0, updateToolOptions.samplerLog[0].length - 1);
+			if(updateToolOptions.samplerLog[0].endsWith('\r')) updateToolOptions.samplerLog[0] = updateToolOptions.samplerLog[0].substring(0, updateToolOptions.samplerLog[0].length - 1);
+			for(let column in network.logging.columns) {
+				if(column == 'Sample') continue;
+				if(column == 'Sample time') continue;
+				if(column == 'Sample tag') continue;
+
+				if(!network.logging.logNetworkData) {
+					if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)' || column == 'Artificial travel time (ms)') {
+						continue;
+					}
+				}
+				if(network.logging.columns[column]) {
+					updateToolOptions.samplerLog[0] += column + ',';
+				}
+			}
+			updateToolOptions.samplerLog[0] += '\r\n';
+			updateToolOptions.headersGenerated++;
+		}
 	}
 
 	// Given a code with miner IDs referenced by the user, convert it into executable JavaScript by inserting the network.peers[] wrapper around code not surrounded by quotes
@@ -3973,6 +4001,7 @@
 		updateToolOptions.samplerData = [];
 		updateToolOptions.samplerLog = [''];
 		updateToolOptions.sampleTag = '';
+		updateToolOptions.headersGenerated = 0;
 
 		if(network.logging.logSamples) {
 			let html = '<button onclick="downloadSampleLog()" class="btn btn-warning fillx">Download log</button>';
@@ -3999,22 +4028,8 @@
 			if(network.logging.columns['Sample tag']) updateToolOptions.samplerLog[0] += 'Sample tag,';
 
 			for(let id in network.peers) {
-				for(let column in network.logging.columns) {
-					if(column == 'Sample') continue;
-					if(column == 'Sample time') continue;
-					if(column == 'Sample tag') continue;
-
-					if(!network.logging.logNetworkData) {
-						if(column == 'Blockchain IDs' || column == 'Blockchain num hops' || column == 'Blockchain travel time (ms)' || column == 'Artificial travel time (ms)') {
-							continue;
-						}
-					}
-
-					if(network.logging.columns[column]) {
-						updateToolOptions.samplerLog[0] += column + ',';
-					}
-				}
-				registerSamplerForId(id);
+				registerSamplerForId(id); // Set the header and logging data for this peer
+				if(network.logging.logAveragesOnlyCheckbox) break;
 			}
 
 			_saveSamplerSettings();
@@ -4063,11 +4078,12 @@
 			updateToolOptions.samplerData[id].sumBlocksInFlight += miner.networkBuffer.buffer.length;
 		}
 		if(network.logging.logSamples) {
-			let line = '', balanceTotal = 0, powerTotal = 0, latencyTotal = 0, downloadMBPSTotal = 0, uploadMBPSTotal = 0;
+			let line = '', numMiners = 0;
 			if(network.logging.columns['Sample']) line += '"' + updateToolOptions.samplerLog.length + '",';
 			if(network.logging.columns['Sample time']) line += '"' + sampleDuration + '",';
 			if(network.logging.columns['Sample tag']) line += '"' + updateToolOptions.sampleTag + '",';
 
+			let balanceTotal = 0, powerTotal = 0, latencyTotal = 0, downloadMBPSTotal = 0, uploadMBPSTotal = 0;
 			for(let id in network.ID_Registry) {
 				let miner = network.peers[id];
 				balanceTotal += miner.currentHeader.balances[id];
@@ -4075,34 +4091,82 @@
 				latencyTotal += miner.latency;
 				downloadMBPSTotal += miner.bandwidth.downlink;
 				uploadMBPSTotal += miner.bandwidth.uplink;
+				numMiners++;
 			}
-			for(let id in network.ID_Registry) {
-				let miner = network.peers[id];
 
-				if(network.logging.columns['Miner name']) line += '"' + miner.name + '",';
-				if(network.logging.columns['Balance']) line += '"' + (miner.currentHeader.balances[id] || 0) + '",';
-				if(network.logging.columns['Balance %']) line += '"' + ((miner.currentHeader.balances[id] / balanceTotal * 100) || 0) + '",';
-				if(network.logging.columns['Power (hash/s)']) line += '"' + miner.power + '",';
-				if(network.logging.columns['Power %']) line += '"' + (miner.power / powerTotal * 100) + '",';
+			if(network.logging.logAveragesOnlyCheckbox) {
+				if(network.logging.columns['Miner name']) line += '"Combined",';
+				if(network.logging.columns['Balance']) line += '"' + (balanceTotal / numMiners) + '",';
+				if(network.logging.columns['Balance %']) line += '"100",';
+				if(network.logging.columns['Power (hash/s)']) line += '"' + (powerTotal / numMiners) + '",';
+				if(network.logging.columns['Power %']) line += '"100",';
 
-				if(network.logging.logNetworkData) { // Keep track of networking data
-					if(network.logging.columns['Blockchain IDs']) line += '"' + miner.blockchain_blockID?.join(' ') + '",';
-					if(network.logging.columns['Blockchain num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
-					if(network.logging.columns['Blockchain travel time (ms)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
-					if(network.logging.columns['Artificial travel time (ms)']) line += '"' + miner.blockchain_artificialBlockDelay?.join(' ') + '",';
+				let all_IDs = '', numHopsSum = 0, blockchainTravelTimeSum = 0, artificialBlockchainTravelTimeSum = 0, bufferSizeSum = 0, blocksInFlightSum = 0, latencySum = 0, downlinkSum = 0, uplinkSum = 0, heightSum = 0, totalBlocksSum = 0, staleBlocksSum = 0, maxForkLengthSum = 0;
+				// Compute the aggregate values for the averages
+				for(let id in network.ID_Registry) {
+					let miner = network.peers[id];
+					if(network.logging.logNetworkData) {
+						try { // Optional networking data
+							if(network.logging.columns['Blockchain IDs']) all_IDs += miner.blockchain_blockID?.join(' ') + ' ';
+							if(network.logging.columns['Blockchain num hops']) all_numHops += miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
+							if(network.logging.columns['Blockchain travel time (ms)']) blockchainTravelTimeSum += miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+							if(network.logging.columns['Artificial travel time (ms)']) artificialBlockchainTravelTimeSum += miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
+						} catch(e) {}
+					}
+					if(network.logging.columns['Network buffer size limit']) bufferSizeSum += miner.networkBuffer.bufferSizeLimit;
+					if(network.logging.columns['Blocks in flight']) blocksInFlightSum += miner.networkBuffer.buffer.length;
+					if(network.logging.columns['Latency (ms)']) latencySum += miner.latency;
+					if(network.logging.columns['Downlink (MBps)']) downlinkSum += miner.bandwidth.downlink;
+					if(network.logging.columns['Uplink (MBps)']) uplinkSum += miner.bandwidth.uplink;
+					if(network.logging.columns['Block height']) heightSum += (miner.currentHeader.height - 1);
+					if(network.logging.columns['Total blocks found']) totalBlocksSum += miner.totalBlocksFound;
+					if(network.logging.columns['Stale blocks found']) staleBlocksSum += miner.staleBlocksFound;
+					if(network.logging.columns['Max fork length']) maxForkLengthSum += (miner.largestForkLength || 0);
 				}
+				if(network.logging.logNetworkData) { // Keep track of networking data
+					if(network.logging.columns['Blockchain IDs']) line += '"' + all_IDs + '",';
+					if(network.logging.columns['Blockchain num hops']) line += '"' + (numHopsSum / numMiners) + '",';
+					if(network.logging.columns['Blockchain travel time (ms)']) line += '"' + (blockchainTravelTimeSum / numMiners) + '",';
+					if(network.logging.columns['Artificial travel time (ms)']) line += '"' + (artificialBlockchainTravelTimeSum / numMiners) + '",';
+				}
+				if(network.logging.columns['Network buffer size limit']) line += '"' + (bufferSizeSum / numMiners) + '",';
+				if(network.logging.columns['Blocks in flight']) line += '"' + (blocksInFlightSum / numMiners) + '",';
+				if(network.logging.columns['Latency (ms)']) line += '"' + (latencySum / numMiners) + '",';
+				if(network.logging.columns['Downlink (MBps)']) line += '"' + (downlinkSum / numMiners) + '",';
+				if(network.logging.columns['Uplink (MBps)']) line += '"' + (uplinkSum / numMiners) + '",';
+				if(network.logging.columns['Block height']) line += '"' + (heightSum / numMiners) + '",';
+				if(network.logging.columns['Total blocks found']) line += '"' + (totalBlocksSum / numMiners) + '",';
+				if(network.logging.columns['Stale blocks found']) line += '"' + (staleBlocksSum / numMiners) + '",';
+				if(network.logging.columns['Max fork length']) line += '"' + (maxForkLengthSum / numMiners) + '",';
 
-				if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
-				if(network.logging.columns['Blocks in flight']) line += '"' + miner.networkBuffer.buffer.length + '",';
-				if(network.logging.columns['Latency (ms)']) line += '"' + miner.latency + '",';
-				if(network.logging.columns['Downlink (MBps)']) line += '"' + miner.bandwidth.downlink + '",';
-				if(network.logging.columns['Uplink (MBps)']) line += '"' + miner.bandwidth.uplink + '",';
-				if(network.logging.columns['Block height']) line += '"' + (miner.currentHeader.height - 1) + '",';
-				if(network.logging.columns['Total blocks found']) line += '"' + miner.totalBlocksFound + '",';
-				if(network.logging.columns['Stale blocks found']) line += '"' + miner.staleBlocksFound + '",';
-				if(network.logging.columns['Max fork length']) line += '"' + (miner.largestForkLength || 0) + '",';
+			} else { // A per-node log
+				for(let id in network.ID_Registry) {
+					let miner = network.peers[id];
+					if(network.logging.columns['Miner name']) line += '"' + miner.name + '",';
+					if(network.logging.columns['Balance']) line += '"' + (miner.currentHeader.balances[id] || 0) + '",';
+					if(network.logging.columns['Balance %']) line += '"' + ((miner.currentHeader.balances[id] / balanceTotal * 100) || 0) + '",';
+					if(network.logging.columns['Power (hash/s)']) line += '"' + miner.power + '",';
+					if(network.logging.columns['Power %']) line += '"' + (miner.power / powerTotal * 100) + '",';
+
+					if(network.logging.logNetworkData) { // Keep track of networking data
+						if(network.logging.columns['Blockchain IDs']) line += '"' + miner.blockchain_blockID?.join(' ') + '",';
+						if(network.logging.columns['Blockchain num hops']) line += '"' + miner.blockchain_numHops?.join(' ') + '",';
+						if(network.logging.columns['Blockchain travel time (ms)']) line += '"' + miner.blockchain_blockDelay?.join(' ') + '",';
+						if(network.logging.columns['Artificial travel time (ms)']) line += '"' + miner.blockchain_artificialBlockDelay?.join(' ') + '",';
+					}
+
+					if(network.logging.columns['Network buffer size limit']) line += '"' + miner.networkBuffer.bufferSizeLimit + '",';
+					if(network.logging.columns['Blocks in flight']) line += '"' + miner.networkBuffer.buffer.length + '",';
+					if(network.logging.columns['Latency (ms)']) line += '"' + miner.latency + '",';
+					if(network.logging.columns['Downlink (MBps)']) line += '"' + miner.bandwidth.downlink + '",';
+					if(network.logging.columns['Uplink (MBps)']) line += '"' + miner.bandwidth.uplink + '",';
+					if(network.logging.columns['Block height']) line += '"' + (miner.currentHeader.height - 1) + '",';
+					if(network.logging.columns['Total blocks found']) line += '"' + miner.totalBlocksFound + '",';
+					if(network.logging.columns['Stale blocks found']) line += '"' + miner.staleBlocksFound + '",';
+					if(network.logging.columns['Max fork length']) line += '"' + (miner.largestForkLength || 0) + '",';
+				}
 			}
-			updateToolOptions.samplerLog.push(line);
+			updateToolOptions.samplerLog.push(line + '\r\n');
 		}
 		if(network.logging.resetBlockchainAfterEachSample) {
 			network.removeBlocksInFlight();
@@ -4234,38 +4298,23 @@
 
 	// Download the list of CSV rows from updateToolOptions.samplerLog
 	function downloadSampleLog(name) {
+		// If error occurs, start Chrome with the following:
+		//		google-chrome --max_old_space_size=4096
 		if(name === undefined) {
 			if(network.name == '') name = 'PoW_log.csv';
 			else name = 'PoW_log_' + network.name.replace(/\s/g, '_') + '.csv';
 		}
-		let log = updateToolOptions.samplerLog.join('\r\n');
-		let a = document.createElement('a');
-		
 		try {
-			a.setAttribute('href','data:text/plain;charset=utf-8,' + encodeURIComponent(log));
-		} catch (e) { // Plan B: If encodeURIComponent gives a RangeError, simply don't use it:
-			console.log('\n\n\n\n\n\n\n\n\n\n');
-			console.warn('The sample log filled up the browser\'s memory capacity. Now attempting to download it without encodeURIComponent...');
-			
-			try {
-				a.setAttribute('href','data:text/plain;charset=utf-8,' + log);
-			} catch(e) { // Uh oh... Plan C: Allow the user to copy the data
-
-				console.error('Downloading the log without encodeURIComponent failed due to limited memory. The data will now be printed to the console. Please manually save it as a .csv file to ensure no data is lost.');
-
-
-				console.warn('Compressed version (JavaScript):');
-				console.log('LZString.decompressFromUTF16(\'' + LZString.compressToUTF16(log) + '\');');
-
-				console.warn('Uncompressed version (Copy, then save it as a CSV file manually):');
-				console.log(log);
-
-				alert('Uh oh! The download ran out of memory, please see the console for the backup sample log data, which can be manually saved as a CSV file, so that no data is lost.');
-			}
+			let a = document.createElement('a');
+			a.setAttribute('href',	URL.createObjectURL(
+				new Blob(updateToolOptions.samplerLog, {type: 'text/plain'}))
+			);
+			a.setAttribute('download', name);
+			a.click();
+			a.remove();
+		} catch(e) {
+			alert(e)
 		}
-		
-		a.setAttribute('download', name);
-		a.click();
 	}
 
 	// Use arrow keys to explore the different blocks
