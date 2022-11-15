@@ -11,8 +11,7 @@
 		<link rel='icon' href='img/favicon.ico' type='image/x-icon'>
 		<link rel='stylesheet' href='lib/bootstrap.min.css'>
 		<link href='lib/jsoneditor.min.css' rel='stylesheet' type='text/css'>
-		<!-- <script type='text/javascript' src='lib/vis-network.min.js'></script> -->
-		<script type='text/javascript' src='lib/vis-network.js'></script>
+		<script type='text/javascript' src='lib/vis-network.min.js'></script>
 		<script src='lib/jsoneditor.min.js'></script>
 		<script src='lib/lz-string.min.js'></script>
 		<link rel='stylesheet' href='lib/codemirror/lint.css'>
@@ -1138,10 +1137,14 @@
 			network.peers[ID].incomingPeers.push(this.ID);
 
 			// Add the edge to the vis container
+			let success = false;
 			if(updateToolOptions.visSimulationActive) {
-				updateToolOptions.visNetwork.body.data.edges.add({'from': updateToolOptions.visNodeIDs[this.ID], 'to': updateToolOptions.visNodeIDs[ID], 'length': updateToolOptions.visLineLength});
+				try {
+					updateToolOptions.visNetwork.body.data.edges.add({'from': updateToolOptions.visNodeIDs[this.ID], 'to': updateToolOptions.visNodeIDs[ID], 'length': updateToolOptions.visLineLength});
+					success = true;
+				} catch(e) {}
 			}
-			updateTools(false);
+			updateTools(!success);
 		}
 
 		removeConnection(ID) {
@@ -1158,28 +1161,29 @@
 			}
 
 			// Remove the edge from the vis container
+			let success = false;
 			if(updateToolOptions.visSimulationActive) {
-				let edgeID, edgeIDs = updateToolOptions.visNetwork.getConnectedEdges(updateToolOptions.visNodeIDs[this.ID]), found = false;
-				for(let edgeID of edgeIDs) {
-					const edgeTo = updateToolOptions.visNetwork.body.edges[edgeID].to.id;
-					let edgeToMiner = '';
-					for(let node in updateToolOptions.visNodeIDs) {
-						if(updateToolOptions.visNodeIDs[node] == edgeTo) {
-							edgeToMiner = node;
+				let edgeID, edgeIDs = updateToolOptions.visNetwork.getConnectedEdges(updateToolOptions.visNodeIDs[this.ID]);
+				try {
+					for(let edgeID of edgeIDs) {
+						const edgeTo = updateToolOptions.visNetwork.body.edges[edgeID].to.id;
+						let edgeToMiner = '';
+						for(let node in updateToolOptions.visNodeIDs) {
+							if(updateToolOptions.visNodeIDs[node] == edgeTo) {
+								edgeToMiner = node;
+								break;
+							}
+						}
+						if(edgeToMiner == ID) {
+							updateToolOptions.visNetwork.body.data.edges.remove(edgeID);
+							updateToolOptions.visNetwork.stabilize();
+							success = true;
 							break;
 						}
 					}
-					if(edgeToMiner == ID) {
-						updateToolOptions.visNetwork.body.data.edges.remove(edgeID);
-						//updateToolOptions.visNetwork.stabilize();
-						found = true;
-						break;
-					}
-				}
-				updateTools(!found);
-			} else {
-				updateTools(false);
+				} catch(e) {}
 			}
+			updateTools(!success);
 		}
 
 		newHeader(prevHeader) {
