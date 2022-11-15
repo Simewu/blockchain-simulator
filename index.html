@@ -11,20 +11,21 @@
 		<link rel='icon' href='img/favicon.ico' type='image/x-icon'>
 		<link rel='stylesheet' href='lib/bootstrap.min.css'>
 		<link href='lib/jsoneditor.min.css' rel='stylesheet' type='text/css'>
-		<script type='text/javascript' src='lib/vis-network.min.js'></script>
+		<!-- <script type='text/javascript' src='lib/vis-network.min.js'></script> -->
+		<script type='text/javascript' src='lib/vis-network.js'></script>
 		<script src='lib/jsoneditor.min.js'></script>
 		<script src='lib/lz-string.min.js'></script>
-		<link rel="stylesheet" href="lib/codemirror/lint.css">
+		<link rel='stylesheet' href='lib/codemirror/lint.css'>
 		<link rel='stylesheet' href='lib/codemirror/codemirror.css'>
 		<link rel='stylesheet' href='lib/codemirror/material-darker.css'>
 		<link rel='stylesheet' href='style.css'>
 		<script src='lib/codemirror/codemirror.js'></script>
 		<script src='lib/codemirror/formatting.js'></script>
 		<script src='lib/codemirror/javascript.js'></script>
-		<script src="lib/codemirror/jshint.js"></script>
-		<script src="lib/codemirror/lint.js"></script>
-		<script src="lib/codemirror/javascript-lint.js"></script>
-		<script src="lib/NoSleep.min.js"></script>
+		<script src='lib/codemirror/jshint.js'></script>
+		<script src='lib/codemirror/lint.js'></script>
+		<script src='lib/codemirror/javascript-lint.js'></script>
+		<script src='lib/NoSleep.min.js'></script>
 		<style id='miner-colors-selector'></style>
 	</head>
 
@@ -36,7 +37,7 @@
 		<div class='jumbotron p-3 mb-3'>
 			<div class='row'>
 				<div class='col-md-12 mb-3'>
-					<div class='btn-group fillx' style='max-height:35px;cursor:pointer'>
+					<div id='navbar' class='btn-group fillx'>
 						<div class='btn-group w-100'>
 
 							<!-- File Options Dropdown -->
@@ -107,6 +108,8 @@
 								<a class='dropdown-item' onclick='bidirectionallyConnectPeers()'>Connect nodes bidirectionally</a>
 								<a class='dropdown-item' onclick='fullyConnectPeers()'>Connect all nodes</a>
 								<a class='dropdown-item' onclick='fullyDisconnectPeers()'>Disconnect all nodes</a>
+								<div class='dropdown-divider'></div>
+								<a class='dropdown-item disabled' onclick='if(updateToolOptions.shiftKey) alert("Shift+Click on two nodes to either enable or disable their connection.")'>Toggle edges with <span class="badge badge-secondary float-right" style="margin-top:3px">Shift+Click</span></a>
 							</div>
 						</div>
 
@@ -165,7 +168,7 @@
 						<span id='editMinerBadge' class='ml-auto badge badge-secondary'></span>
 					</div>
 				</div>
-			</div>	
+			</div>
 		</div>
 		<div class='row'>
 			<div class='col-md-12'>
@@ -282,7 +285,6 @@
 								<select id='explorerMinerName' class='col-sm-3 w-25 form-select bg-secondary text-white rounded' onchange='changeExplorerMiner()'></select>
 								<label for='explorerMinerBlock' class='col-sm-3 w-25'>Block Number<span id='explorerMinerBlockColor' class='badge badge-pill'> </span></label>
 								<input  id='explorerMinerBlock' type='number' onchange='changeExplorerMiner()' class='border border-secondary bg-secondary text-white px-4 w-25 rounded' min='-1' value='0' required>
-
 
 							</div>
 						</div>
@@ -478,11 +480,12 @@
 	<script src='lib/bootstrap.min.js'></script>
 </body>
 <script type='text/javascript'>
-
+	//'use strict';
 	let network = null;
-
-	let updateToolOptions = {
+	const updateToolOptions = {
 		bitcoinLatencyData: { url: null, data: null },
+		canvasVisualizerCanvas: document.getElementById('canvasVisualizer'),
+		canvasVisualizerCtx: document.getElementById('canvasVisualizer').getContext('2d', {willReadFrequently: true}),
 		canvasVisualizerBarWidth: 15,
 		canvasVisualizerInterval: 1000 / 30,
 		canvasVisualizerPixelStepSize: 1,
@@ -490,6 +493,8 @@
 		codeEditorAfterSampling: null,
 		codeEditorBeforeSampling: null,
 		codeEditorBetweenSamples: null,
+		isCtrlPressed: false,
+		isShiftPressed: false,
 		minerStatsTable_active: true,
 		nodeLatencyBackup: {},
 		requestVisRedrawTimeout: null,
@@ -500,6 +505,8 @@
 		samplerLog: [],
 		sampleStartTime: 0,
 		saveSamplerSettingsTimeout: null,
+		selectedMiner: '',
+		selectedMinerPrev: '',
 		selectMinerTimeout: null,
 		stopBlocksInFlightWhenStoppingMining: false,
 		timeout: null,
@@ -510,10 +517,10 @@
 		visNodeIDs: [],
 		visSimulationActive: true,
 		visTimeout: null,
-	}
+	};
 
 	// Use the 256-bit secure hashing algorithm (SHA256) by calling sha256('data string')
-	const sha256 = function a(b) {function c(a,b) {return a>>>b|a<<32-b}for(var d,e,f=Math.pow,g=f(2,32),h="length",i="",j=[],k=8*b[h],l=a.h=a.h||[],m=a.k=a.k||[],n=m[h],o= {},p=2;64>n;p++)if(!o[p]) {for(d=0;313>d;d+=p)o[d]=p;l[n]=f(p,.5)*g|0,m[n++]=f(p,1/3)*g|0}for(b+="\x80";b[h]%64-56;)b+="\x00";for(d=0;d<b[h];d++) {if(e=b.charCodeAt(d),e>>8)return;j[d>>2]|=e<<(3-d)%4*8}for(j[j[h]]=k/g|0,j[j[h]]=k,e=0;e<j[h];) {var q=j.slice(e,e+=16),r=l;for(l=l.slice(0,8),d=0;64>d;d++) {var s=q[d-15],t=q[d-2],u=l[0],v=l[4],w=l[7]+(c(v,6)^c(v,11)^c(v,25))+(v&l[5]^~v&l[6])+m[d]+(q[d]=16>d?q[d]:q[d-16]+(c(s,7)^c(s,18)^s>>>3)+q[d-7]+(c(t,17)^c(t,19)^t>>>10)|0),x=(c(u,2)^c(u,13)^c(u,22))+(u&l[1]^u&l[2]^l[1]&l[2]);l=[w+x|0].concat(l),l[4]=l[4]+w|0}for(d=0;8>d;d++)l[d]=l[d]+r[d]|0}for(d=0;8>d;d++)for(e=3;e+1;e--) {var y=l[d]>>8*e&255;i+=(16>y?0:"")+y.toString(16)}return i};
+	const sha256 = function a(b) {function c(a,b) {return a>>>b|a<<32-b}for(var d,e,f=Math.pow,g=f(2,32),h='length',i='',j=[],k=8*b[h],l=a.h=a.h||[],m=a.k=a.k||[],n=m[h],o= {},p=2;64>n;p++)if(!o[p]) {for(d=0;313>d;d+=p)o[d]=p;l[n]=f(p,.5)*g|0,m[n++]=f(p,1/3)*g|0}for(b+='\x80';b[h]%64-56;)b+='\x00';for(d=0;d<b[h];d++) {if(e=b.charCodeAt(d),e>>8)return;j[d>>2]|=e<<(3-d)%4*8}for(j[j[h]]=k/g|0,j[j[h]]=k,e=0;e<j[h];) {var q=j.slice(e,e+=16),r=l;for(l=l.slice(0,8),d=0;64>d;d++) {var s=q[d-15],t=q[d-2],u=l[0],v=l[4],w=l[7]+(c(v,6)^c(v,11)^c(v,25))+(v&l[5]^~v&l[6])+m[d]+(q[d]=16>d?q[d]:q[d-16]+(c(s,7)^c(s,18)^s>>>3)+q[d-7]+(c(t,17)^c(t,19)^t>>>10)|0),x=(c(u,2)^c(u,13)^c(u,22))+(u&l[1]^u&l[2]^l[1]&l[2]);l=[w+x|0].concat(l),l[4]=l[4]+w|0}for(d=0;8>d;d++)l[d]=l[d]+r[d]|0}for(d=0;8>d;d++)for(e=3;e+1;e--) {var y=l[d]>>8*e&255;i+=(16>y?0:'')+y.toString(16)}return i};
 
 	// Network class
 	class Network {
@@ -579,15 +586,15 @@
 
 			if(_difficulty.startsWith('0x')) {
 				_difficulty = _difficulty.substring(2); // Remove the 0x
-				let maxDifficulty = parseInt('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'.substring(0, 15), 16);
-				let d = parseInt(_difficulty.substring(0, 15), 16) / maxDifficulty;
+				const maxDifficulty = parseInt('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'.substring(0, 15), 16);
+				const d = parseInt(_difficulty.substring(0, 15), 16) / maxDifficulty;
 				if(!isNaN(d)) {
 					this.difficulty = d;
 				} else {
 					alert(`Invalid difficulty value: '${_difficulty}'.`);
 				}
 			} else {
-				let d = parseFloat(_difficulty);
+				const d = parseFloat(_difficulty);
 				if(!isNaN(d)) {
 					this.difficulty = d;
 				} else {
@@ -640,18 +647,18 @@
 			network.removeBlocksInFlight();
 			let newNetwork = null, destructive = false;
 			try {
-				let json = JSON_stringify(network);
+				const json = JSON_stringify(network);
 				// Now clone it, remove the temporary properties such as blockchain, then re-convert to JSON
 				newNetwork = JSON_parse(json);
 			} catch(e) {
-				let proceed = confirm('There was an out-of-memory error cloning the network for serialization.\n\nWould you like to proceed with successful serialization at the cost of potentially corrupting the current network instance?');
+				const proceed = confirm('There was an out-of-memory error cloning the network for serialization.\n\nWould you like to proceed with successful serialization at the cost of potentially corrupting the current network instance?');
 				if(!proceed) return;
 				destructive = true;
 				newNetwork = network; // Don't clone it
 			}
 			delete newNetwork.genesis;
 			for(let ID in newNetwork.peers) {
-				let peer = newNetwork.peers[ID];
+				const peer = newNetwork.peers[ID];
 				delete peer.lastAcceptedBlock;
 				delete peer.blockchain;
 				delete peer.blockchainOffset;
@@ -665,12 +672,12 @@
 				delete peer.blockchain_artificialBlockDelay;
 				delete peer.networkBuffer;
 			}
-			let restoreNetwork = (json) => {
+			const restoreNetwork = (json) => {
 				// If we removed the network's critical data, rebuild it here
 				let fixedNetwork = Network.deserialize(json);
 				if(fixedNetwork != null) network = fixedNetwork;
 				else console.error('Unable to restore the network, please refresh the page.');
-			}
+			};
 			if(compress) {
 				let fixedJSON = JSON_stringify(newNetwork);
 				if(destructive) setTimeout(restoreNetwork, 1000, fixedJSON);
@@ -686,11 +693,11 @@
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
 		static deserialize(data) {
 			clearAllTimeouts();
-			let decompressed = LZString.decompressFromUTF16(data);
+			const decompressed = LZString.decompressFromUTF16(data);
 			if(decompressed != null && decompressed.startsWith('\n')) data = decompressed.substring(1);
 
 			try {
-				let newNetworkObj = JSON_parse(data);
+				const newNetworkObj = JSON_parse(data);
 				let network = new Network();
 				// Add logging if it doesn't exist
 				if(newNetworkObj.logging === undefined) newNetworkObj.logging = network.logging;
@@ -706,7 +713,8 @@
 
 				network = Object.assign(network, newNetworkObj);
 
-				
+				network.name = network.name.toString();
+				if(network.name == '0') network.name = '';
 
 				for(let peer in network.peers) { // Make all miners Miner objects
 
@@ -719,7 +727,7 @@
 					currentHeader = Object.assign(currentHeader, network.peers[peer].currentHeader);
 					network.peers[peer].currentHeader = currentHeader;
 
-					let lastAcceptedBlock = currentHeader.clone();
+					const lastAcceptedBlock = currentHeader.clone();
 					// And so that it doesn't affect the color:
 					delete lastAcceptedBlock.numHops;
 					delete lastAcceptedBlock.propagationTime;
@@ -753,7 +761,7 @@
 					}
 
 					// Recreate the networkBuffer
-					let networkBuffer = new NetworkBuffer(miner.ID);
+					const networkBuffer = new NetworkBuffer(miner.ID);
 					network.peers[peer].networkBuffer = networkBuffer;
 				}
 				return network;
@@ -786,7 +794,7 @@
 		}
 
 		clone() {
-			let newHeader = new Header();
+			const newHeader = new Header();
 			newHeader.solver = this.solver;
 			newHeader.height = this.height;
 			newHeader.timestamp = this.timestamp;
@@ -801,7 +809,7 @@
 		}
 
 		static fromObj(obj) {
-			let block = new Header();
+			const block = new Header();
 			if(obj.solver !== undefined) block.solver = obj.solver;
 			if(obj.height !== undefined) block.height = obj.height;
 			if(obj.timestamp !== undefined) block.timestamp = obj.timestamp;
@@ -858,7 +866,8 @@
 		// If the thread is null, then schedule the next processBuffer function call
 		activateBufferProcessor() {
 			if(this.thread == null) {
-				let packet = this.buffer[0], delay;
+				const packet = this.buffer[0];
+				let delay;
 				if(packet.to == this.parentID) { // Downloading data
 					delay = packet.size / 1000000 / network.peers[this.parentID].bandwidth.downlink * 1000;
 				} else { // Uploading data6
@@ -875,7 +884,7 @@
 				} else {
 					this.thread = setTimeout(this.processBuffer.bind(this), delay);
 				}
-				
+
 				this.nextInterval = delay;
 			}
 		}
@@ -889,7 +898,7 @@
 			}
 
 			// Process the packet
-			let packet = this.buffer.shift();
+			const packet = this.buffer.shift();
 
 			if(packet.to == this.parentID) { // Downloading data
 				let parent = network.peers[this.parentID];
@@ -918,7 +927,7 @@
 						networkBufferTo.buffer.push(packet);
 						networkBufferTo.activateBufferProcessor();
 					}, latency, networkBufferTo, packet);
-					
+
 				} // Else their size is too full and the packet must be dropped
 			}
 
@@ -953,7 +962,7 @@
 				to: to_ID,
 				payload: data,
 				size: data.numBytes
-			}
+			};
 			if(network.logging.logNetworkData) {
 				if(packet.payload.propagationTime === undefined) packet.payload.propagationTime = 0;
 			}
@@ -985,7 +994,7 @@
 			this.bandwidth = {
 				downlink: downlinkMBPS, // Used by the download buffer to receive data
 				uplink: uplinkMBPS // Used by the upload buffer to send data
-			}
+			};
 
 			this.sendInvalidMaliciousBlocks = false; // When enabled, this miner will mine like other miners, however when a 'block' is found, it is actually an invalid block, so adjacent nodes will decline it, but it will have already used up part of the neighboring node's bandwidths
 
@@ -1011,8 +1020,8 @@
 
 		destructor() {
 			this.stopMining();
-			let incomingPeersBackup = this.incomingPeers.slice();
-			let outgoingPeersBackup = Object.assign({}, this.outgoingPeers);
+			const incomingPeersBackup = this.incomingPeers.slice();
+			const outgoingPeersBackup = Object.assign({}, this.outgoingPeers);
 
 			for(let id in outgoingPeersBackup) {
 				this.removeConnection(id);
@@ -1027,14 +1036,14 @@
 		}
 
 		getBlock(height) {
-			let block = this.blockchain[height - this.blockchainOffset];
-			
+			const block = this.blockchain[height - this.blockchainOffset];
+
 			if(block === undefined) return null;
 
 			if(block instanceof Header) {
 				return block;
 			} else {
-				let fixedBlock = Header.fromObj(block);
+				const fixedBlock = Header.fromObj(block);
 				this.blockchain[height - this.blockchainOffset] = fixedBlock;
 				return fixedBlock;
 			}
@@ -1127,7 +1136,12 @@
 			if(this.ID == ID) return;
 			this.outgoingPeers[ID] = this.latency;
 			network.peers[ID].incomingPeers.push(this.ID);
-			updateTools();
+
+			// Add the edge to the vis container
+			if(updateToolOptions.visSimulationActive) {
+				updateToolOptions.visNetwork.body.data.edges.add({'from': updateToolOptions.visNodeIDs[this.ID], 'to': updateToolOptions.visNodeIDs[ID], 'length': updateToolOptions.visLineLength});
+			}
+			updateTools(false);
 		}
 
 		removeConnection(ID) {
@@ -1142,7 +1156,30 @@
 					}
 				}
 			}
-			updateTools();
+
+			// Remove the edge from the vis container
+			if(updateToolOptions.visSimulationActive) {
+				let edgeID, edgeIDs = updateToolOptions.visNetwork.getConnectedEdges(updateToolOptions.visNodeIDs[this.ID]), found = false;
+				for(let edgeID of edgeIDs) {
+					const edgeTo = updateToolOptions.visNetwork.body.edges[edgeID].to.id;
+					let edgeToMiner = '';
+					for(let node in updateToolOptions.visNodeIDs) {
+						if(updateToolOptions.visNodeIDs[node] == edgeTo) {
+							edgeToMiner = node;
+							break;
+						}
+					}
+					if(edgeToMiner == ID) {
+						updateToolOptions.visNetwork.body.data.edges.remove(edgeID);
+						//updateToolOptions.visNetwork.stabilize();
+						found = true;
+						break;
+					}
+				}
+				updateTools(!found);
+			} else {
+				updateTools(false);
+			}
 		}
 
 		newHeader(prevHeader) {
@@ -1169,7 +1206,7 @@
 		// Set the node's color in the network visualizer
 		setVisualizerColor(color) {
 			if(!updateToolOptions.visSimulationActive) return;
-			let visID = updateToolOptions.visNodeIDs[this.ID];
+			const visID = updateToolOptions.visNodeIDs[this.ID];
 			let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes[visID];
 			if(visRawNodeData === undefined) return;
 			if(color === undefined) color = this.color;
@@ -1205,12 +1242,12 @@
 
 			if(newHeader.height >= this.blockchain.length + this.blockchainOffset) {
 				// If at any point in receiving a block, there is an undefined header, this allows us to undo to the previous working header
-				let backupHeaders = [];
+				const backupHeaders = [];
 				backupHeaders.push(this.getBlock(newHeader.height));
 				this.setBlock(newHeader.height, newHeader);
 				this.currentHeader = this.newHeader(newHeader);
 				this.addCoinbaseTransaction();
-				let solver = network.peers[newHeader.solver];
+				const solver = network.peers[newHeader.solver];
 				//let newHeader = newHeader; // Go back through the blockchain until we reach the block that both miners share
 				let forkLength = 1;
 				while(this.getBlock(newHeader.height - 1) == null || newHeader.prevHash != this.getBlock(newHeader.height - 1).hash) {
@@ -1335,7 +1372,7 @@
 			array[i] = array[j];
 			array[j] = temp;
 		}
-		return array
+		return array;
 	}
 
 	// Added support for Infinity and NaN values
@@ -1403,7 +1440,7 @@
 			} else {
 				strMatchedValue = arrMatches[3];
 			}
-			matchedValue = Number(strMatchedValue);
+			const matchedValue = Number(strMatchedValue);
 			if(!isNaN(matchedValue)) {
 				arrData[arrData.length - 1].push(matchedValue);
 			} else {
@@ -1417,33 +1454,32 @@
 	// " --> \u04DC, ' --> \u04DD, ` --> \u04DE
 	function extractQuotes(code) {
 		code = code.replace(/\u04DC|\u04DD|\u04DE/g, ''); // Prevent intervention
-		let outputCode = '', extractedQuotes = [];
-		let split = code.split('\"');
+		let outputCode = '', extractedQuotes = [], split = code.split('\"');
 		for(let i in split) {
 			if(i % 2 == 0) {
 				outputCode += split[i];
 			} else {
-				outputCode += '\u04DC'
+				outputCode += '\u04DC';
 				extractedQuotes.push(split[i]);
 			}
 		}
 		split = outputCode.split('\'');
-		outputCode = ''
+		outputCode = '';
 		for(let i in split) {
 			if(i % 2 == 0) {
 				outputCode += split[i];
 			} else {
-				outputCode += '\u04DD'
+				outputCode += '\u04DD';
 				extractedQuotes.push(split[i]);
 			}
 		}
 		split = outputCode.split('\`');
-		outputCode = ''
+		outputCode = '';
 		for(let i in split) {
 			if(i % 2 == 0) {
 				outputCode += split[i];
 			} else {
-				outputCode += '\u04DE'
+				outputCode += '\u04DE';
 				extractedQuotes.push(split[i]);
 			}
 		}
@@ -1543,10 +1579,10 @@
 	function DOM_toggleStoppingBlocksInFlight() {
 		if(updateToolOptions.stopBlocksInFlightWhenStoppingMining) {
 			updateToolOptions.stopBlocksInFlightWhenStoppingMining = false;
-			$('#stopBlocksInFlightBtn').html('Stop blocks in flight<br>after stopping all miners')
+			$('#stopBlocksInFlightBtn').html('Stop blocks in flight<br>after stopping all miners');
 		} else {
 			updateToolOptions.stopBlocksInFlightWhenStoppingMining = true;
-			$('#stopBlocksInFlightBtn').html('Continue transmitting blocks in<br>flight after stopping all miners')
+			$('#stopBlocksInFlightBtn').html('Continue transmitting blocks in<br>flight after stopping all miners');
 		}
 	}
 
@@ -1588,8 +1624,10 @@
 		toggleVisualizations();
 
 		$(window).bind('keydown', function(event) {
-			let ctrl = event.ctrlKey || event.metaKey;
-			if(event.ctrlKey || event.metaKey) {
+			updateToolOptions.isCtrlPressed = event.ctrlKey || event.metaKey;
+			updateToolOptions.isShiftPressed = event.shiftKey;
+
+			if(updateToolOptions.isCtrlPressed) {
 				if(event.key == 's') {
 					saveToFile(true);
 					event.preventDefault();
@@ -1598,6 +1636,14 @@
 					event.preventDefault();
 				}
 			}
+			if(event.key == 'Delete' && !network.logging.logNetworkData) {
+				DOM_removeMiner();
+				selectMiner(Object.keys(network.peers)[0]);
+			}
+		});
+		$(window).bind('keyup', function(event) {
+			updateToolOptions.isCtrlPressed = event.ctrlKey || event.metaKey;
+			updateToolOptions.isShiftPressed = event.shiftKey;
 		});
 	});
 
@@ -1613,7 +1659,7 @@
 			lint: {
 				esversion: 11
 			},
-			gutters: ["CodeMirror-lint-markers"],
+			gutters: ['CodeMirror-lint-markers'],
 			lintOnChange: true,
 
 			mode:  {
@@ -1662,11 +1708,11 @@
 	// Load a compressed or uncompressed serialized network
 	function loadNetwork(data) {
 		if(typeof data != 'string') return false;
-		temp_network = Network.deserialize(data);
+		const temp_network = Network.deserialize(data);
 		if(temp_network == null) return false;
 		network = temp_network;
 
-		numPeers = Object.keys(network.peers).length;
+		const numPeers = Object.keys(network.peers).length;
 		if(numPeers >= 50 && updateToolOptions.visSimulationActive) {
 			let disableNetworkVisualizer  = confirm(`You are loading ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
 			if(disableNetworkVisualizer) {
@@ -1693,8 +1739,7 @@
 		}
 		let fileName = prompt('Saving a file as an empty string will load it every time the page is refreshed.\n\nFiles:\n["' + files.join('", "') + '"]\n\nPlease enter a file name to create/replace:', network.name);
 		if(fileName == null) return;
-
-		network.name = fileName;
+		network.name = fileName.toString();
 		fileName = 'NETWORK_FILE_' + fileName;
 
 		let data = Network.serialize(network);
@@ -1720,7 +1765,7 @@
 
 		let data = localStorage.getItem(fileName);
 		if(data == null) {
-			alert('File could not be found.')
+			alert('File could not be found.');
 		} else {
 			let status = loadNetwork(data);
 			if(status) DOM_setOptionMsg('LOADED', 'file', 'badge-success');
@@ -1752,7 +1797,7 @@
 	function clearAllLocalStorage() {
 		if(confirm('Are you sure you would like to clear all the saved networks from your browser?')) {
 			localStorage.clear();
-			alert('LocalStorage has been cleared.')
+			alert('LocalStorage has been cleared.');
 		}
 	}
 
@@ -1788,7 +1833,7 @@
 			a.setAttribute('download', fileName);
 		} else {
 			a.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(data));
-			a.setAttribute('download', 'simulator_network_' + network.name.replace(/\s/g, '_') + '.json');
+			a.setAttribute('download', 'simulator_network_' + network.name.toString().replace(/\s/g, '_') + '.json');
 		}
 		a.click();
 		a.remove();
@@ -1832,7 +1877,7 @@
 	}
 
 	function DOM_loadPastedNetwork() {
-		let data = $('#pasteNetworkTextarea').val()
+		let data = $('#pasteNetworkTextarea').val();
 
 		let status = loadNetwork(data);
 		if(status) DOM_setOptionMsg('LOADED', 'file', 'badge-success');
@@ -1840,39 +1885,39 @@
 	}
 
 	function loadFromFile() {
-		file = new Promise((resolve) => {
+		let file = new Promise((resolve) => {
 			const input = document.createElement('input');
 			input.type = 'file';
-			input.accept = '.json, .dat'
+			input.accept = '.json, .dat';
 			input.addEventListener('change', () => {
 				resolve(input.files[0]);
 			});
 			input.click();
 		}).then(file => {
 			//var file = e.dataTransfer.files[0],
-			read = new FileReader();
+			let read = new FileReader();
 			read.readAsText(file, 'text/plain;charset=UTF-16BE;');
 			read.onloadend = function(){
 				let data = read.result;
 				let status = loadNetwork(data);
 				if(status) DOM_setOptionMsg('OPENED', 'file', 'badge-success');
 				else DOM_setOptionMsg('ERROR OPENING', 'file', 'badge-warning');
-			}
+			};
 		});
 	}
 
 	// Called when a node is created or deleted
-	function updateTools() {
+	function updateTools(updateVis = true) {
 		if(updateToolOptions.timeout != null) return;
-		updateToolOptions.timeout = setTimeout(_updateTools, 300);
+		updateToolOptions.timeout = setTimeout(_updateTools, 300, updateVis);
 	}
 
 	// Cannot be called more than once every 300ms
-	function _updateTools() {
+	function _updateTools(updateVis) {
 		if(updateToolOptions.minerStatsTable_active) {
 			updateMinerStatsTable();
 		}
-		if(updateToolOptions.visSimulationActive) {
+		if(updateVis && updateToolOptions.visSimulationActive) {
 			vis_setupNetworkSimulation();
 		}
 		changeExplorerMiner();
@@ -1894,14 +1939,14 @@
 
 		$('#explorerMinerName').html($('#minerList').html());
 
-		if(updateToolOptions.selectedMiner == null) updateToolOptions.selectedMiner = Object.keys(network.peers)[0];
+		if(updateToolOptions.selectedMiner == null) selectMiner(Object.keys(network.peers)[0]);
 		selectMiner(updateToolOptions.selectedMiner);
 	}
 
 	function addMinerBtnClicked() {
 		$('#multiselectAddPeers').empty();
 		for(let id in network.ID_Registry) {
-			$('#multiselectAddPeers').append('<option value="' + id + '">' + network.peers[id].name + '</option>')
+			$('#multiselectAddPeers').append('<option value="' + id + '">' + network.peers[id].name + '</option>');
 		}
 		const selectionID = $('#minerList option:selected').val();
 		if(selectionID !== undefined) {
@@ -1933,7 +1978,6 @@
 			updateToolOptions.visNetwork.selectNodes([updateToolOptions.visNodeIDs[miner.ID]]);
 		} catch(e) {}
 
-
 		$('#explorerMinerName option:selected').prop('selected', false);
 		$('#explorerMinerName option[value="' + miner.ID + '"]').prop('selected', true);
 		$('#explorerMinerName option:selected').change();
@@ -1960,6 +2004,17 @@
 
 	// Select a miner from the mining list
 	function _selectMiner(id, scrollTo) {
+		if(id != updateToolOptions.selectedMiner) {
+			updateToolOptions.selectedMinerPrev = updateToolOptions.selectedMiner;
+			if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
+				let isAlreadyConnected = network.peers[updateToolOptions.selectedMinerPrev].outgoingPeers[id];
+				if(isAlreadyConnected) {
+					network.peers[updateToolOptions.selectedMinerPrev].removeConnection(id);
+				} else {
+					network.peers[updateToolOptions.selectedMinerPrev].addConnection(id);
+				}
+			}
+		}
 		updateToolOptions.selectedMiner = id;
 		$('#minerList option:selected').prop('selected', false);
 		if(id === undefined) return;
@@ -2020,7 +2075,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].power = Math.max(0, rnd(num1, num2))
+				network.peers[id].power = Math.max(0, rnd(num1, num2));
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -2050,7 +2105,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].latency = Math.max(0, rnd(num1, num2))
+				network.peers[id].latency = Math.max(0, rnd(num1, num2));
 				for(let id2 in network.peers[id].outgoingPeers) {
 					network.peers[id].outgoingPeers[id2] = Math.max(0, rnd(num1, num2));
 				}
@@ -2087,7 +2142,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].bandwidth.downlink = Math.max(0, rnd(num1, num2))
+				network.peers[id].bandwidth.downlink = Math.max(0, rnd(num1, num2));
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -2117,7 +2172,7 @@
 					num1 = eval(getDynamicSampleCode(code1));
 					num2 = eval(getDynamicSampleCode(code2));
 				}
-				network.peers[id].bandwidth.uplink = Math.max(0, rnd(num1, num2))
+				network.peers[id].bandwidth.uplink = Math.max(0, rnd(num1, num2));
 			}
 			updateMinerJsonEditor();
 			DOM_setOptionMsg('SUCCESS', 'network', 'badge-success');
@@ -2201,7 +2256,7 @@
 			e.remove();
 			$('#removeMinerBtn').text('Remove miner');
 			$('#toggleMinerMiningBtn').text('Toggle mining for miner');
-			DOM_setOptionMsg('REMOVED ' + miner.name.toUpperCase(), 'network', 'badge-success');
+			DOM_setOptionMsg('REMOVED ' + name.toUpperCase(), 'network', 'badge-success');
 		}
 	}
 
@@ -2261,7 +2316,7 @@
 			let peer = network.peers[peerID];
 			let newPeer = network.peers[translation[peerID]];
 			for(let outgoingPeer in peer.outgoingPeers) {
-				outgoingPeersTranslation = translation[outgoingPeer];
+				let outgoingPeersTranslation = translation[outgoingPeer];
 
 				if(outgoingPeersTranslation === undefined) continue;
 				newPeer.addConnection(outgoingPeersTranslation);
@@ -2275,7 +2330,7 @@
 		if(network.logging.logNetworkData) {
 			network.logging.logNetworkData = false;
 			$('#DOM_item_toggleLoggingNetworkData').html('Enable logging network<br>data within each miner');
-			if(network) for(peerID in network.peers) { // Clean up
+			if(network) for(let peerID in network.peers) { // Clean up
 				delete network.peers[peerID]['blockchain_blockID'];
 				delete network.peers[peerID]['blockchain_numHops'];
 				delete network.peers[peerID]['blockchain_blockDelay'];
@@ -2283,11 +2338,11 @@
 			}
 		} else {
 			$('#DOM_item_toggleLoggingNetworkData').html('Disable logging network<br>data within each miner');
-			if(network) for(peerID in network.peers) { // Initialization
+			if(network) for(let peerID in network.peers) { // Initialization
 				network.peers[peerID]['blockchain_blockID'] = [];
 				network.peers[peerID]['blockchain_numHops'] = [];
-				network.peers[peerID]['blockchain_blockDelay'] = []
-				network.peers[peerID]['blockchain_artificialBlockDelay'] = []
+				network.peers[peerID]['blockchain_blockDelay'] = [];
+				network.peers[peerID]['blockchain_artificialBlockDelay'] = [];
 			}
 			network.logging.logNetworkData = true;
 		}
@@ -2324,7 +2379,7 @@
 			miner.lastAcceptedBlock = network.peers[miner.ID].lastAcceptedBlock;
 			miner.networkBuffer = network.peers[miner.ID].networkBuffer;
 			Object.assign(network.peers[miner.ID], miner);
-			
+
 			$('#minerList  option[value="' + miner.ID + '"]').text(miner.name);
 			$('#editMinerBadge').attr('class', 'ml-auto badge badge-primary');
 			$('#editMinerBadge').text('SUCCESSFULLY SAVED');
@@ -2496,7 +2551,6 @@
 				};
 				break;
 
-
 			case 'Bitcoin':
 				options = {
 					'Type': topology,
@@ -2527,7 +2581,7 @@
 			// Do an extra check to disable the network visualizer if it may be too computationally taxing
 			let json = topologyjsoneditor.get();
 			if(json['Number of peers'] !== undefined && json['Type'] != 'Bitcoin') { // The Bitcoin topology automatically disables the visualizer
-				numPeers = parseInt(json['Number of peers']) || 0;
+				const numPeers = parseInt(json['Number of peers']) || 0;
 				if(numPeers >= 50 && updateToolOptions.visSimulationActive) {
 					let disableNetworkVisualizer  = confirm(`You are generating ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
 					if(disableNetworkVisualizer) {
@@ -2552,7 +2606,7 @@
 		if(verbose) console.log('Generate topology called:\n\ngenerateTopology(' + JSON_stringify(options) + ')');
 		removeAllMiners();
 		let promise = null;
-		let miners, chosenNames, bidirectional, nPeers, minPower, maxPower, minLatency, maxLatency, names, minNumConnections, maxNumConnections, structure;
+		let miners, chosenNames, bidirectional, preventDuplicateConnections, nPeers, numConnections, minPower, maxPower, minLatency, maxLatency, minDownlinkMBPS, maxDownlinkMBPS, minUplinkMBPS, maxUplinkMBPS, names, minNumConnections, maxNumConnections, structure, towardsCenter, m0, m, latencyUrl;
 		switch(options['Type']) {
 			case 'Ring':
 				bidirectional = !!options['Bidirectional'];
@@ -2883,7 +2937,7 @@
 				minLatency = options['Minimum latency (milliseconds)'] ?? 100;
 				maxLatency = options['Maximum latency (milliseconds)'] ?? 100;
 				names = options['Naming cycle'] ?? ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-				
+
 				miners = [];
 				chosenNames = [];
 				for(let i = 0; i < nPeers; i++) {
@@ -2927,8 +2981,8 @@
 
 				// Todo:
 				for(let i = 0; i < miners.length; i++) {
-					sumEdges = 0
-					connCount = 0
+					let sumEdges = 0;
+					let connCount = 0;
 					for(let j = 0; j < i; j++) {
 						let numEdges = network.peers[miners[j].ID].incomingPeers.length;
 						sumEdges += numEdges;
@@ -2948,8 +3002,6 @@
 				miners[miners.length - 1].addConnection(miners[0].ID);
 				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
 				break;
-
-
 
 			case 'Bitcoin':
 				nPeers = options['Number of peers'] ?? 100;
@@ -2976,11 +3028,11 @@
 				}
 
 				const gen = () => {
-					miners = [];
-					minersNumConnections = []
-					minerMapOpenForConnections = []
-					minerNumberOfConnections = []
-					chosenNames = [];
+					let miners = [];
+					let minersNumConnections = [];
+					let minerMapOpenForConnections = [];
+					let minerNumberOfConnections = [];
+					let chosenNames = [];
 					for(let i = 0; i < nPeers; i++) {
 						let name = names[i % names.length];
 						if(nPeers > names.length) name += '1';
@@ -3003,7 +3055,7 @@
 						minerNumberOfConnections.push(0);
 					}
 
-					loopBreaker = 1000;
+					let loopBreaker = 1000;
 					while(minerMapOpenForConnections.length > 1) {
 						// Selection: Miner at index 0
 						let r1 = rnd(0, minerMapOpenForConnections.length - 1);
@@ -3043,7 +3095,7 @@
 						loopBreaker = 1000;
 					}
 					randomizeLatenciesFromBitnodes(latencyUrl);
-				}
+				};
 
 				// Dynamically fetch the URL files, and cache them in updateToolOptions for later use
 				if(latencyUrl != updateToolOptions.bitcoinLatencyData.url) {
@@ -3100,7 +3152,7 @@
 				} catch(e) {}
 			}
 			console.log('Latencies have been set using the Bitnodes dataset.');
-		}
+		};
 
 		// Dynamically fetch the URL files, and cache them in updateToolOptions for later use
 		if(latencyUrl != updateToolOptions.bitcoinLatencyData.url) {
@@ -3218,7 +3270,6 @@
 	}
 
 	function DOM_toggleMinerStatsTable() {
-		let minerStatsDiv = document.getElementById('minerStatsDiv');
 		if(updateToolOptions.minerStatsTable_active) {
 			updateToolOptions.minerStatsTable_active = false;
 			$('#minerStatsTable').html('');
@@ -3257,7 +3308,7 @@
 		html += '<th scope="col">Max fork length</th>';
 		html += '</thead>';
 		html += '<tbody>';
-		let sum = {
+		const sum = {
 			power: 0,
 			numHops: 0,
 			blockDelay: 0,
@@ -3273,8 +3324,8 @@
 			totalBlocksFound: 0,
 			staleBlocksFound: 0,
 			largestForkLength: 0,
-		}
-		let avg = {
+		};
+		const avg = {
 			power: 0,
 			numHops: 0,
 			blockDelay: 0,
@@ -3290,10 +3341,10 @@
 			totalBlocksFound: 0,
 			staleBlocksFound: 0,
 			largestForkLength: 0,
-		}
+		};
 		let numPeers = 0;
 		for(let id in network.ID_Registry) {
-			let miner = network.peers[id];
+			const miner = network.peers[id];
 			sum.power += miner.power;
 
 			if(network.logging.logNetworkData) { // Keep track of networking data
@@ -3337,7 +3388,7 @@
 		avg.staleBlocksFound = Math.floor(sum.staleBlocksFound / numPeers * 1000) / 1000;
 		avg.largestForkLength = Math.floor(sum.largestForkLength / numPeers * 1000) / 1000;
 		for(let id in network.ID_Registry) {
-			let miner = network.peers[id];
+			const miner = network.peers[id];
 			html += '<tr onclick="selectMiner(\'' + miner.ID + '\', false)">';
 			html += '<th scope="col">' + miner.name + '</th>';
 			html += '<th scope="col">' + ((miner.currentHeader.balances[id] - 1) || 0) + '</th>';
@@ -3351,9 +3402,9 @@
 
 			if(network.logging.logNetworkData) { // Keep track of networking data
 				try {
-					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
-					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
-					let artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
+					const numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
+					const blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					const artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
 
 					html += '<th scope="col">' + (Math.floor(numHopsAvg * 1000) / 1000) + '</th>';
 					html += '<th scope="col">' + (Math.floor(blockDelayAvg * 1000) / 1000) + '</th>';
@@ -3405,7 +3456,7 @@
 	}
 
 	function toggleVisualizations() {
-		let vis_container = document.getElementById('networkVisualizer');
+		const vis_container = document.getElementById('networkVisualizer');
 		if(updateToolOptions.visSimulationActive) {
 			updateToolOptions.visSimulationActive = false;
 			vis_clearNetworkSimulation();
@@ -3432,10 +3483,10 @@
 
 	// Draw the circles to the right of the canvas visualizer DOM element
 	function drawCanvasVisualizerMinerCircles() {
-		const canvas = document.getElementById('canvasVisualizer');
-		const ctx = canvas.getContext('2d');
-		let numPeers = Object.keys(network.peers).length;
-		let barsize = Math.ceil(canvas.height / numPeers);
+		const canvas = updateToolOptions.canvasVisualizerCanvas;
+		const ctx = updateToolOptions.canvasVisualizerCtx;
+		const numPeers = Object.keys(network.peers).length;
+		const barsize = Math.ceil(canvas.height / numPeers);
 		let i = 0;
 		ctx.clearRect(canvas.width - barsize * 1.5, 0, canvas.width, canvas.height);
 		for(let id in network.peers) {
@@ -3472,35 +3523,34 @@
 
 	// When clicked, select the miner at the corresponding row
 	function canvasVisualizerClicked(event) {
-		const canvas = document.getElementById('canvasVisualizer');
-		const ctx = canvas.getContext('2d');
+		const canvas = updateToolOptions.canvasVisualizerCanvas;
 		const rect = canvas.getBoundingClientRect();
 		const x = event.clientX - rect.left;
 		const y = event.clientY - rect.top;
 
-		let minerIDs = Object.keys(network.peers);
-		let numPeers = minerIDs.length;
-		let barsize = Math.ceil(canvas.height / numPeers);
-		let minerIndex = Math.floor(y / barsize);
+		const minerIDs = Object.keys(network.peers);
+		const numPeers = minerIDs.length;
+		const barsize = Math.ceil(canvas.height / numPeers);
+		const minerIndex = Math.floor(y / barsize);
 		if(minerIndex < 0 || minerIndex >= numPeers) return;
-		let miner = minerIDs[minerIndex];
+		const miner = minerIDs[minerIndex];
 		selectMiner(miner, false);
 
 		if($('#canvasVisualizerCode').val().trim() == 'miner.lastAcceptedBlock') {
 			try {
-				var pixel = ctx.getImageData(x, y, 1, 1).data; 
-				var hexColor = "#" + ("000000" + rgbToHex(pixel[0], pixel[1], pixel[2])).slice(-6);
+				var pixel = updateToolOptions.canvasVisualizerCtx.getImageData(x, y, 1, 1).data;
+				var hexColor = '#' + ('000000' + rgbToHex(pixel[0], pixel[1], pixel[2])).slice(-6);
 				explorerSelectBlockFromColor(miner, hexColor);
 			} catch(e) {
-				console.log(e)
+				console.log(e);
 			}
 		}
 	}
 
 	// Java's String#hashCode, used to select a color in the canvas visualizer
 	function hashCode(str) {
-		var hash = 0;
-		for (var i = 0; i < str.length; i++) {
+		let hash = 0;
+		for (let i = 0; i < str.length; i++) {
 			hash = str.charCodeAt(i) + ((hash << 5) - hash);
 		}
 		return hash;
@@ -3508,15 +3558,15 @@
 
 	// Convert an integer into a color
 	function intToRGB(i){
-		let c = (i & 0x00FFFFFF).toString(16);
+		const c = (i & 0x00FFFFFF).toString(16);
 		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
 	}
 
 	// Convert (r,b,g) into a hex color
 	function rgbToHex(r, g, b) {
 		if (r > 255 || g > 255 || b > 255)
-			throw "Invalid color component";
-		let c = ((r << 16) | (g << 8) | b).toString(16);
+			throw 'Invalid color component';
+		const c = ((r << 16) | (g << 8) | b).toString(16);
 		return '00000'.substring(0, 6 - c.length) + c.toUpperCase();
 	}
 
@@ -3532,9 +3582,8 @@
 	}
 
 	function clearCanvasVisualizer() {
-		const canvas = document.getElementById('canvasVisualizer');
-		const ctx = canvas.getContext('2d');
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		const canvas = updateToolOptions.canvasVisualizerCanvas;
+		updateToolOptions.canvasVisualizerCtx.clearRect(0, 0, canvas.width, canvas.height);
 	}
 
 	function updateCanvasVisualizer() {
@@ -3544,15 +3593,15 @@
 			return;
 		}
 
-		let numPeers = Object.keys(network.peers).length;
+		const numPeers = Object.keys(network.peers).length;
 
 		const code = network.logging.canvasVisualizerCode;
-		const canvas = document.getElementById('canvasVisualizer');
-		const ctx = canvas.getContext('2d');
-		let barsize = Math.ceil(canvas.height / numPeers);
-		let px = updateToolOptions.canvasVisualizerPixelStepSize ?? 1;
+		const canvas = updateToolOptions.canvasVisualizerCanvas;
+		const ctx = updateToolOptions.canvasVisualizerCtx;
+		const barsize = Math.ceil(canvas.height / numPeers);
+		const px = updateToolOptions.canvasVisualizerPixelStepSize ?? 1;
 
-		imageData = ctx.getImageData(px, 0, canvas.width - px - Math.floor(barsize * 1.5), canvas.height);
+		const imageData = ctx.getImageData(px, 0, canvas.width - px - Math.floor(barsize * 1.5), canvas.height);
 		ctx.putImageData(imageData, 0, 0);
 		ctx.clearRect(canvas.width - px - Math.floor(barsize * 1.5), 0, px, canvas.height);
 
@@ -3560,23 +3609,22 @@
 		for(let id in network.peers) {
 			let obj = '', str = '';
 			try {
-				let miner = network.peers[id];
+				const miner = network.peers[id];
 				obj = eval(network.logging.canvasVisualizerCode) ?? '';
 				str = JSON_stringify(obj);
 			} catch(e) {}
 
-			let color = intToRGB(hashCode(str));
-
+			const color = intToRGB(hashCode(str));
 			ctx.fillStyle = '#' + color;
-			let y = Math.floor(i * canvas.height / numPeers);
+			const y = Math.floor(i * canvas.height / numPeers);
 			ctx.fillRect(canvas.width - px - Math.floor(barsize * 1.5), y, px, barsize);
 			i++;
 		}
 	}
 
 	function vis_clearNetworkSimulation() {
-		let vis_container = document.getElementById('networkVisualizer');
-		updateToolOptions.visNodeIDs = []
+		const vis_container = document.getElementById('networkVisualizer');
+		updateToolOptions.visNodeIDs = [];
 		updateToolOptions.visNetwork = new vis.Network(vis_container, {}, {});
 		vis_container.innerHTML = '';
 		vis_container.style.height = '0';
@@ -3584,16 +3632,16 @@
 	}
 
 	function DOM_togglePhysics() {
-		let physics = !updateToolOptions.visNetwork.physics.options.enabled;
+		const physics = !updateToolOptions.visNetwork.physics.options.enabled;
 		if(physics) $('#vis_physics_btn').text('Disable visualizer physics');
 		else $('#vis_physics_btn').text('Enable visualizer physics');
 		updateToolOptions.visNetwork.physics.setOptions({'enabled': physics});
 	}
 
 	function DOM_setLineLengths() {
-		let length_s = prompt('How long should lines be?', updateToolOptions.visLineLength);
+		const length_s = prompt('How long should lines be?', updateToolOptions.visLineLength);
 		if(length_s == null) return;
-		let length = parseInt(length_s) || undefined;
+		const length = parseInt(length_s) || undefined;
 
 		updateToolOptions.visLineLength = length;
 		vis_setupNetworkSimulation();
@@ -3601,15 +3649,14 @@
 	}
 
 	function DOM_setBarWidths() {
-		let width_s = prompt('How long should lines be?', updateToolOptions.canvasVisualizerBarWidth);
+		const width_s = prompt('How long should lines be?', updateToolOptions.canvasVisualizerBarWidth);
 		if(width_s == null) return;
-		let width = parseInt(width_s) || undefined;
+		const width = parseInt(width_s) || undefined;
 
 		updateToolOptions.canvasVisualizerBarWidth = width;
 		setupCanvasVisualizer();
 		DOM_setOptionMsg('SUCCESS', 'display', 'badge-success');
 
-		
 	}
 
 	function DOM_refreshVisualizer() {
@@ -3635,8 +3682,9 @@
 	}
 
 	function _vis_setupNetworkSimulation() {
-		updateToolOptions.visNodeIDs = []
-		let vis_nodes = [], vis_edges = [], i = 0;
+		updateToolOptions.visNodeIDs = [];
+		const vis_nodes = [], vis_edges = [];
+		let i = 0;
 		for(let id in network.ID_Registry) {
 			updateToolOptions.visNodeIDs[id] = i;
 			vis_nodes.push({
@@ -3659,7 +3707,7 @@
 				});
 			}
 		}
-		let vis_container = document.getElementById('networkVisualizer');
+		const vis_container = document.getElementById('networkVisualizer');
 
 		updateToolOptions.vis_network_options = {
 			nodes: {
@@ -3681,7 +3729,8 @@
 				dragView: false,
 				selectConnectedEdges: false,
 				zoomView: false,
-				dragNodes: false
+				dragNodes: false,
+				zoomSpeed: 0.2
 			},
 			physics: {
 				enabled: true
@@ -3694,7 +3743,7 @@
 		}, updateToolOptions.vis_network_options);
 
 		// Retrieve the node color from the vis.js datastructure
-		let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes;
+		const visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes;
 		let style = '';
 		for(let id in updateToolOptions.visNodeIDs) {
 			try {
@@ -3719,7 +3768,7 @@
 		});
 
 		updateToolOptions.visNetwork.view.canvas.frame.addEventListener('focus', function() {
-			let option = {
+			const option = {
 				interaction: {
 					zoomView: true,
 					dragNodes: true
@@ -3728,7 +3777,7 @@
 			updateToolOptions.visNetwork.setOptions(option);
 		});
 		updateToolOptions.visNetwork.view.canvas.frame.addEventListener('blur', function() {
-			let option = {
+			const option = {
 				interaction: {
 					zoomView: false,
 					dragNodes: false
@@ -3738,8 +3787,8 @@
 		});
 
 		updateToolOptions.visNetwork.on('zoom', function (e) {
-			let pos = updateToolOptions.visNetwork.getViewPosition();
-			let scale = Math.max(0.1, Math.min(10, updateToolOptions.visNetwork.getScale()));
+			const pos = updateToolOptions.visNetwork.getViewPosition();
+			const scale = Math.max(0.1, Math.min(10, updateToolOptions.visNetwork.getScale()));
 			updateToolOptions.visNetwork.moveTo({
 				position: { x: 0, y: 0},
 				scale: scale,
@@ -3775,8 +3824,8 @@
 	function vis_setBorders(width = 4) {
 		if(!updateToolOptions.visSimulationActive) return;
 		for(let ID in network.peers) {
-			let visID = updateToolOptions.visNodeIDs[ID];
-			let visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes[visID];
+			const visID = updateToolOptions.visNodeIDs[ID];
+			const visRawNodeData = updateToolOptions.visNetwork.nodesHandler.body.nodes[visID];
 			if(visRawNodeData === undefined) continue;
 			if(visRawNodeData.globalOptions.borderWidth == width) return;
 
@@ -3795,7 +3844,7 @@
 		network.logging.msPerSample = Math.floor(Number($('#timePerSample').val()) * 1000);
 
 		// Add the code wrapper
-		let _code = 'let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n';
+		const _code = 'let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n';
 
 		network.logging.codeBeforeSampling = '{\n' + _code + updateToolOptions.codeEditorBeforeSampling.getValue() + '\n}';
 		network.logging.codeBetweenSamples = '{\n' + _code + updateToolOptions.codeEditorBetweenSamples.getValue() + '\n}';
@@ -3807,7 +3856,7 @@
 		network.logging.logAveragesOnlyCheckbox = $('#logAveragesOnlyCheckbox').prop('checked');
 
 		// Update the list of log columns
-		let columns = $('#logColumnsList').val();
+		const columns = $('#logColumnsList').val();
 		for(let column in network.logging.columns) {
 			network.logging.columns[column] = false;
 		}
@@ -3830,7 +3879,7 @@
 		$('#timePerSample').val(network.logging.msPerSample / 1000);
 
 		// Remove the code wrapper
-		let _code = 'let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n';
+		const _code = 'let numSamples = updateToolOptions.numSamples, samplerData = updateToolOptions.samplerData;\nfunction setTag(tag) {\n\tupdateToolOptions.sampleTag = tag.toString();\n}\n\n';
 
 		let codeBeforeSampling = network.logging.codeBeforeSampling;
 		let codeBetweenSamples = network.logging.codeBetweenSamples;
@@ -3859,7 +3908,6 @@
 
 		$('#logColumnsList').empty();
 		for(let column in network.logging.columns) {
-
 			let hideIfNetworkLoggingNotEnabled = '';
 			// If the network logging parameters are disabled, hide it from the list as well
 			if(!network.logging.logNetworkData) {
@@ -3927,7 +3975,7 @@
 			sumTotalBlocks: 0,
 			sumStaleBlocks: 0,
 			sumMaxForkLength: 0,
-		}
+		};
 
 		// Also update the logging header, if there is a missing header field in the log data
 		if((network.logging.logAveragesOnlyCheckbox && updateToolOptions.headersGenerated == 0) || (!network.logging.logAveragesOnlyCheckbox && updateToolOptions.headersGenerated < Object.keys(network.peers).length)) {
@@ -3955,22 +4003,23 @@
 	// Given a code with miner IDs referenced by the user, convert it into executable JavaScript by inserting the network.peers[] wrapper around code not surrounded by quotes
 	function getDynamicSampleCode(code) {
 		code = ' ' + code + ' ';
-		let temp = extractQuotes(code);
+		const temp = extractQuotes(code);
 		// Convert miner IDs into proper references
-		let IDs = Object.keys(network.peers);
+		const IDs = Object.keys(network.peers);
 		IDs.sort(function(a, b){ // Process IDs from longest to shortest when replacing
 			return b.length - a.length;
 		});
 		// The replacement is done in two phases
 		// Phase 1: Create an intermediate string to avoid ID collisions, fill an array of replacements for phase 2
-		let replace = []; // Keep a list of replacements
+		const replace = []; // Keep a list of replacements
 		for(let ID of IDs) {
 			// Use a negative lookbehind and negative lookahead to ensure that the node ID is not part of a larger word
-			let regex = new RegExp('(?<![0-9A-Za-z_])(' + ID + ')(?![0-9A-Za-z_])'), match;
+			const regex = new RegExp('(?<![0-9A-Za-z_])(' + ID + ')(?![0-9A-Za-z_])');
+			let match;
 			do {
 				match = temp[0].match(regex);
 				if(match != null) {
-					let from = match[0], to = '${' + Math.random() + '}';
+					const from = match[0], to = '${' + Math.random() + '}';
 					temp[0] = temp[0].replace(from, to);
 					replace.push([from, to]);
 				}
@@ -4004,7 +4053,7 @@
 		updateToolOptions.headersGenerated = 0;
 
 		if(network.logging.logSamples) {
-			let html = '<button onclick="downloadSampleLog()" class="btn btn-warning fillx">Download log</button>';
+			const html = '<button onclick="downloadSampleLog()" class="btn btn-warning fillx">Download log</button>';
 			$('#sampleTable').html(html);
 		}
 		// Move the DOM textareas into the network logging code
@@ -4046,10 +4095,10 @@
 			network.stopAllMiners();
 		}
 
-		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
+		const sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
 		updateToolOptions.numSamples++;
 		for(let id in network.ID_Registry) {
-			let miner = network.peers[id];
+			const miner = network.peers[id];
 			if(updateToolOptions.samplerData[id] === undefined) {
 				// If new nodes were added since the beginning of logging, include them in the samples
 				registerSamplerForId(id);
@@ -4059,9 +4108,9 @@
 
 			if(network.logging.logNetworkData) {
 				try {
-					let numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
-					let blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
-					let artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
+					const numHopsAvg = miner.blockchain_numHops.reduce((a, b) => a + b) / miner.blockchain_numHops.length;
+					const blockDelayAvg = miner.blockchain_blockDelay.reduce((a, b) => a + b) / miner.blockchain_blockDelay.length;
+					const artificialBlockDelayAvg = miner.blockchain_artificialBlockDelay.reduce((a, b) => a + b) / miner.blockchain_artificialBlockDelay.length;
 					updateToolOptions.samplerData[id].sumNumHops += numHopsAvg;
 					updateToolOptions.samplerData[id].sumBlockDelay += blockDelayAvg;
 					updateToolOptions.samplerData[id].sumArtificialBlockDelay += artificialBlockDelayAvg;
@@ -4104,7 +4153,7 @@
 				let all_IDs = '', numHopsSum = 0, blockchainTravelTimeSum = 0, artificialBlockchainTravelTimeSum = 0, bufferSizeSum = 0, blocksInFlightSum = 0, latencySum = 0, downlinkSum = 0, uplinkSum = 0, heightSum = 0, totalBlocksSum = 0, staleBlocksSum = 0, maxForkLengthSum = 0;
 				// Compute the aggregate values for the averages
 				for(let id in network.ID_Registry) {
-					let miner = network.peers[id];
+					const miner = network.peers[id];
 					if(network.logging.logNetworkData) {
 						try { // Optional networking data
 							if(network.logging.columns['Blockchain IDs']) all_IDs += miner.blockchain_blockID?.join(' ') + ' ';
@@ -4141,7 +4190,7 @@
 
 			} else { // A per-node log
 				for(let id in network.ID_Registry) {
-					let miner = network.peers[id];
+					const miner = network.peers[id];
 					if(network.logging.columns['Miner name']) line += '"' + miner.name + '",';
 					if(network.logging.columns['Balance']) line += '"' + (miner.currentHeader.balances[id] || 0) + '",';
 					if(network.logging.columns['Balance %']) line += '"' + ((miner.currentHeader.balances[id] / balanceTotal * 100) || 0) + '",';
@@ -4209,15 +4258,15 @@
 	}
 
 	function updateSamplerTable() {
-		let sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
-		let html = '<thead>'
+		const sampleDuration = (updateToolOptions.sampleEndTime - updateToolOptions.sampleStartTime) / 1000;
+		let html = '<thead>';
 		if(updateToolOptions.samplerLog.length > 1) {
-			html += '<th colspan="3"><button onclick="downloadSampleLog()" class="btn btn-warning fillx">Download log'
+			html += '<th colspan="3"><button onclick="downloadSampleLog()" class="btn btn-warning fillx">Download log';
 			// Display how many samples are logged, if it's different from the sample number (i.e. if samples were dynamically toggled during experiment)
-			if(updateToolOptions.numSamples != updateToolOptions.samplerLog.length - 1) html += ' (' + (updateToolOptions.samplerLog.length - 1) + ')'
+			if(updateToolOptions.numSamples != updateToolOptions.samplerLog.length - 1) html += ' (' + (updateToolOptions.samplerLog.length - 1) + ')';
 			html += '</button></th>';
 		}
-		html += '<th colspan="8"><span class="text-warning lead">' + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? ' sample' : ' samples') + ' taken'
+		html += '<th colspan="8"><span class="text-warning lead">' + updateToolOptions.numSamples + (updateToolOptions.numSamples == 1 ? ' sample' : ' samples') + ' taken';
 		if(updateToolOptions.sampler_running) html += ' (' + sampleDuration + ' seconds)';
 		if(updateToolOptions.sampleTag.length > 0) html += ' (' + updateToolOptions.sampleTag + ')';
 		html += '</span>';
@@ -4248,10 +4297,14 @@
 
 		for(let id in network.ID_Registry) {
 			miners++;
+			if(updateToolOptions.samplerData[id] === undefined) continue;
 			sumAvgSumBalance += updateToolOptions.samplerData[id].sumBalance / updateToolOptions.numSamples;
 		}
 
 		for(let id in network.ID_Registry) {
+			if(updateToolOptions.samplerData[id] === undefined) {
+				registerSamplerForId(id);
+			}
 			miner = network.peers[id];
 			avgSumBalance = Math.floor(updateToolOptions.samplerData[id].sumBalance / updateToolOptions.numSamples * 1000) / 1000;
 			percentAvgSumBalance = Math.floor(avgSumBalance / sumAvgSumBalance * 100000) / 1000;
@@ -4302,10 +4355,10 @@
 		//		google-chrome --max_old_space_size=4096
 		if(name === undefined) {
 			if(network.name == '') name = 'PoW_log.csv';
-			else name = 'PoW_log_' + network.name.replace(/\s/g, '_') + '.csv';
+			else name = 'PoW_log_' + network.name.toString().replace(/\s/g, '_') + '.csv';
 		}
 		try {
-			let a = document.createElement('a');
+			const a = document.createElement('a');
 			a.setAttribute('href',	URL.createObjectURL(
 				new Blob(updateToolOptions.samplerLog, {type: 'text/plain'}))
 			);
@@ -4313,14 +4366,14 @@
 			a.click();
 			a.remove();
 		} catch(e) {
-			alert(e)
+			alert(e);
 		}
 	}
 
 	// Use arrow keys to explore the different blocks
-	document.getElementById('explorerOutput').addEventListener("keydown", function(event) {
+	document.getElementById('explorerOutput').addEventListener('keydown', function(event) {
 		event.preventDefault();
-		let e = document.getElementById('explorerMinerBlock');
+		const e = document.getElementById('explorerMinerBlock');
 		// On up or right arrow key press
 		if (event.keyCode === 38 || event.keyCode == 39) {
 			e.value++;
@@ -4340,51 +4393,51 @@
 		if(miner === undefined) return;
 		let foundBlockHeight = -1;
 		for(let i in miner.blockchain) {
-			let block = miner.blockchain[i];
-			let _color = '#' + intToRGB(hashCode(JSON_stringify(block)));
+			const block = miner.blockchain[i];
+			const _color = '#' + intToRGB(hashCode(JSON_stringify(block)));
 			if(color == _color) {
 				foundBlockHeight = block.height;
 			}
 		}
 		if(foundBlockHeight >= 0) {
 			$('#explorerMinerBlock').val(foundBlockHeight);
-			let str = 'Clicked ' + id +  '\'s block at height ' + foundBlockHeight.toString();
+			const str = 'Clicked ' + id +  '\'s block at height ' + foundBlockHeight.toString();
 			console.log(str);
-			$("#canvasVisualizer").attr('title', str);
+			$('#canvasVisualizer').attr('title', str);
 		} else {
-			$("#canvasVisualizer").attr('title', '');
+			$('#canvasVisualizer').attr('title', '');
 		}
 	}
 
 	// Update the blockchain explorer
 	function changeExplorerMiner() {
-		let id = $('#explorerMinerName').val();
-		let output = document.getElementById('explorerOutput');
-		let index = parseInt($('#explorerMinerBlock').val());
+		const id = $('#explorerMinerName').val();
+		const output = document.getElementById('explorerOutput');
+		const index = parseInt($('#explorerMinerBlock').val());
 		const miner = network.peers[id];
 
 		if(miner === undefined) {
 			output.value = '';
 			$('#explorerMinerMinerColor').css('background-color', 'transparent');
-			$("#explorerMinerMinerColor").attr('title', '');
+			$('#explorerMinerMinerColor').attr('title', '');
 			$('#explorerMinerBlockColor').css('background-color', 'transparent');
-			$("#explorerMinerBlockColor").attr('title', '');
+			$('#explorerMinerBlockColor').attr('title', '');
 		} else {
 
 			$('#explorerMinerMinerColor').css('background-color', miner.color);
-			$("#explorerMinerMinerColor").attr('title', miner.color);
+			$('#explorerMinerMinerColor').attr('title', miner.color);
 
-			let block = index >= 0 ? miner.getBlock(index) : miner.blockchain;
+			const block = index >= 0 ? miner.getBlock(index) : miner.blockchain;
 			if(block == null) {
 				output.value = miner.name + ':\nNO BLOCK FOUND';
 				$('#explorerMinerBlockColor').css('background-color', 'transparent');
-				$("#explorerMinerBlockColor").attr('title', '');
+				$('#explorerMinerBlockColor').attr('title', '');
 			} else {
 				output.value = miner.name + ':\n' + JSON_stringify(block, null, '\t');
 
-				let blockColor = '#' + intToRGB(hashCode(JSON_stringify(block)));
+				const blockColor = '#' + intToRGB(hashCode(JSON_stringify(block)));
 				$('#explorerMinerBlockColor').css('background-color', blockColor);
-				$("#explorerMinerBlockColor").attr('title', blockColor);
+				$('#explorerMinerBlockColor').attr('title', blockColor);
 			}
 		}
 		output.style.height = 'auto';

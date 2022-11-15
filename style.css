@@ -49,6 +49,11 @@ select option {
 	transition: height 2s;
 }
 
+#navbar {
+	max-height: 35px;
+	cursor: pointer;
+}
+
 .fillx {
 	min-width: 100%;
 	width: 100%;
@@ -70,6 +75,23 @@ select option {
 #jsoneditor, #topologyjsoneditor, #networkjsoneditor, #explorerOutput {
 	background-color: #FFF;
 	width: 100%;
+	min-height: 169px;
+}
+
+@media (max-width: 767px) {
+	#jsoneditor {
+		margin-left: 16px;
+	}
+}
+
+@media (max-width: 415px) {
+	#jsoneditor {
+		padding-right: 16px;
+		background-color: transparent;
+	}
+	.jsoneditor-mode-tree {
+		margin-right: 80px;
+	}
 }
 
 #canvasVisualizerCodeContainer {

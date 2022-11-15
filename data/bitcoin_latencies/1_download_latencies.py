@@ -44,6 +44,10 @@ for item in data:
 				ip = match_onion.group(1)
 				port = match_onion.group(2)
 				addresses.append([ip, port])
+
+			else:
+				print('Unknown address type:')
+				print(f'\t{address}')
 	else:
 		print(f'{item.capitalize()}: {data[item]}')
 
