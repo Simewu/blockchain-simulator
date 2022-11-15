@@ -103,6 +103,15 @@ select option {
 	overflow-x: hidden;
 }
 
+#canvasVisualizerSpan {
+	font-size: 10px;
+	display: none;
+	color: #AAA;
+	margin-left: 10px;
+	position: absolute;
+	top: 5px;
+}
+
 #canvasVisualizerCodeLabel {
 	color: #AAA;
 }

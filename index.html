@@ -171,6 +171,7 @@
 		</div>
 		<div class='row'>
 			<div class='col-md-12'>
+				<span id='canvasVisualizerSpan'></span>
 				<div id='networkVisualizer'></div>
 			</div>
 		</div>
@@ -1180,7 +1181,6 @@
 						}
 						if(edgeToMiner == ID) {
 							updateToolOptions.visNetwork.body.data.edges.remove(edgeID);
-							updateToolOptions.visNetwork.stabilize();
 							success = true;
 							break;
 						}
@@ -1648,10 +1648,45 @@
 				DOM_removeMiner();
 				selectMiner(Object.keys(network.peers)[0]);
 			}
+
+
+			if(updateToolOptions.visSimulationActive) {
+				if(network.peers[updateToolOptions.selectedMiner] !== undefined && network.peers[updateToolOptions.selectedMinerPrev] !== undefined) {
+					const span = document.getElementById('canvasVisualizerSpan');
+					if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
+						if(updateToolOptions.canvasVisualizerSpanThread == null) {
+							span.innerText = 'Connect ' + network.peers[updateToolOptions.selectedMiner].name + ' to ...';
+							span.style.display = 'block';
+						}
+					} else {
+						if(updateToolOptions.canvasVisualizerSpanThread == null) {
+							updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
+								span.innerHTML = '';
+								span.style.display = 'none';
+								updateToolOptions.canvasVisualizerSpanThread = null;
+							}, 100);
+						}
+					}
+				}
+			}
 		});
 		$(window).bind('keyup', function(event) {
 			updateToolOptions.isCtrlPressed = event.ctrlKey || event.metaKey;
 			updateToolOptions.isShiftPressed = event.shiftKey;
+
+			if(updateToolOptions.visSimulationActive) {
+				const span = document.getElementById('canvasVisualizerSpan');
+				if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
+				} else {
+					if(updateToolOptions.canvasVisualizerSpanThread == null) {
+						updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
+							span.innerHTML = '';
+							span.style.display = 'none';
+							updateToolOptions.canvasVisualizerSpanThread = null;
+						}, 1000);
+					}
+				}
+			}
 		});
 	});
 
@@ -2016,11 +2051,21 @@
 			updateToolOptions.selectedMinerPrev = updateToolOptions.selectedMiner;
 			if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
 				let isAlreadyConnected = network.peers[updateToolOptions.selectedMinerPrev].outgoingPeers[id];
+				let span = document.getElementById('canvasVisualizerSpan');
 				if(isAlreadyConnected) {
 					network.peers[updateToolOptions.selectedMinerPrev].removeConnection(id);
+					span.innerHTML = 'Disconnected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' from ' + network.peers[id].name + '.';
+					span.style.display = 'block';
 				} else {
 					network.peers[updateToolOptions.selectedMinerPrev].addConnection(id);
+					span.innerHTML = 'Connected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' to ' + network.peers[id].name + '.';
+					span.style.display = 'block';
 				}
+				updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
+					span.innerHTML = '';
+					span.style.display = 'none';
+					updateToolOptions.canvasVisualizerSpanThread = null;
+				}, 3000);
 			}
 		}
 		updateToolOptions.selectedMiner = id;
