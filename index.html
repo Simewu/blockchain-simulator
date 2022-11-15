@@ -1023,11 +1023,11 @@
 			const outgoingPeersBackup = Object.assign({}, this.outgoingPeers);
 
 			for(let id in outgoingPeersBackup) {
-				this.removeConnection(id);
+				this.removeConnection(id, false);
 			}
 			for(let id of incomingPeersBackup) {
 				if(network.peers[id] !== undefined) {
-					network.peers[id].removeConnection(this.ID);
+					network.peers[id].removeConnection(this.ID, false);
 				}
 			}
 			delete network.ID_Registry[this.ID];
@@ -1140,7 +1140,11 @@
 			let success = false;
 			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
 				try {
-					updateToolOptions.visNetwork.body.data.edges.add({'from': updateToolOptions.visNodeIDs[this.ID], 'to': updateToolOptions.visNodeIDs[ID], 'length': updateToolOptions.visLineLength});
+					updateToolOptions.visNetwork.body.data.edges.add({
+						'from': updateToolOptions.visNodeIDs[this.ID],
+						'to': updateToolOptions.visNodeIDs[ID],
+						'length': updateToolOptions.visLineLength
+					});
 					success = true;
 				} catch(e) {}
 			}
@@ -2644,11 +2648,11 @@
 					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addConnection(miners[i + 1].ID);
-					if(bidirectional) miners[i + 1].addConnection(miners[i].ID);
+					miners[i].addConnection(miners[i + 1].ID, false);
+					if(bidirectional) miners[i + 1].addConnection(miners[i].ID, false);
 				}
-				miners[miners.length - 1].addConnection(miners[0].ID);
-				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
+				miners[miners.length - 1].addConnection(miners[0].ID, false);
+				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID, false);
 				break;
 
 			case 'Mesh':
@@ -2702,8 +2706,8 @@
 
 						if(preventDuplicateConnections && (miners[i].ID == miners[r].ID || miners[i].outgoingPeers[miners[r].ID] !== undefined)) continue;
 
-						miners[i].addConnection(miners[r].ID);
-						if(bidirectional) miners[r].addConnection(miners[i].ID);
+						miners[i].addConnection(miners[r].ID, false);
+						if(bidirectional) miners[r].addConnection(miners[i].ID, false);
 					}
 				}
 				break;
@@ -2742,16 +2746,16 @@
 				}
 				if(bidirectional) {
 					for(let i = 1; i < miners.length; i++) {
-						miners[i].addConnection(miners[0].ID);
-						miners[0].addConnection(miners[i].ID);
+						miners[i].addConnection(miners[0].ID, false);
+						miners[0].addConnection(miners[i].ID, false);
 					}
 				} else if(towardsCenter) {
 					for(let i = 1; i < miners.length; i++) {
-						miners[i].addConnection(miners[0].ID);
+						miners[i].addConnection(miners[0].ID, false);
 					}
 				} else {
 					for(let i = 1; i < miners.length; i++) {
-						miners[0].addConnection(miners[i].ID);
+						miners[0].addConnection(miners[i].ID, false);
 					}
 				}
 				break;
@@ -2788,8 +2792,8 @@
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
-						miners[i].addConnection(miners[j].ID);
-						miners[j].addConnection(miners[i].ID);
+						miners[i].addConnection(miners[j].ID, false);
+						miners[j].addConnection(miners[i].ID, false);
 					}
 				}
 				break;
@@ -2826,8 +2830,8 @@
 					miners.push(newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true));
 				}
 				for(let i = 0; i < miners.length - 1; i++) {
-					miners[i].addConnection(miners[i + 1].ID);
-					if(bidirectional) miners[i + 1].addConnection(miners[i].ID);
+					miners[i].addConnection(miners[i + 1].ID, false);
+					if(bidirectional) miners[i + 1].addConnection(miners[i].ID, false);
 				}
 				break;
 
@@ -2876,10 +2880,10 @@
 					let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, true);
 					if(parent != null) {
 						if(bidirectional) {
-							miner.addConnection(parent.ID);
-							parent.addConnection(miner.ID);
+							miner.addConnection(parent.ID, false);
+							parent.addConnection(miner.ID, false);
 						} else {
-							miner.addConnection(parent.ID);
+							miner.addConnection(parent.ID, false);
 						}
 					}
 					for(let child of structure) {
@@ -2921,8 +2925,8 @@
 				}
 				for(let i = 0; i < miners.length; i++) {
 					for(let j = 0; j < miners.length; j++) {
-						miners[i].addConnection(miners[j].ID);
-						miners[j].addConnection(miners[i].ID);
+						miners[i].addConnection(miners[j].ID, false);
+						miners[j].addConnection(miners[i].ID, false);
 					}
 				}
 				break;
@@ -2979,7 +2983,7 @@
 
 						if(preventDuplicateConnections && (miners[0].ID == miners[r].ID || miners[0].outgoingPeers[miners[r].ID] !== undefined)) continue;
 
-						miners[0].addConnection(miners[r].ID);
+						miners[0].addConnection(miners[r].ID, false);
 					}
 				}
 
@@ -2994,17 +2998,17 @@
 						let p = numEdges / sumEdges;
 
 						if(Math.random() < p) {
-							miners[i].addConnection(miners[j].ID);
+							miners[i].addConnection(miners[j].ID, false);
 							connCount++;
 							if(connCount >= m) break;
 						}
 					}
 					if(i > 0 && miners[i].outgoingPeers[miners[i - 1].ID] === undefined) {
-						miners[i].addConnection(miners[i - 1].ID);
+						miners[i].addConnection(miners[i - 1].ID, false);
 					}
 				}
-				miners[miners.length - 1].addConnection(miners[0].ID);
-				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID);
+				miners[miners.length - 1].addConnection(miners[0].ID, false);
+				if(bidirectional) miners[0].addConnection(miners[miners.length - 1].ID, false);
 				break;
 
 			case 'Bitcoin':
@@ -3078,10 +3082,10 @@
 							if(loopBreaker <= 0) break;
 							continue;
 						}
-						miner1.addConnection(miner2.ID);
+						miner1.addConnection(miner2.ID, false);
 						minerNumberOfConnections[r1]++;
 						if(bidirectional) {
-							miner2.addConnection(miner1.ID);
+							miner2.addConnection(miner1.ID, false);
 							minerNumberOfConnections[r2]++;
 						}
 
