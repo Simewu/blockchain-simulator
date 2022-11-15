@@ -1131,14 +1131,14 @@
 			}
 		}
 
-		addConnection(ID) {
+		addConnection(ID, dynamicVisUpdate = true) {
 			if(this.ID == ID) return;
 			this.outgoingPeers[ID] = this.latency;
 			network.peers[ID].incomingPeers.push(this.ID);
 
 			// Add the edge to the vis container
 			let success = false;
-			if(updateToolOptions.visSimulationActive) {
+			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
 				try {
 					updateToolOptions.visNetwork.body.data.edges.add({'from': updateToolOptions.visNodeIDs[this.ID], 'to': updateToolOptions.visNodeIDs[ID], 'length': updateToolOptions.visLineLength});
 					success = true;
@@ -1147,7 +1147,7 @@
 			updateTools(!success);
 		}
 
-		removeConnection(ID) {
+		removeConnection(ID, dynamicVisUpdate = true) {
 			delete this.outgoingPeers[ID];
 
 			// Remove us from that peer's incoming peer list
@@ -1162,7 +1162,7 @@
 
 			// Remove the edge from the vis container
 			let success = false;
-			if(updateToolOptions.visSimulationActive) {
+			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
 				let edgeID, edgeIDs = updateToolOptions.visNetwork.getConnectedEdges(updateToolOptions.visNodeIDs[this.ID]);
 				try {
 					for(let edgeID of edgeIDs) {
@@ -1529,7 +1529,7 @@
 	function fullyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 in network.ID_Registry) {
-				network.peers[id1].addConnection(id2);
+				network.peers[id1].addConnection(id2, false);
 			}
 		}
 		DOM_setOptionMsg('FULLY CONNECTED', 'topology', 'badge-info');
@@ -1540,7 +1540,7 @@
 	function bidirectionallyConnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 in network.peers[id1].outgoingPeers) {
-				network.peers[id2].addConnection(id1);
+				network.peers[id2].addConnection(id1, false);
 			}
 		}
 		DOM_setOptionMsg('CONNECTED', 'topology', 'badge-info');
@@ -1551,7 +1551,7 @@
 	function fullyDisconnectPeers() {
 		for(let id1 in network.ID_Registry) {
 			for(let id2 in network.ID_Registry) {
-				network.peers[id1].removeConnection(id2);
+				network.peers[id1].removeConnection(id2, false);
 			}
 		}
 		DOM_setOptionMsg('DISCONNECTED', 'topology', 'badge-info');
