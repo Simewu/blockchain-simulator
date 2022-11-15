@@ -3650,6 +3650,7 @@
 
 		const code = network.logging.canvasVisualizerCode;
 		const canvas = updateToolOptions.canvasVisualizerCanvas;
+		if(canvas.height == 0) return;
 		const ctx = updateToolOptions.canvasVisualizerCtx;
 		const barsize = Math.ceil(canvas.height / numPeers);
 		const px = updateToolOptions.canvasVisualizerPixelStepSize ?? 1;
