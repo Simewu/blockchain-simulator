@@ -72,9 +72,10 @@
 								Network
 							</button>
 							<div class='dropdown-menu'>
-								<a class='dropdown-item' data-toggle='modal' data-target='#addMinerModal' onclick='addMinerBtnClicked()'><b>Add/edit miner</b></a>
-								<a id='removeMinerBtn' class='dropdown-item' onclick='DOM_removeMiner()'>Remove miner</a>
-								<a class='dropdown-item' onclick='if(confirm("You are about to remove all miners.")) DOM_removeAllMiners()'>Remove all miners</a>
+								<a class='dropdown-item' data-toggle='modal' data-target='#addMinerModal' onclick='addMinerBtnClicked()'><b>Add/edit miner</b><span class="badge badge-secondary float-right" style="margin-top:3px">E</span></a>
+								<a class='dropdown-item' onclick='DOM_duplicateMiner()'><span id='duplicateMinerBtn'>Duplicate miner</span><span class="badge badge-secondary float-right" style="margin-top:3px">D</span></a>
+								<a class='dropdown-item' onclick='DOM_removeMiner()'><span id='removeMinerBtn'>Remove miner</span><span class="badge badge-secondary float-right" style="margin-top:3px">Del</span></a>
+								<a class='dropdown-item' onclick='if(confirm("You are about to remove all miners.")) DOM_removeAllMiners()'>Remove all miners<span class="badge badge-secondary float-right" style="margin-top:3px">Shift+Del</span></a>
 								<a class='dropdown-item' onclick='DOM_sortMiners()'>Sort miners</a>
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='DOM_globalSetPower()'>Globally set power (hashes/s)</a>
@@ -104,11 +105,12 @@
 								<a class='dropdown-item' data-toggle='modal' data-target='#generateTopologyModal'><b>Generate a topology</b></a>
 								<a class='dropdown-item' onclick='duplicateTopology()'>Duplicate current topology</a>
 								<div class='dropdown-divider'></div>
-								<a class='dropdown-item' onclick='bidirectionallyConnectPeers()'>Connect nodes bidirectionally</a>
+								<a class='dropdown-item' onclick='toggleBidirectionalConnections()'>Toggle bidirectionality <span class="badge badge-secondary float-right" style="margin-top:3px">+</span></a>
+								<a class='dropdown-item' onclick='disconnectNonBidirectionalPeers()'>Remove partial edges <span class="badge badge-secondary float-right" style="margin-top:3px">&#8211;</span></a>
 								<a class='dropdown-item' onclick='fullyConnectPeers()'>Connect all nodes</a>
 								<a class='dropdown-item' onclick='fullyDisconnectPeers()'>Disconnect all nodes</a>
 								<div class='dropdown-divider'></div>
-								<a class='dropdown-item disabled' onclick='if(updateToolOptions.shiftKey) alert("Shift+Click on two nodes to either enable or disable their connection.")'>Toggle edges with <span class="badge badge-secondary float-right" style="margin-top:3px">Shift+Click</span></a>
+								<!-- <a class='dropdown-item disabled' onclick='if(updateToolOptions.shiftKey) alert("Shift+Click on two nodes to either enable or disable their connection.")'>Toggle edges <span class="badge badge-secondary float-right" style="margin-top:3px">Shift+Click</span></a> -->
 							</div>
 						</div>
 
@@ -125,15 +127,14 @@
 								<a class='dropdown-item' onclick='DOM_toggleMinerStatsTable()'>Toggle miner stats table</a>
 								<a class='dropdown-item' onclick='DOM_toggleSamplerForm()'>Toggle sampler</a>
 								<div class='dropdown-divider' id='vis_btn_delimeter' ></div>
-								<a class='dropdown-item' id='vis_refresh_btn' onclick='DOM_refreshVisualizer()'>Refresh visualizer</a>
-								<a class='dropdown-item' id='vis_physics_btn' onclick='DOM_togglePhysics()'>Disable visualizer physics</a>
+								<a class='dropdown-item' id='vis_refresh_btn' onclick='DOM_refreshVisualizer()'>Refresh visualizer<span class="badge badge-secondary float-right" style="margin-top:3px">R</span></a>
+								<a class='dropdown-item' onclick='DOM_togglePhysics()'><span id='vis_physics_btn'>Disable visualizer physics</span><span class="badge badge-secondary float-right" style="margin-top:3px">P</span></a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineLengths()'>Set line lengths</a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setBarWidths()'>Set bar widths</a>
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='formatSamplerCode()'>Format all sampler code</a>
 							</div>
 						</div>
-
 					</div>
 				</div>
 				<hr>
@@ -515,6 +516,8 @@
 		visLineLength: undefined,
 		visNetwork: null,
 		visNodeIDs: [],
+		visPhysics: true,
+		visPhysicsAutoSet: false,
 		visSimulationActive: true,
 		visTimeout: null,
 	};
@@ -567,6 +570,7 @@
 					'Total blocks found': true,
 					'Stale blocks found': true,
 					'Max fork length': true,
+					'Number of network partitions': true,
 				},
 				logNetworkData: false,
 				msPerSample: 20000,
@@ -973,7 +977,7 @@
 
 	// Miner class
 	class Miner {
-		constructor(name, power, latency, downlinkMBPS, uplinkMBPS) {
+		constructor(name, power, latency, downlinkMBPS, uplinkMBPS, color = 'default', dynamicVisUpdate = false) {
 			this.name = name;
 			// Register a unique ID
 			if(network.ID_Registry[this.name] === undefined) {
@@ -1015,24 +1019,56 @@
 				this.blockchain_blockDelay = [];
 				this.blockchain_artificialBlockDelay = [];
 			}
-			updateTools();
+
+			// Add miner to the vis container
+			let success = false;
+			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
+				try {
+					updateToolOptions.visNodeIDs[this.ID] = Math.max(...Object.values(updateToolOptions.visNodeIDs)) + 1;
+					updateToolOptions.visNetwork.body.data.nodes.add({
+						id: updateToolOptions.visNodeIDs[this.ID],
+						label: this.name,
+						color: color == 'default' ? undefined : color,
+					});
+					updateToolOptions.visNetwork.startSimulation();
+					success = true;
+				} catch(e) {}
+			}
+			updateTools(!success);
 		}
 
-		destructor() {
+		destructor(dynamicVisUpdate = false) {
 			this.stopMining();
 			const incomingPeersBackup = this.incomingPeers.slice();
 			const outgoingPeersBackup = Object.assign({}, this.outgoingPeers);
 
 			for(let id in outgoingPeersBackup) {
-				this.removeConnection(id, false);
+				this.removeConnection(id, dynamicVisUpdate);
 			}
 			for(let id of incomingPeersBackup) {
 				if(network.peers[id] !== undefined) {
-					network.peers[id].removeConnection(this.ID, false);
+					network.peers[id].removeConnection(this.ID, dynamicVisUpdate);
 				}
 			}
 			delete network.ID_Registry[this.ID];
-			updateTools();
+
+			// Remove miner from the vis container
+			let success = false;
+			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
+				try {
+					updateToolOptions.visNetwork.body.data.nodes.remove(updateToolOptions.visNodeIDs[this.ID]);
+					updateToolOptions.visNetwork.startSimulation();
+					success = true;
+				} catch(e) {}
+			}
+			updateTools(!success);
+		}
+
+		duplicate() {
+			let name = this.name.replace(/([^0-9]*).*/, '$1').trim(), id;
+			let miner = newMiner(name, this.power, this.latency, this.bandwidth.downlink, this.bandwidth.uplink, true, this.color, true);
+			this.removeConnection(miner.ID);
+			miner.removeConnection(this);
 		}
 
 		getBlock(height) {
@@ -1134,21 +1170,25 @@
 
 		addConnection(ID, dynamicVisUpdate = true) {
 			if(this.ID == ID) return;
+
+			let visNeedsUpdate = this.outgoingPeers[ID] === undefined;
 			this.outgoingPeers[ID] = this.latency;
 			network.peers[ID].incomingPeers.push(this.ID);
 
 			// Add the edge to the vis container
 			let success = false;
-			if(dynamicVisUpdate && updateToolOptions.visSimulationActive) {
+			if(visNeedsUpdate && dynamicVisUpdate && updateToolOptions.visSimulationActive) {
 				try {
 					updateToolOptions.visNetwork.body.data.edges.add({
 						'from': updateToolOptions.visNodeIDs[this.ID],
 						'to': updateToolOptions.visNodeIDs[ID],
 						'length': updateToolOptions.visLineLength
 					});
+					updateToolOptions.visNetwork.startSimulation();
 					success = true;
 				} catch(e) {}
 			}
+			if(!visNeedsUpdate) success = true;
 			updateTools(!success);
 		}
 
@@ -1181,6 +1221,7 @@
 						}
 						if(edgeToMiner == ID) {
 							updateToolOptions.visNetwork.body.data.edges.remove(edgeID);
+							updateToolOptions.visNetwork.startSimulation();
 							success = true;
 							break;
 						}
@@ -1509,7 +1550,7 @@
 	}
 
 	// Create a new miner
-	function newMiner(name0, power, latency, downlinkMBPS, uplinkMBPS, createNewIfExists = true) {
+	function newMiner(name0, power, latency, downlinkMBPS, uplinkMBPS, createNewIfExists = true, color = 'default', dynamicVisUpdate = false) {
 		let name = name0;
 		if(createNewIfExists) {
 			// Create a new name/miner by appending a counter to the end, so that the name is unique
@@ -1523,7 +1564,7 @@
 		for(let id in network.ID_Registry) {
 			if(network.peers[id].name == name) return;
 		}
-		const miner = new Miner(name, power, latency, downlinkMBPS, uplinkMBPS);
+		const miner = new Miner(name, power, latency, downlinkMBPS, uplinkMBPS, color, dynamicVisUpdate);
 		updateMinerList();
 		selectMiner(miner.ID); // Select it
 		return miner;
@@ -1541,13 +1582,60 @@
 	}
 
 	// Make all peer connections bidirectional
-	function bidirectionallyConnectPeers() {
-		for(let id1 in network.ID_Registry) {
+	function toggleBidirectionalConnections() {
+		let element = document.querySelector('#networkVisualizer');
+		if(element && !elementInViewport(element)) {
+			element.scrollIntoView({
+				behavior: 'smooth'
+			});
+		}
+		let changesMade = false;
+		for(let id1 in network.ID_Registry) { // Single direction --> Bidirectional
 			for(let id2 in network.peers[id1].outgoingPeers) {
-				network.peers[id2].addConnection(id1, false);
+				if(network.peers[id2].outgoingPeers[id1] === undefined) {
+					network.peers[id2].addConnection(id1, true);
+					changesMade = true;
+				}
+			}
+		}
+		if(changesMade == false) { // Bidirectional --> Single direction
+			updateToolOptions.unBidirectionalReverse = !updateToolOptions.unBidirectionalReverse;
+			for(let id1 in network.ID_Registry) {
+				for(let id2 in network.peers[id1].outgoingPeers) {
+					if(id2 == id1) continue;
+					if(updateToolOptions.unBidirectionalReverse) {
+						if(network.peers[id1].outgoingPeers[id2] !== undefined) {
+							network.peers[id2].removeConnection(id1, true);
+						}
+					} else {
+						if(network.peers[id2].outgoingPeers[id1] !== undefined) {
+							network.peers[id1].removeConnection(id2, true);
+						}
+					}
+				}
 			}
 		}
 		DOM_setOptionMsg('CONNECTED', 'topology', 'badge-info');
+		DOM_selectedMiner();
+	}
+
+	// Remove non-bidirectional connections
+	function disconnectNonBidirectionalPeers() {
+		let element = document.querySelector('#networkVisualizer');
+		if(element && !elementInViewport(element)) {
+			element.scrollIntoView({
+				behavior: 'smooth'
+			});
+		}
+		for(let id1 in network.ID_Registry) {
+			for(let id2 in network.peers[id1].outgoingPeers) {
+				if((network.peers[id2].outgoingPeers[id1] !== undefined && network.peers[id1].outgoingPeers[id2] === undefined) || (network.peers[id2].outgoingPeers[id1] === undefined && network.peers[id1].outgoingPeers[id2] !== undefined)) {
+					network.peers[id1].removeConnection(id2, true);
+					network.peers[id2].removeConnection(id1, true);
+				}
+			}
+		}
+		DOM_setOptionMsg('DISCONNECTED', 'topology', 'badge-info');
 		DOM_selectedMiner();
 	}
 
@@ -1634,6 +1722,7 @@
 		$(window).bind('keydown', function(event) {
 			updateToolOptions.isCtrlPressed = event.ctrlKey || event.metaKey;
 			updateToolOptions.isShiftPressed = event.shiftKey;
+			if(updateToolOptions.sampler_running) return;
 
 			if(updateToolOptions.isCtrlPressed) {
 				if(event.key == 's') {
@@ -1644,9 +1733,36 @@
 					event.preventDefault();
 				}
 			}
-			if(event.key == 'Delete' && !network.logging.logNetworkData) {
+			if(event.key == 'd') {
+				network.peers[updateToolOptions.selectedMiner]?.duplicate();
+				event.preventDefault();
+			}
+			if(event.key == 'e') {
+				addMinerBtnClicked();
+				event.preventDefault();
+			}
+			if(event.key == 'p') {
+				DOM_togglePhysics();
+				event.preventDefault();
+			}
+			if(event.key == 'r') {
+				DOM_refreshVisualizer();
+				event.preventDefault();
+			}
+			if(event.key == '+' || event.key == '=') {
+				toggleBidirectionalConnections();
+				event.preventDefault();
+			}
+			if(event.key == '-' || event.key == '_') {
+				disconnectNonBidirectionalPeers();
+				event.preventDefault();
+			}
+			if(updateToolOptions.isShiftPressed && event.key == 'Delete') {
+				DOM_removeAllMiners();
+			} else if(event.key == 'Delete') {
 				DOM_removeMiner();
 				selectMiner(Object.keys(network.peers)[0]);
+				event.preventDefault();
 			}
 
 
@@ -1673,6 +1789,7 @@
 		$(window).bind('keyup', function(event) {
 			updateToolOptions.isCtrlPressed = event.ctrlKey || event.metaKey;
 			updateToolOptions.isShiftPressed = event.shiftKey;
+			if(updateToolOptions.sampler_running) return;
 
 			if(updateToolOptions.visSimulationActive) {
 				const span = document.getElementById('canvasVisualizerSpan');
@@ -1757,6 +1874,13 @@
 
 		const numPeers = Object.keys(network.peers).length;
 		if(numPeers >= 50 && updateToolOptions.visSimulationActive) {
+			DOM_togglePhysics(false);
+			updateToolOptions.visPhysicsAutoSet = true;
+		} else if(numPeers < 50 && updateToolOptions.visPhysicsAutoSet) {
+			DOM_togglePhysics(true);
+			updateToolOptions.visPhysicsAutoSet = false;
+		}
+		if(numPeers >= 500 && updateToolOptions.visSimulationActive) {
 			let disableNetworkVisualizer  = confirm(`You are loading ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
 			if(disableNetworkVisualizer) {
 				toggleVisualizations();
@@ -2013,6 +2137,7 @@
 		if(miner === undefined) return;
 
 		$('#removeMinerBtn').text('Remove ' + miner.name);
+		$('#duplicateMinerBtn').text('Duplicate ' + miner.name);
 		$('#toggleMinerMiningBtn').text('Toggle mining for ' + miner.name);
 		$('#clearMinerBlockchainBtn').text('Clear blockchain for  ' + miner.name);
 
@@ -2045,30 +2170,37 @@
 		updateToolOptions.selectMinerTimeout = setTimeout(_selectMiner, 100, id, scrollTo);
 	}
 
+	// Connect the selected nodes
+	function connectSelectedNodes() {
+		if(updateToolOptions.selectedMinerPrev == updateToolOptions.selectedMiner) return;
+
+		let isAlreadyConnected = network.peers[updateToolOptions.selectedMinerPrev].outgoingPeers[updateToolOptions.selectedMiner];
+		let span = document.getElementById('canvasVisualizerSpan');
+		if(isAlreadyConnected) {
+			network.peers[updateToolOptions.selectedMinerPrev].removeConnection(updateToolOptions.selectedMiner);
+			span.innerHTML = 'Disconnected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' from ' + network.peers[updateToolOptions.selectedMiner].name + '.';
+			span.style.display = 'block';
+		} else {
+			network.peers[updateToolOptions.selectedMinerPrev].addConnection(updateToolOptions.selectedMiner);
+			span.innerHTML = 'Connected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' to ' + network.peers[updateToolOptions.selectedMiner].name + '.';
+			span.style.display = 'block';
+		}
+		updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
+			span.innerHTML = '';
+			span.style.display = 'none';
+			updateToolOptions.canvasVisualizerSpanThread = null;
+		}, 3000);
+	}
+
 	// Select a miner from the mining list
 	function _selectMiner(id, scrollTo) {
 		if(id != updateToolOptions.selectedMiner) {
 			updateToolOptions.selectedMinerPrev = updateToolOptions.selectedMiner;
-			if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
-				let isAlreadyConnected = network.peers[updateToolOptions.selectedMinerPrev].outgoingPeers[id];
-				let span = document.getElementById('canvasVisualizerSpan');
-				if(isAlreadyConnected) {
-					network.peers[updateToolOptions.selectedMinerPrev].removeConnection(id);
-					span.innerHTML = 'Disconnected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' from ' + network.peers[id].name + '.';
-					span.style.display = 'block';
-				} else {
-					network.peers[updateToolOptions.selectedMinerPrev].addConnection(id);
-					span.innerHTML = 'Connected ' + network.peers[updateToolOptions.selectedMinerPrev].name + ' to ' + network.peers[id].name + '.';
-					span.style.display = 'block';
-				}
-				updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
-					span.innerHTML = '';
-					span.style.display = 'none';
-					updateToolOptions.canvasVisualizerSpanThread = null;
-				}, 3000);
-			}
 		}
 		updateToolOptions.selectedMiner = id;
+		if(updateToolOptions.isCtrlPressed || updateToolOptions.isShiftPressed) {
+			connectSelectedNodes();
+		}
 		$('#minerList option:selected').prop('selected', false);
 		if(id === undefined) return;
 		$('#minerList option[value="' + id + '"]').prop('selected', true);
@@ -2245,7 +2377,7 @@
 		const downlinkMBPS = parseFloat($('#addMinerDownloadMBPS').val());
 		const uplinkMBPS = parseFloat($('#addMinerUploadMBPS').val());
 		const peers = $('#multiselectAddPeers').val();
-		let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, false);
+		let miner = newMiner(name, power, latency, downlinkMBPS, uplinkMBPS, false, 'default', true);
 		if(miner === undefined) {
 			// The same name exists, check if any options have changed, otherwise edit the miner
 			miner = network.findPeerByName(name);
@@ -2293,6 +2425,22 @@
 		}
 	}
 
+	function DOM_duplicateMiner() {
+		const e = $('#minerList option:selected');
+		const miner = network.peers[e.val()];
+		if(miner === undefined) {
+			DOM_setOptionMsg('NO MINER SELECTED', 'network', 'badge-warning');
+			return;
+		}
+		const name = miner.name;
+		if(miner === undefined) {
+			DOM_setOptionMsg('NO MINER SELECTED', 'network', 'badge-warning');
+		} else {
+			miner.duplicate();
+			$('#duplicateMinerBtn').text('Duplicate miner');
+		}
+	}
+
 	function DOM_removeMiner() {
 		const e = $('#minerList option:selected');
 		const miner = network.peers[e.val()];
@@ -2304,7 +2452,7 @@
 		if(miner === undefined) {
 			DOM_setOptionMsg('NO MINER SELECTED', 'network', 'badge-warning');
 		} else {
-			miner.destructor();
+			miner.destructor(true);
 			delete network.peers[e.val()];
 			e.remove();
 			$('#removeMinerBtn').text('Remove miner');
@@ -2633,9 +2781,16 @@
 		try {
 			// Do an extra check to disable the network visualizer if it may be too computationally taxing
 			let json = topologyjsoneditor.get();
-			if(json['Number of peers'] !== undefined && json['Type'] != 'Bitcoin') { // The Bitcoin topology automatically disables the visualizer
+			if(json['Number of peers'] !== undefined) {
 				const numPeers = parseInt(json['Number of peers']) || 0;
 				if(numPeers >= 50 && updateToolOptions.visSimulationActive) {
+					DOM_togglePhysics(false);
+					updateToolOptions.visPhysicsAutoSet = true;
+				} else if(numPeers < 50 && updateToolOptions.visPhysicsAutoSet) {
+					DOM_togglePhysics(true);
+					updateToolOptions.visPhysicsAutoSet = false;
+				}
+				if(numPeers >= 500 && updateToolOptions.visSimulationActive) {
 					let disableNetworkVisualizer  = confirm(`You are generating ${numPeers} nodes. Would you like to disable the network visualizer for an increase in performance?`);
 					if(disableNetworkVisualizer) {
 						toggleVisualizations();
@@ -3069,11 +3224,6 @@
 				maxUplinkMBPS = options['Maximum uplink (megabytes per second)'] ?? Infinity;
 				latencyUrl = options['Latency distribution URL'] ?? 'data/bitcoin_latencies/bitcoin_latencies.csv';
 				names = options['Naming cycle'] ?? ['Node '];
-
-				if(updateToolOptions.visSimulationActive) {
-					console.info('Disabling the topology visualizer for improved performance. This can be re-enabled under "Display" --> "Toggle visualizations".');
-					toggleVisualizations();
-				}
 
 				// Force numConnections to be in array format
 				if(!Array.isArray(numConnections)) {
@@ -3550,7 +3700,7 @@
 			ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(2, barsize / 2 - 1), 0, 2 * Math.PI);
 			ctx.fill();
 
-			if(id == updateToolOptions.selectedMiner) {
+			if(id == updateToolOptions.selectedMiner && Object.keys(network.peers).length >= 2) {
 				ctx.fillStyle = '#000';
 				ctx.beginPath();
 				ctx.arc(canvas.width - barsize / 1.5, y + barsize / 2, Math.max(1, barsize / 2 - 4), 0, 2 * Math.PI);
@@ -3640,9 +3790,10 @@
 	}
 
 	function updateCanvasVisualizer() {
-		if(updateToolOptions.visSimulationActive == false) {
+		if(updateToolOptions.visSimulationActive == false || Object.keys(network.peers).length == 0) {
 			clearInterval(updateToolOptions.canvasVisualizerThread);
 			updateToolOptions.canvasVisualizerThread = null;
+			clearCanvasVisualizer();
 			return;
 		}
 
@@ -3652,7 +3803,7 @@
 		const canvas = updateToolOptions.canvasVisualizerCanvas;
 		if(canvas.height == 0) return;
 		const ctx = updateToolOptions.canvasVisualizerCtx;
-		const barsize = Math.ceil(canvas.height / numPeers);
+		let barsize = Math.ceil(canvas.height / numPeers);
 		const px = updateToolOptions.canvasVisualizerPixelStepSize ?? 1;
 
 		const imageData = ctx.getImageData(px, 0, canvas.width - px - Math.floor(barsize * 1.5), canvas.height);
@@ -3685,11 +3836,30 @@
 		vis_container.style.opacity = '0';
 	}
 
-	function DOM_togglePhysics() {
-		const physics = !updateToolOptions.visNetwork.physics.options.enabled;
-		if(physics) $('#vis_physics_btn').text('Disable visualizer physics');
-		else $('#vis_physics_btn').text('Enable visualizer physics');
+	function DOM_togglePhysics(physics = null) {
+		let span = document.getElementById('canvasVisualizerSpan');
+		if(physics == null) {
+			physics = (!updateToolOptions.visNetwork.physics.options.enabled) || false;
+		}
+		updateToolOptions.visPhysics = physics;
+		if(physics) {
+			$('#vis_physics_btn').text('Disable visualizer physics');
+			span.innerHTML = 'Enabled physics';
+		} else {
+			$('#vis_physics_btn').text('Enable visualizer physics');
+			span.innerHTML = 'Disabled physics';
+		}
 		updateToolOptions.visNetwork.physics.setOptions({'enabled': physics});
+		if(physics) {
+			updateToolOptions.visNetwork.startSimulation();
+		}
+	
+		span.style.display = 'block';
+		updateToolOptions.canvasVisualizerSpanThread = setTimeout(function() {
+			span.innerHTML = '';
+			span.style.display = 'none';
+			updateToolOptions.canvasVisualizerSpanThread = null;
+		}, 3000);
 	}
 
 	function DOM_setLineLengths() {
@@ -3787,7 +3957,7 @@
 				zoomSpeed: 0.2
 			},
 			physics: {
-				enabled: true
+				enabled: updateToolOptions.visPhysics
 			}
 		};
 
@@ -3819,6 +3989,10 @@
 				}
 			}
 			selectMiner(minerID, false);
+		});
+
+		updateToolOptions.visNetwork.on('doubleClick', function (params) {
+			connectSelectedNodes();
 		});
 
 		updateToolOptions.visNetwork.view.canvas.frame.addEventListener('focus', function() {
@@ -4241,7 +4415,6 @@
 				if(network.logging.columns['Total blocks found']) line += '"' + (totalBlocksSum / numMiners) + '",';
 				if(network.logging.columns['Stale blocks found']) line += '"' + (staleBlocksSum / numMiners) + '",';
 				if(network.logging.columns['Max fork length']) line += '"' + (maxForkLengthSum / numMiners) + '",';
-
 			} else { // A per-node log
 				for(let id in network.ID_Registry) {
 					const miner = network.peers[id];
@@ -4269,6 +4442,7 @@
 					if(network.logging.columns['Max fork length']) line += '"' + (miner.largestForkLength || 0) + '",';
 				}
 			}
+			if(network.logging.columns['Number of network partitions']) line += '"' + numberOfNetworkPartitions().toString() + '",';
 			updateToolOptions.samplerLog.push(line + '\r\n');
 		}
 		if(network.logging.resetBlockchainAfterEachSample) {
@@ -4497,5 +4671,53 @@
 		output.style.height = 'auto';
 		output.style.height = (output.scrollHeight) + 'px';
 	}
+
+	// Count the number of partitions in the network
+	function numberOfNetworkPartitions() {
+		const unvisited = Object.keys(network.peers);
+		let numPartitions = 0;
+		const walk = (node, depth = 0) => {
+			let adjacent = Object.keys(network.peers[node].outgoingPeers);
+			for(let adjacentNode of adjacent) {
+				const index = unvisited.indexOf(adjacentNode);
+				if(index != -1) {
+					walk(unvisited.splice(index, 1), depth + 1);
+				}
+			}
+		}
+		while(unvisited.length > 0) {
+			numPartitions++;
+			let node = unvisited.shift();
+			walk(node);
+		}
+		return numPartitions;
+	}
+
+	// // Count the number of partitions in the network
+	// function networkDiameter() {
+	// 	const unvisited = Object.keys(network.peers);
+	// 	let numPartitions = 0;
+	// 	const walk = (node, depth = 0) => {
+	// 		let adjacent = Object.keys(network.peers[node].outgoingPeers);
+	// 		let diameter = 0, deadEnd = false;
+	// 		for(let adjacentNode of adjacent) {
+	// 			const index = unvisited.indexOf(adjacentNode);
+	// 			if(index != -1) {
+	// 				let d = walk(unvisited.splice(index, 1), depth + 1);
+	// 				if(d > diameter) diameter = d;
+	// 				deadEnd = true;
+	// 			}
+	// 		}
+	// 		if(deadEnd == false) return depth;
+	// 		return diameter;
+	// 	}
+	// 	while(unvisited.length > 0) {
+	// 		numPartitions++;
+	// 		let node = unvisited.shift();
+	// 		let diameter = walk(node);
+	// 		console.log('diameter', diameter)
+	// 	}
+	// 	return numPartitions;
+	// }
 </script>
 </html>
