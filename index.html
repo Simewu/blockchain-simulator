@@ -4882,9 +4882,15 @@
 			powerProportion[peer] = network.peers[peer].power;
 			totalPower += network.peers[peer].power;
 		}
-		if(totalPower == 0) return 0;
-		for(let peer of peers) {
-			powerProportion[peer] /= totalPower;
+		if(totalPower == 0) {
+			// Equal power proportion if there is no computing power
+			for(let peer of peers) {
+				powerProportion[peer] = 1 / peers.length;
+			}
+		} else {
+			for(let peer of peers) {
+				powerProportion[peer] /= totalPower;
+			}
 		}
 		let propagationTime = {};
 		for(let i of peers) {
@@ -4913,9 +4919,15 @@
 			powerProportion[peer] = network.peers[peer].power;
 			totalPower += network.peers[peer].power;
 		}
-		if(totalPower == 0) return 0;
-		for(let peer of peers) {
-			powerProportion[peer] /= totalPower;
+		if(totalPower == 0) {
+			// Equal power proportion if there is no computing power
+			for(let peer of peers) {
+				powerProportion[peer] = 1 / peers.length;
+			}
+		} else {
+			for(let peer of peers) {
+				powerProportion[peer] /= totalPower;
+			}
 		}
 		let propagationTime = {};
 		for(let i of peers) {
