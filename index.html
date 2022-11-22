@@ -571,6 +571,10 @@
 					'Stale blocks found': true,
 					'Max fork length': true,
 					'Number of network partitions': true,
+					'Diameter of the network (number of hops)': false,
+					'Diameter of the network (latency)': false,
+					'Estimated time for a block to reach all nodes': false,
+					'Estimated time for a block to reach 50% of nodes': false,
 				},
 				logNetworkData: false,
 				msPerSample: 20000,
@@ -4443,6 +4447,10 @@
 				}
 			}
 			if(network.logging.columns['Number of network partitions']) line += '"' + numberOfNetworkPartitions().toString() + '",';
+			if(network.logging.columns['Diameter of the network (number of hops)']) line += '"' + networkHopsDiameter().toString() + '",';
+			if(network.logging.columns['Diameter of the network (latency)']) line += '"' + networkLatencyDiameter().toString() + '",';
+			if(network.logging.columns['Estimated time for a block to reach all nodes']) line += '"' + computeTimeForFullPropagation().toString() + '",';
+			if(network.logging.columns['Estimated time for a block to reach 50% of nodes']) line += '"' + computeTimeForAveragePropagation().toString() + '",';
 			updateToolOptions.samplerLog.push(line + '\r\n');
 		}
 		if(network.logging.resetBlockchainAfterEachSample) {
@@ -4693,31 +4701,235 @@
 		return numPartitions;
 	}
 
-	// // Count the number of partitions in the network
-	// function networkDiameter() {
-	// 	const unvisited = Object.keys(network.peers);
-	// 	let numPartitions = 0;
-	// 	const walk = (node, depth = 0) => {
-	// 		let adjacent = Object.keys(network.peers[node].outgoingPeers);
-	// 		let diameter = 0, deadEnd = false;
-	// 		for(let adjacentNode of adjacent) {
-	// 			const index = unvisited.indexOf(adjacentNode);
-	// 			if(index != -1) {
-	// 				let d = walk(unvisited.splice(index, 1), depth + 1);
-	// 				if(d > diameter) diameter = d;
-	// 				deadEnd = true;
-	// 			}
-	// 		}
-	// 		if(deadEnd == false) return depth;
-	// 		return diameter;
-	// 	}
-	// 	while(unvisited.length > 0) {
-	// 		numPartitions++;
-	// 		let node = unvisited.shift();
-	// 		let diameter = walk(node);
-	// 		console.log('diameter', diameter)
-	// 	}
-	// 	return numPartitions;
-	// }
+	// Find the shortest path from node A to node B using Dijkstra's algorithm
+	function shortestLatencyPath(ID_A, ID_B) {
+		return _shortestLatencyPath(ID_A, ID_B)[0]
+	}
+	function shortestLatencyPathDistance(ID_A, ID_B) {
+		return _shortestLatencyPath(ID_A, ID_B)[1]
+	}
+	function _shortestLatencyPath(ID_A, ID_B) {
+		const nodeA = network.peers[ID_A];
+		const nodeB = network.peers[ID_B];
+		if(nodeA === undefined || nodeB === undefined) return null;
+		class PriorityQueue {
+			constructor() {
+				this.collection = [];
+			};
+			enqueue(element) {
+				if (this.isEmpty()) {
+					this.collection.push(element);
+				} else {
+					let added = false;
+					for (let i = 1; i <= this.collection.length; i++) {
+						if (element[1] < this.collection[i - 1][1]) {
+							this.collection.splice(i - 1, 0, element);
+							added = true;
+							break;
+						}
+					}
+					if (!added) {
+						this.collection.push(element);
+					}
+				}
+			};
+			dequeue() {
+				let value = this.collection.shift();
+				return value;
+			};
+			isEmpty() {
+				return (this.collection.length === 0)
+			};
+		}
+		let times = {};
+		let backtrace = {};
+		let pq = new PriorityQueue();
+		times[ID_A] = 0;
+		const peers = Object.keys(network.peers);
+		for(let node of peers) {
+			if (node != ID_A) {
+				times[node] = Infinity
+			}
+		}
+		pq.enqueue([ID_A, 0]);
+		while (!pq.isEmpty()) {
+			let shortestStep = pq.dequeue();
+			let currentNode = shortestStep[0];
+			let adjacent = Object.keys(network.peers[currentNode].outgoingPeers);
+			for(let neighbor of adjacent) {
+				let time = times[currentNode] + (network.peers[currentNode].outgoingPeers[neighbor] || neighbor.latency || 0);
+				if (time < times[neighbor]) {
+					times[neighbor] = time;
+					backtrace[neighbor] = currentNode;
+					pq.enqueue([neighbor, time]);
+				}
+			}
+		}
+		let path = [ID_B];
+		let lastStep = ID_B;
+		while (backtrace[lastStep] !== undefined && lastStep !== ID_A) {
+			path.unshift(backtrace[lastStep])
+			lastStep = backtrace[lastStep]
+		}
+		if(times[ID_B] === Infinity) return [Infinity, Infinity];
+		return [path, times[ID_B]];
+	}
+
+	// Returns null if one of the nodes doesn't exist
+	// Returns Infinity if there is no path from A to B
+	// Otherwise, it returns the shortest path from A to B
+	function shortestHopsPath(ID_A, ID_B) {
+		const nodeA = network.peers[ID_A];
+		const nodeB = network.peers[ID_B];
+		if(nodeA === undefined || nodeB === undefined) return null;
+		const destination = ID_B;
+		const visited = [];
+		visited.push(ID_A);
+		let queue = [
+			[ID_A, [ID_A]]
+		];
+		while(queue.length > 0) {
+			const item = queue.shift();
+			const node = item[0];
+			const route = item[1];
+			if(node == destination) {
+				return route;
+			}
+			let adjacent = Object.keys(network.peers[node].outgoingPeers);
+			for(let adjacentNode of adjacent) {
+				const index = visited.indexOf(adjacentNode);
+				if(index == -1) {
+					visited.push(adjacentNode);
+					queue.push([adjacentNode, [...route, adjacentNode]]);
+				}
+			}
+		}
+		return Infinity;
+	}
+
+	// Get the network's diameter (e.g. largest minimum path hops)
+	function networkHopsDiameter() {
+		return networkHopsDiameterPath().length - 1;
+	}
+
+	// Get the largest minimum path (number of hops)
+	function networkHopsDiameterPath() {
+		const ignoreInfinity = true;
+		const peers = Object.keys(network.peers);
+		let maxMinPath = [];
+		for(let i of peers) {
+			for(let j of peers) {
+				if(i == j) continue;
+				const minPath = shortestHopsPath(i, j);
+				if(minPath == null) continue;
+				if(ignoreInfinity && minPath == Infinity) {
+					continue;
+				}
+				if(minPath.length > maxMinPath.length) {
+					maxMinPath = minPath;
+				}
+			}
+		}
+		return maxMinPath;
+	}
+
+	// Get the largest minimum path (latency)
+	function networkLatencyDiameter() {
+		const ignoreInfinity = true;
+		const peers = Object.keys(network.peers);
+		let maxMinLatency = 0;
+		for(let i of peers) {
+			for(let j of peers) {
+				if(i == j) continue;
+				const minPath = shortestLatencyPathDistance(i, j);
+				if(ignoreInfinity && minPath == Infinity) {
+					continue;
+				}
+				if(minPath > maxMinLatency) {
+					maxMinLatency = minPath;
+				}
+			}
+		}
+		return maxMinLatency;
+	}
+
+	// Get the largest minimum path (latency)
+	function networkLatencyDiameterPath() {
+		const ignoreInfinity = true;
+		const peers = Object.keys(network.peers);
+		let maxMinPath = [];
+		for(let i of peers) {
+			for(let j of peers) {
+				if(i == j) continue;
+				const minPath = shortestLatencyPath(i, j);
+				if(ignoreInfinity && minPath == Infinity) {
+					continue;
+				}
+				if(minPath.length > maxMinPath.length) {
+					maxMinPath = minPath;
+				}
+			}
+		}
+		return maxMinPath;
+	}
+
+	// Milliseconds for a block to reach all of the nodes
+	// Assumes every node has infinite bandwidth
+	function computeTimeForFullPropagation() {
+		const peers = Object.keys(network.peers);
+		let powerProportion = {}, totalPower = 0;
+		for(let peer of peers) {
+			powerProportion[peer] = network.peers[peer].power;
+			totalPower += network.peers[peer].power;
+		}
+		if(totalPower == 0) return 0;
+		for(let peer of peers) {
+			powerProportion[peer] /= totalPower;
+		}
+		let propagationTime = {};
+		for(let i of peers) {
+			let maximumPropagationTime = 0;
+			for(let j of peers) {
+				let time = shortestLatencyPathDistance(i, j);
+				if(time > maximumPropagationTime) {
+					maximumPropagationTime = time;
+				}
+			}
+			propagationTime[i] = maximumPropagationTime;
+		}
+		estimatedBlockPropTime = 0;
+		for(let i of peers) {
+			estimatedBlockPropTime += propagationTime[i] * powerProportion[i];
+		}
+		return estimatedBlockPropTime;
+	}
+
+	// Milliseconds for a block to reach 50% of the nodes
+	// Assumes every node has infinite bandwidth
+	function computeTimeForAveragePropagation() {
+		const peers = Object.keys(network.peers);
+		let powerProportion = {}, totalPower = 0;
+		for(let peer of peers) {
+			powerProportion[peer] = network.peers[peer].power;
+			totalPower += network.peers[peer].power;
+		}
+		if(totalPower == 0) return 0;
+		for(let peer of peers) {
+			powerProportion[peer] /= totalPower;
+		}
+		let propagationTime = {};
+		for(let i of peers) {
+			let aggregatePropagationTime = 0;
+			for(let j of peers) {
+				aggregatePropagationTime += shortestLatencyPathDistance(i, j);
+			}
+			propagationTime[i] = aggregatePropagationTime / peers.length;
+		}
+		estimatedBlockPropTime = 0;
+		for(let i of peers) {
+			estimatedBlockPropTime += propagationTime[i] * powerProportion[i];
+		}
+		return estimatedBlockPropTime;
+	}
 </script>
 </html>
