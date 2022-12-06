@@ -573,6 +573,8 @@
 					'Number of network partitions': true,
 					'Diameter of the network (number of hops)': false,
 					'Diameter of the network (latency)': false,
+					'Number of edges (ignoring bidirectional)': false,
+					'Number of edges (including bidirectional)': false,
 					'Estimated time for a block to reach all nodes': false,
 					'Estimated time for a block to reach 50% of nodes': false,
 				},
@@ -4449,6 +4451,8 @@
 			if(network.logging.columns['Number of network partitions']) line += '"' + numberOfNetworkPartitions().toString() + '",';
 			if(network.logging.columns['Diameter of the network (number of hops)']) line += '"' + networkHopsDiameter().toString() + '",';
 			if(network.logging.columns['Diameter of the network (latency)']) line += '"' + networkLatencyDiameter().toString() + '",';
+			if(network.logging.columns['Number of edges (ignoring bidirectional)']) line += '"' + countNumberOfEdges(true).toString() + '",';
+			if(network.logging.columns['Number of edges (including bidirectional)']) line += '"' + countNumberOfEdges(false).toString() + '",';
 			if(network.logging.columns['Estimated time for a block to reach all nodes']) line += '"' + computeTimeForFullPropagation().toString() + '",';
 			if(network.logging.columns['Estimated time for a block to reach 50% of nodes']) line += '"' + computeTimeForAveragePropagation().toString() + '",';
 			updateToolOptions.samplerLog.push(line + '\r\n');
@@ -4942,6 +4946,35 @@
 			estimatedBlockPropTime += propagationTime[i] * powerProportion[i];
 		}
 		return estimatedBlockPropTime;
+	}
+
+	// Count the total number of network connections
+	// If ignoreBidirectional is enabled, then two edges going to and from two nodes will only be considered one edge, otherwise it will be considered two edges.
+	function countNumberOfEdges(ignoreBidirectional = true) {
+		const peers = Object.keys(network.peers);
+		let numEdges = 0;
+		if(ignoreBidirectional) {
+			for(i in peers) {
+				let peer = network.peers[peers[i]];
+				let outgoing = Object.keys(peer.outgoingPeers);
+				for(let id of outgoing) {
+					if(id == peer.ID) continue;
+					let peer2 = network.peers[id];
+					if(peer2.outgoingPeers[peer.ID] !== undefined) {
+						numEdges += 0.5;
+					} else {
+						numEdges += 1;
+					}
+				}
+			}
+		} else {
+			for(i in peers) {
+				let peer = network.peers[peers[i]];
+				let outgoing = Object.keys(peer.outgoingPeers);
+				numEdges += outgoing.length;
+			}
+		}
+		return numEdges;
 	}
 </script>
 </html>
