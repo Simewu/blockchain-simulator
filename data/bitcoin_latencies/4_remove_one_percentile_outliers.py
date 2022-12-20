@@ -11,7 +11,7 @@ def getQuantiles():
 	latencies = []
 	tempHeader = next(reader)
 	for row in reader:
-		latencies.append(float(row[1]))
+		latencies.append(float(row[3]))
 	readerFile.close()
 	return [numpy.percentile(latencies, 1), numpy.percentile(latencies, 99)]
 
@@ -32,7 +32,7 @@ numRows = 0
 numRemovedRows = 0
 
 for row in reader:
-	latency = float(row[1])
+	latency = float(row[3])
 	if latency > quantiles[0] and latency < quantiles[1]:
 		writer.writerow(row)
 	else:
