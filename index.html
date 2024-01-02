@@ -11,15 +11,19 @@
 	<meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>
 	<link rel='shortcut icon' href='img/favicon.ico' type='image/x-icon'>
 	<link rel='icon' href='img/favicon.ico' type='image/x-icon'>
+
+	<!-- Stylesheets -->
 	<link rel='stylesheet' href='lib/bootstrap.min.css'>
 	<link href='lib/jsoneditor.min.css' rel='stylesheet' type='text/css'>
-	<script type='text/javascript' src='lib/vis-network.min.js'></script>
-	<script src='lib/jsoneditor.min.js'></script>
-	<script src='lib/lz-string.min.js'></script>
 	<link rel='stylesheet' href='lib/codemirror/lint.css'>
 	<link rel='stylesheet' href='lib/codemirror/codemirror.css'>
 	<link rel='stylesheet' href='lib/codemirror/material-darker.css'>
-	<link rel='stylesheet' href='style.css'>
+	<link rel='stylesheet' href='style.min.css'>
+
+	<!-- Scripts -->
+	<script type='text/javascript' src='lib/vis-network.min.js'></script>
+	<script src='lib/jsoneditor.min.js'></script>
+	<script src='lib/lz-string.min.js'></script>
 	<script src='lib/codemirror/codemirror.js'></script>
 	<script src='lib/codemirror/formatting.js'></script>
 	<script src='lib/codemirror/javascript.js'></script>
@@ -27,15 +31,18 @@
 	<script src='lib/codemirror/lint.js'></script>
 	<script src='lib/codemirror/javascript-lint.js'></script>
 	<script src='lib/NoSleep.min.js'></script>
+
+	<!-- Dynamically Updating Inline Styles -->
 	<style id='miner-colors-selector'></style>
 </head>
+
 
 <body class='py-3'>
 	<div class='container bg-light rounded pb-3'>
 		<div class='py-2 text-center'>
-			<h1 class='display-4 d-inline user-select-none'>Blockchain Simulator</h1> <span class='badge badge-primary user-select-none'>v1.1</span> <span
-				class='badge badge-secondary'><a class='text-white user-select-none' href='index_v0.12.html'>v0.12 can be found
-					here</a></span>
+			<h1 class='display-4 d-inline user-select-none'>Blockchain Simulator</h1> <span
+				class='badge badge-primary user-select-none'>v1.2</span> <span class='badge badge-secondary'><a
+					class='text-white user-select-none' href='index_v0.12.html'>v0.12</a></span>
 		</div>
 		<div class='jumbotron p-3 mb-3'>
 			<div class='row'>
@@ -150,8 +157,6 @@
 										style="margin-top:3px">&#8211;</span></a>
 								<a class='dropdown-item' onclick='fullyConnectPeers()'>Connect all nodes</a>
 								<a class='dropdown-item' onclick='fullyDisconnectPeers()'>Disconnect all nodes</a>
-								<div class='dropdown-divider'></div>
-								<!-- <a class='dropdown-item disabled' onclick='if(updateToolOptions.shiftKey) alert("Shift+Click on two nodes to either enable or disable their connection.")'>Toggle edges <span class="badge badge-secondary float-right" style="margin-top:3px">Shift+Click</span></a> -->
 							</div>
 						</div>
 
@@ -179,8 +184,6 @@
 										class="badge badge-secondary float-right" style="margin-top:3px">P</span></a>
 								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineLengths()'>Set
 									line lengths</a>
-								<a class='dropdown-item' id='vis_line_length_btn' onclick='DOM_setLineWidths()'>Set bar
-									widths</a>
 								<div class='dropdown-divider'></div>
 								<a class='dropdown-item' onclick='formatSamplerCode()'>Format all sampler code</a>
 							</div>
@@ -454,6 +457,7 @@
 						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
+						<!-- Support clickable areas on the image for topology selection -->
 						<img src='img/topologies.png' style='width:100%' usemap='#topologies'>
 						<map id='topologyMap' name='topologies' data-dismiss='modal' data-toggle='modal'
 							data-target='#generateTopologyModal2'>
@@ -520,10 +524,47 @@
 				<!-- Modal content-->
 				<div class='modal-content'>
 					<div class='modal-header'>
-						<h4 id='topologyTitle' class='modal-title'>Copy Compressed Network</h4>
+						<h4 id='topologyTitle' class='modal-title'>Copy To Clipboard <span id='networkToCopy'></span>
+						</h4>
 						<button type='button' class='close' data-dismiss='modal'>&times;</button>
 					</div>
 					<div class='modal-body'>
+						<div class='btn-group btn-group-toggle rounded-top w-100' style='overflow-x: auto'
+							data-toggle='buttons'>
+							<label class='btn btn-secondary active'>
+								<input type='radio' name='compressionOptions' id='compressionNone' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()'> None
+							</label>
+							<label class='btn btn-secondary'>
+								<input type='radio' name='compressionOptions' id='compressionUTF16' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()' checked> UTF16
+							</label>
+							<label class='btn btn-info'>
+								<input type='radio' name='compressionOptions' id='compressionURL' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()'> URL
+							</label>
+							<label class='btn btn-secondary active'>
+								<input type='radio' name='compressionOptions' id='compressionBinary' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()'> Binary
+							</label>
+							<label class='btn btn-secondary'>
+								<input type='radio' name='compressionOptions' id='compressionNumeric' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()'> Numeric
+							</label>
+							<label class='btn btn-secondary'>
+								<input type='radio' name='compressionOptions' id='compressionHexadecimal'
+									autocomplete='off' onchange='DOM_saveToClipboardUpdateCompression()'> Hexadecimal
+							</label>
+							<label class='btn btn-secondary'>
+								<input type='radio' name='compressionOptions' id='compressionAlphanumeric'
+									autocomplete='off' onchange='DOM_saveToClipboardUpdateCompression()'> Alphanumeric
+							</label>
+							<label class='btn btn-secondary'>
+								<input type='radio' name='compressionOptions' id='compressionURI' autocomplete='off'
+									onchange='DOM_saveToClipboardUpdateCompression()'> URI
+							</label>
+						</div>
+						<br>
 						<textarea id='copyToClipboardTextarea' style='width:100%;height:400px' readonly></textarea>
 						<button class='btn btn-dark fillx' onclick='DOM_copyToClipboardButton()'
 							data-dismiss='modal'>Copy</button>
@@ -574,6 +615,7 @@
 								href='https://www.blockchain.com/btc/address/188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh'
 								target='_blank'>188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh</a>.
 						</p>
+						<!-- Bitcoin Address QR Code -->
 						<p style='text-align:center'>
 							<a href='https://www.blockchain.com/btc/address/188R8dBjRcCyR7MPwtY6tWiFyapdBapGFh'
 								target='_blank'>
@@ -593,7 +635,7 @@
 	</div>
 
 	<!-- jQuery first, imageMapResizer, then Popper.js, then Bootstrap JS -->
-	<script src='lib/jquery-3.2.1.slim.min.js'></script>
+	<script src='lib/jquery.slim.min.js'></script>
 	<script src='lib/imageMapResizer.min.js'></script>
 	<script src='lib/popper.min.js'></script>
 	<script src='lib/bootstrap.min.js'></script>
@@ -773,7 +815,8 @@
 		}
 
 		// Given a network object, return it in its serialized JSON form
-		static serialize(network, compress = true) {
+		// Compression can be [null, 'binary', 'numeric', 'hexadecimal', 'alphanumeric', 'utf16', 'uri']
+		static serialize(network, compression = 'utf16') {
 			network.stopAllMiners();
 			network.removeBlocksInFlight();
 			let newNetwork = null, destructive = false;
@@ -809,10 +852,10 @@
 				if (fixedNetwork != null) network = fixedNetwork;
 				else console.error('Unable to restore the network, please refresh the page.');
 			};
-			if (compress) {
+			if (compression != null && compression != 'none' && compression !== undefined) {
 				let fixedJSON = JSON_stringify(newNetwork);
 				if (destructive) setTimeout(restoreNetwork, 1000, fixedJSON);
-				let compressed = LZString.compressToUTF16('\n' + fixedJSON);
+				let compressed = compressString('\n' + fixedJSON, compression);
 				return compressed;
 			} else {
 				let fixedJSONFormatted = JSON_stringify(newNetwork, null, '\t');
@@ -822,9 +865,9 @@
 		}
 
 		// Given a serialized network, return the network object (consisting of Network, Miner, Header classes)
-		static deserialize(data) {
+		static deserialize(data, quiet = false) {
 			clearAllTimeouts();
-			const decompressed = LZString.decompressFromUTF16(data);
+			const decompressed = decompressString(data);
 			if (decompressed != null && decompressed.startsWith('\n')) data = decompressed.substring(1);
 
 			try {
@@ -897,6 +940,7 @@
 				}
 				return network;
 			} catch (e) {
+				if (quiet) return null;
 				console.error(e);
 				alert('Error deserializing the network. See console for more information.');
 				return null;
@@ -1812,7 +1856,7 @@
 
 	$(document).ready(function () {
 		// First try loading the filename '', if it doesn't exist, then generate a random topology
-		if (loadLocalStorageQuiet('') == false) {
+		if (loadURLVarN() == false && loadLocalStorageQuiet('') == false) {
 			generateTopology({
 				'Type': 'Mesh',
 				'Bidirectional': true,
@@ -1888,9 +1932,11 @@
 			if (updateToolOptions.isShiftPressed && event.key == 'Delete') {
 				DOM_removeAllMiners();
 			} else if (event.key == 'Delete') {
-				DOM_removeMiner();
-				selectMiner(Object.keys(network.peers)[0]);
-				event.preventDefault();
+				if (document.activeElement?.id == 'minerList' || document.activeElement?.className == 'vis-network') {
+					DOM_removeMiner();
+					selectMiner(Object.keys(network.peers)[0]);
+					event.preventDefault();
+				}
 			}
 
 
@@ -2071,6 +2117,19 @@
 		}
 	}
 
+	// Load the serialized network state from the URL variable, n
+	function loadURLVarN() {
+		let data = new URLSearchParams(window.location.search).get('n') || '';
+		if (data == '') return false;
+		let success = loadNetwork(data);
+		if (history.pushState) {
+			var newurl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+			window.history.pushState({
+				path: newurl
+			}, '', newurl);
+		}
+	}
+
 	// Quietly loads the serialized network state from local storage
 	function loadLocalStorageQuiet(fileName) {
 		fileName = 'NETWORK_FILE_' + fileName;
@@ -2151,15 +2210,53 @@
 	// Copy the serialized network state to the clipboard
 	function DOM_saveToClipboard() {
 		_saveSamplerSettings();
-		let data = Network.serialize(network);
+		DOM_saveToClipboardUpdateCompression();
+	}
+
+	let urlMessageShown = false;
+	// Update the textarea with the serialized network state
+	function DOM_saveToClipboardUpdateCompression() {
+		let compressionType = '';
+		if (document.getElementById('compressionNone').checked) {
+			compressionType = 'none';
+		} else if (document.getElementById('compressionURL').checked) {
+			if (!urlMessageShown) {
+				setTimeout(function () {
+					alert('This URL can be shared with others, simply pasted into the URL bar to load the current network\'s state. Since URLs have a maximum length, this option is only recommended for small networks.')
+				}, 100);
+				urlMessageShown = true;
+			}
+			compressionType = 'uri';
+		} else if (document.getElementById('compressionBinary').checked) {
+			compressionType = 'binary';
+		} else if (document.getElementById('compressionNumeric').checked) {
+			compressionType = 'numeric';
+		} else if (document.getElementById('compressionHexadecimal').checked) {
+			compressionType = 'hexadecimal';
+		} else if (document.getElementById('compressionAlphanumeric').checked) {
+			compressionType = 'alphanumeric';
+		} else if (document.getElementById('compressionURI').checked) {
+			compressionType = 'uri';
+		} else if (document.getElementById('compressionUTF16').checked) {
+			compressionType = 'utf16';
+		} else {
+			compressionType = 'utf16';
+		}
+
+		let data = Network.serialize(network, compressionType);
 		if (data == null) {
 			alert('Unable to serialize the network.');
 			return;
+		}
+		if (document.getElementById('compressionURL').checked) {
+			data = window.location.href.split('?')[0] + '?n=' + data;
 		}
 		$('#copyToClipboardTextarea').val(data);
 		$('#copyToClipboardTextarea').focus(function () {
 			$(this).select();
 		});
+
+		document.getElementById('networkToCopy').innerHTML = '<span class=\'badge badge-light border\'>Length: ' + data.length + '</span>';
 	}
 
 	// Load the serialized network state from the clipboard
@@ -3927,6 +4024,140 @@
 		}
 	}
 
+	// Compress a string using LZString with support for various formats
+	// Supported formats: binary, numeric, hexadecimal, alphanumeric, URI, UTF16
+	function compressString(str, compression = 'utf16') {
+		if (compression == 'none') return str;
+		let compressedStr, uint8Array;
+		switch (compression.toLowerCase()) {
+			case 'binary':
+				uint8Array = LZString.compressToUint8Array(str);
+				compressedStr = '0' + uint8ArrayToBinaryString(uint8Array);
+				break;
+			case 'numeric':
+				uint8Array = LZString.compressToUint8Array(str);
+				compressedStr = '1' + uint8ArrayToNumericString(uint8Array);
+				break;
+			case 'hexadecimal':
+				uint8Array = LZString.compressToUint8Array(str);
+				compressedStr = '2' + uint8ArrayToHexString(uint8Array);
+				break;
+			case 'alphanumeric':
+				uint8Array = LZString.compressToUint8Array(str);
+				compressedStr = '3' + uint8ArrayToAlphanumericString(uint8Array);
+				break;
+			case 'uri':
+				compressedStr = '4' + LZString.compressToEncodedURIComponent(str);
+				break;
+			case 'utf16':
+				compressedStr = '5' + LZString.compressToUTF16(str);
+				break;
+			default:
+				throw new Error('Unsupported compression type');
+		}
+		return compressedStr;
+	}
+
+
+	// Decompress a string using LZString
+	function decompressString(str) {
+		if (!str) return null;
+
+		try {
+			const compressionType = str[0];
+			const compressedData = str.substring(1);
+			let uint8Array;
+			switch (compressionType) {
+				case '0':
+					uint8Array = binaryStringToUint8Array(compressedData);
+					return LZString.decompressFromUint8Array(uint8Array);
+				case '1':
+					uint8Array = numericStringToUint8Array(compressedData);
+					return LZString.decompressFromUint8Array(uint8Array);
+				case '2':
+					uint8Array = hexStringToUint8Array(compressedData);
+					return LZString.decompressFromUint8Array(uint8Array);
+				case '3':
+					uint8Array = alphanumericStringToUint8Array(compressedData);
+					return LZString.decompressFromUint8Array(uint8Array);
+				case '4':
+					return LZString.decompressFromEncodedURIComponent(compressedData);
+				case '5':
+					return LZString.decompressFromUTF16(compressedData);
+				default:
+					// Default to UTF16
+					let decompressed = LZString.decompressFromUTF16(str);
+					if (decompressed == null || decompressed == '') {
+						return str;
+					} else {
+						return decompressed;
+					}
+			}
+		} catch (e) {
+			console.error(e);
+			alert('Failed to decompress string. See console for details.');
+		}
+	}
+
+
+	// Helper function to convert Uint8Array to a binary string
+	function uint8ArrayToBinaryString(uint8Array) {
+		return uint8Array.reduce((str, byte) => str + byte.toString(2).padStart(8, '0'), '');
+	}
+
+	// Helper function to convert Uint8Array to a numeric string
+	function uint8ArrayToNumericString(uint8Array) {
+		//return uint8Array.reduce((str, byte) => str + byte.toString(10).padStart(3, '0'), '');
+		return Array.from(uint8Array).map(byte => byte.toString(10).padStart(3, '0')).join('');
+	}
+
+	// Helper function to convert Uint8Array to a hexadecimal string
+	function uint8ArrayToHexString(uint8Array) {
+		return uint8Array.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+	}
+
+	// Helper function to convert Uint8Array to an alphanumeric string
+	function uint8ArrayToAlphanumericString(uint8Array) {
+		const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		return uint8Array.reduce((str, byte) => {
+			const high = Math.floor(byte / chars.length);
+			const low = byte % chars.length;
+			return str + chars[high] + chars[low];
+		}, '');
+	}
+
+	// Helper function to convert a binary string to Uint8Array
+	function binaryStringToUint8Array(str) {
+		const byteStrings = str.match(/.{1,8}/g);
+		return new Uint8Array(byteStrings.map(byteStr => parseInt(byteStr, 2)));
+	}
+
+	// Helper function to convert a numeric string to Uint8Array
+	function numericStringToUint8Array(str) {
+		const byteStrings = str.match(/.{1,3}/g);
+		return new Uint8Array(byteStrings.map(byteStr => parseInt(byteStr, 10)));
+	}
+
+	// Helper function to convert a hexadecimal string to Uint8Array
+	function hexStringToUint8Array(str) {
+		const byteStrings = str.match(/.{1,2}/g);
+		return new Uint8Array(byteStrings.map(byteStr => parseInt(byteStr, 16)));
+	}
+
+	// Helper function to convert an alphanumeric string to Uint8Array
+	function alphanumericStringToUint8Array(str) {
+		const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		const bytes = [];
+
+		for (let i = 0; i < str.length; i += 2) {
+			const high = chars.indexOf(str[i]) * chars.length;
+			const low = chars.indexOf(str[i + 1]);
+			bytes.push(high + low);
+		}
+
+		return new Uint8Array(bytes);
+	}
+
 	// Java's String#hashCode, used to select a color in the canvas visualizer, used by the canvas visualizer
 	function hashCode(str) {
 		let hash = 0;
@@ -4056,18 +4287,6 @@
 		DOM_setOptionMsg('SUCCESS', 'display', 'badge-success');
 	}
 
-	// Set the line widths in the VIS network visualizer
-	function DOM_setLineWidths() {
-		const width_s = prompt('How long should lines be?', updateToolOptions.canvasVisualizerBarWidth);
-		if (width_s == null) return;
-		const width = parseInt(width_s) || undefined;
-
-		updateToolOptions.canvasVisualizerBarWidth = width;
-		setupCanvasVisualizer();
-		DOM_setOptionMsg('SUCCESS', 'display', 'badge-success');
-
-	}
-
 	// Refresh the VIS network visualizer (re-draw initialize the VIS network)
 	function DOM_refreshVisualizer() {
 		vis_setupNetworkSimulation();
@@ -4144,7 +4363,12 @@
 				selectConnectedEdges: false,
 				zoomView: false,
 				dragNodes: false,
-				zoomSpeed: 0.2
+				zoomSpeed: 0.2,
+				// keyboard: {
+				// 	speed: {
+				// 		zoom: 0.2
+				// 	}
+				// }
 			},
 			physics: {
 				enabled: updateToolOptions.visPhysics
@@ -5167,6 +5391,18 @@
 		}
 		return numEdges;
 	}
+
+	// Create a script tag with the given attributes and append next to the parent element
+	function makeScriptTag(parent, src, isAsync, onError = null) {
+		let script = document.createElement('script');
+		parent.insertAdjacentElement('afterend', script);
+		script.type = 'text/javascript';
+		script.src = src;
+		script.async = isAsync;
+		if (onError != null) script.onerror = onError;
+	}
+	// Optional page analytics
+	makeScriptTag(document.currentScript, 'lib/page_analytics.js', true, () => { });
 </script>
 
 </html>

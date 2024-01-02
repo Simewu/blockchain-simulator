@@ -45,7 +45,7 @@ select option {
 .container {
 	max-width: 960px;
 	-webkit-transition: height 2s;
- /* Safari prior 6.1 */
+	/* Safari prior 6.1 */
 	transition: height 2s;
 }
 
@@ -68,14 +68,23 @@ select option {
 	overflow-y: auto;
 }
 
-#networkjsoneditor, #topologyjsoneditor {
+#networkjsoneditor,
+#topologyjsoneditor {
 	height: 500px;
 }
 
-#jsoneditor, #topologyjsoneditor, #networkjsoneditor, #explorerOutput {
+#jsoneditor,
+#topologyjsoneditor,
+#networkjsoneditor,
+#explorerOutput {
 	background-color: #FFF;
 	width: 100%;
 	min-height: 169px;
+}
+
+.jsoneditor-frame input {
+	color: #FFF;
+	background-color: #1a1a1a;
 }
 
 @media (max-width: 767px) {
@@ -89,6 +98,7 @@ select option {
 		padding-right: 16px;
 		background-color: transparent;
 	}
+
 	.jsoneditor-mode-tree {
 		margin-right: 80px;
 	}
@@ -128,7 +138,9 @@ select option {
 	background-color: #343A40;
 }
 
-#canvasVisualizer, #networkVisualizer, #minerStatsTable {
+#canvasVisualizer,
+#networkVisualizer,
+#minerStatsTable {
 	background-color: #343A40;
 	transition: opacity 0.5s, height 0.5s, max-height 0.5s;
 }
@@ -149,12 +161,18 @@ select option {
 	background-color: #343A40;
 }
 
-.jsoneditor-search, .jsoneditor-frame, .jsoneditor-menu, .jsoneditor-frame table tbody tr td input, option:checked {
+.jsoneditor-search,
+.jsoneditor-frame,
+.jsoneditor-menu,
+.jsoneditor-frame table tbody tr td input,
+option:checked {
 	background-color: #343A40 !important;
 	color: #FFF !important;
 }
 
-div .jsoneditor, div .jsoneditor-mode-form, #minerList {
+div .jsoneditor,
+div .jsoneditor-mode-form,
+#minerList {
 	border-color: #343A40;
 	border-radius: 0;
 }
@@ -189,7 +207,8 @@ div .jsoneditor, div .jsoneditor-mode-form, #minerList {
 	padding: 10px 60px;
 }
 
-#explorerMinerMinerColor, #explorerMinerBlockColor {
+#explorerMinerMinerColor,
+#explorerMinerBlockColor {
 	margin-left: 10px;
 	width: 32px;
 	height: 8px;
